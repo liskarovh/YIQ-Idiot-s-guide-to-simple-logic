@@ -12,27 +12,26 @@ pr:
 
 jobs:
 - job: build_and_deploy_frontend
-  displayName: Build and Deploy React to SWA
+  displayName: Build & Deploy React (Vite) → Azure Static Web Apps
   pool:
     vmImage: ubuntu-latest
   steps:
     - checkout: self
 
+    # Volitelně připni verzi Node
     - task: NodeTool@0
-      inputs: { versionSpec: '20' }
-
-    - script: |
-        cd src/App/web
-        export VITE_API_BASE_URL="$(API_BASE_URL)"
-        npm ci
-        npm run build
-      displayName: Build (Vite)
-
-    # Nahraj již postavený obsah do SWA (skip build v tasku)
-    - task: AzureStaticWebApp@0
-      displayName: Upload to Azure Static Web Apps
       inputs:
-        azure_static_web_apps_api_token: $(SWA_DEPLOYMENT_TOKEN)  # SECRET!
-        app_location: "src/App/web"
-        output_location: "dist"
-        skip_app_build: true
+        versionSpec: '20'
+
+    # SWA task: provede npm install + build + deploy
+    - task: AzureStaticWebApp@0
+      displayName: Build + Deploy to SWA
+      env:
+        # Dostane se do Vite během buildu
+        VITE_API_BASE_URL: $(API_BASE_URL)
+      inputs:
+        # ↓ Secret token z portálu SWA (Manage deployment token)
+        azure_static_web_apps_api_token: $(SWA_DEPLOYMENT_TOKEN)
+        app_location: 'src/App/web'   # kde je package.json a index.html
+        api_location: ''              # nepoužíváme Functions
+        output_location: 'dist'       # Vite build výstup
