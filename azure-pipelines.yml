@@ -1,0 +1,94 @@
+trigger:
+  branches: { include: [ main ] }
+
+variables:
+  nodeVersion: '20'
+  pythonVersion: '3.12'
+  frontendOutput: 'dist'  # Vite = dist
+  # vyplň v Library/Variables nebo ve Variable group:
+  # WEBAPP_NAME = název App Service (např. is-backend-webapp)
+  # FRONTEND_ORIGIN = https://<tvoje-swa>.azurestaticapps.net
+  # API_BASE_URL = https://$(WEBAPP_NAME).azurewebsites.net
+  # SWA_DEPLOYMENT_TOKEN = <z infra-setup.sh nebo z portálu SWA>
+  # AZURE_SUBSCRIPTION = service connection name
+
+stages:
+
+# ===== Frontend -> Azure Static Web Apps =====
+- stage: Frontend
+  displayName: Frontend (React → SWA)
+  jobs:
+  - job: build_and_deploy_frontend
+    pool: { vmImage: 'ubuntu-latest' }
+    steps:
+      - task: NodeTool@0
+        inputs: { versionSpec: '$(nodeVersion)' }
+      - script: |
+          cd src/App/web
+          # build s proměnnou do Vite
+          export VITE_API_BASE_URL="$(API_BASE_URL)"
+          npm ci
+          npm run build
+        displayName: Build React
+      - task: AzureCLI@2
+        displayName: Deploy to Azure Static Web Apps
+        inputs:
+          azureSubscription: '$(AZURE_SUBSCRIPTION)'
+          scriptType: bash
+          scriptLocation: inlineScript
+          inlineScript: |
+            npm i -g @azure/static-web-apps-cli
+            swa deploy \
+              --app-location "./src/App/web" \
+              --output-location "$(frontendOutput)" \
+              --env production \
+              --deployment-token "$(SWA_DEPLOYMENT_TOKEN)"
+
+# ===== Backend -> Azure App Service (Linux) =====
+- stage: Backend
+  displayName: Backend (FastAPI → App Service)
+  jobs:
+  - job: test_and_deploy_backend
+    pool: { vmImage: 'ubuntu-latest' }
+    steps:
+      - task: UsePythonVersion@0
+        inputs: { versionSpec: '$(pythonVersion)' }
+
+      # In the root of the package must be the file requirements.txt aswell as folder src/
+      - bash: |
+          mkdir -p out
+          cp -R src out/src
+          cp src/requirements.txt out/requirements.txt
+        displayName: Stage backend package
+
+      # TODO: testing via PyTest
+      # - bash: |
+      #     pip install -r src/requirements.txt
+      #     pytest -q
+
+      - task: ArchiveFiles@2
+        inputs:
+          rootFolderOrFile: 'out'
+          includeRootFolder: false
+          archiveType: 'zip'
+          archiveFile: '$(Build.ArtifactStagingDirectory)/backend.zip'
+
+      # App Settings: Oryx build + CORS
+      - task: AzureAppServiceSettings@1
+        displayName: Configure App Settings
+        inputs:
+          azureSubscription: '$(AZURE_SUBSCRIPTION)'
+          appName: '$(WEBAPP_NAME)'
+          appSettings: |
+            [
+              { "name": "SCM_DO_BUILD_DURING_DEPLOYMENT", "value": "true", "slotSetting": false },
+              { "name": "FRONTEND_ORIGIN", "value": "$(FRONTEND_ORIGIN)", "slotSetting": false }
+            ]
+
+      - task: AzureWebApp@1
+        displayName: Deploy to App Service (ZipDeploy)
+        inputs:
+          azureSubscription: '$(AZURE_SUBSCRIPTION)'
+          appType: 'webAppLinux'
+          appName: '$(WEBAPP_NAME)'
+          package: '$(Build.ArtifactStagingDirectory)/backend.zip'
