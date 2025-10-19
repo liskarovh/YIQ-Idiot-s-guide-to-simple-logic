@@ -41,7 +41,7 @@ stages:
         inputs:
           azureSubscription: '$(AZURE_SUBSCRIPTION)'
           appName: '$(WEBAPP_NAME)'
-          resourceGroupName: '$(RESOURCE_GROUP_NAME)'
+          resourceGroupName: '$(WEBAPP_RG)'
           appSettings: |
             [
               { "name": "SCM_DO_BUILD_DURING_DEPLOYMENT", "value": "true", "slotSetting": false },
