@@ -70,6 +70,7 @@ stages:
               { "name": "SCM_DO_BUILD_DURING_DEPLOYMENT", "value": "false", "slotSetting": false },
               { "name": "WEBSITE_RUN_FROM_PACKAGE", "value": "1", "slotSetting": false },
               { "name": "WEBSITES_PORT", "value": "5000", "slotSetting": false },
+              { "name": "ENABLE_ORYX_BUILD", "value": "false", "slotSetting": false },
               { "name": "PYTHONPATH", "value": "/home/site/wwwroot", "slotSetting": false },
               { "name": "FRONTEND_ORIGIN", "value": "$(FRONTEND_ORIGIN)", "slotSetting": false }
             ]
@@ -85,7 +86,7 @@ stages:
             az webapp config set \
               -g $(WEBAPP_RG) \
               -n $(WEBAPP_NAME) \
-              --startup-file "/home/site/wwwroot/.venv/bin/python gunicorn --bind 0.0.0.0:5000 --timeout 600 app:app"
+              --startup-file "/home/site/wwwroot/.venv/bin/python -m gunicorn --bind 0.0.0.0:5000 --timeout 600 app:app"
 
       - task: AzureWebApp@1
         displayName: Deploy to App Service (ZipDeploy)
