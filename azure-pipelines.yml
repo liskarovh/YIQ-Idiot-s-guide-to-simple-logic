@@ -20,7 +20,6 @@ stages:
         displayName: Use Python $(pythonVersion)
         inputs: { versionSpec: '$(pythonVersion)' }
 
-      # >>> DŮLEŽITÉ: rozbalíme obsah src do KOŘENE balíčku
       - bash: |
           set -eux
           rm -rf out && mkdir -p out
@@ -28,27 +27,15 @@ stages:
           # Copy all files from backend directory
           if [ -d "src/Backend" ]; then
             cp -r src/Backend/* out/ 2>/dev/null || echo "No files in src/Backend to copy"
-            # Also copy hidden files if any
             cp -r src/Backend/.[!.]* out/ 2>/dev/null || true
           fi
           
           # Copy requirements.txt to root of out
           cp requirements.txt out/requirements.txt
-
-          # Create venv and install requirements *inside* the out folder
-          cd out
-          python3 -m venv .venv # Create a virtual environment named .venv
-          source .venv/bin/activate
-          pip install --upgrade pip
-          pip install -r requirements.txt
-          deactivate
-          cd ..
           
-          echo "Contents of out directory:"
+          echo "Contents of out directory (no venv):"
           ls -la out
-          echo "All files:"
-          find out -type f
-        displayName: Stage backend package (flatten src to root)
+        displayName: Stage backend package (files only)
 
       - task: ArchiveFiles@2
         displayName: Create deployment package
@@ -58,26 +45,26 @@ stages:
           archiveType: 'zip'
           archiveFile: '$(Build.ArtifactStagingDirectory)/Backend.zip'
 
-      # App Settings (Oryx build + port + import path + CORS)
+      # App Settings: Povolíme Oryx Build
       - task: AzureAppServiceSettings@1
-        displayName: Configure App Settings
+        displayName: Configure App Settings (Enable Oryx Build)
         inputs:
           azureSubscription: '$(AZURE_SUBSCRIPTION)'
           appName: '$(WEBAPP_NAME)'
           resourceGroupName: '$(WEBAPP_RG)'
           appSettings: |
             [
-              { "name": "SCM_DO_BUILD_DURING_DEPLOYMENT", "value": "false", "slotSetting": false },
-              { "name": "WEBSITE_RUN_FROM_PACKAGE", "value": "1", "slotSetting": false },
+              { "name": "SCM_DO_BUILD_DURING_DEPLOYMENT", "value": "true", "slotSetting": false },
+              { "name": "PYTHON_VERSION", "value": "$(pythonVersion)", "slotSetting": false },
               { "name": "WEBSITES_PORT", "value": "5000", "slotSetting": false },
-              { "name": "ENABLE_ORYX_BUILD", "value": "false", "slotSetting": false },
-              { "name": "PYTHONPATH", "value": "/home/site/wwwroot", "slotSetting": false },
-              { "name": "FRONTEND_ORIGIN", "value": "$(FRONTEND_ORIGIN)", "slotSetting": false }
+              { "name": "FRONTEND_ORIGIN", "value": "$(FRONTEND_ORIGIN)", "slotSetting": false },
+              { "name": "WEBSITE_RUN_FROM_PACKAGE", "value": "0", "slotSetting": false }, 
+              { "name": "ENABLE_ORYX_BUILD", "value": "true", "slotSetting": false }
             ]
 
-      # Jednorázově (idempotentně) nastavíme startup (gunnicorn)
+      # Nastavíme startup (gunicorn) - BEZ .venv cesty
       - task: AzureCLI@2
-        displayName: Set startup command (gunicorn with --chdir)
+        displayName: Set startup command (gunicorn)
         inputs:
           azureSubscription: '$(AZURE_SUBSCRIPTION)'
           scriptType: bash
@@ -86,7 +73,7 @@ stages:
             az webapp config set \
               -g $(WEBAPP_RG) \
               -n $(WEBAPP_NAME) \
-              --startup-file "/home/site/wwwroot/.venv/bin/python -m gunicorn --bind 0.0.0.0:5000 --timeout 600 --chdir /home/site/wwwroot app:app"
+              --startup-file "gunicorn --bind 0.0.0.0:5000 --timeout 600 app:app"
 
       - task: AzureWebApp@1
         displayName: Deploy to App Service (ZipDeploy)
