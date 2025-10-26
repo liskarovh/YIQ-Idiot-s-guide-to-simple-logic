@@ -11,7 +11,7 @@ CORS(app, origins=[frontend_origin])
 @app.route('/api/hello', methods=['GET'])
 def hello():
     return jsonify({
-        'message': 'Hello World from Python Backend!',
+        'message': 'Hello World from Python Backend! If you see this, then it works!',
         'status': 'success'
     })
 
