@@ -26,10 +26,10 @@ stages:
           rm -rf out && mkdir -p out
           
           # Copy all files from backend directory
-          if [ -d "src/backend" ]; then
-            cp -r src/backend/* out/ 2>/dev/null || echo "No files in src/backend to copy"
+          if [ -d "src/Backend" ]; then
+            cp -r src/Backend/* out/ 2>/dev/null || echo "No files in src/Backend to copy"
             # Also copy hidden files if any
-            cp -r src/backend/.[!.]* out/ 2>/dev/null || true
+            cp -r src/Backend/.[!.]* out/ 2>/dev/null || true
           fi
           
           # Copy requirements.txt to root of out
