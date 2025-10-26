@@ -73,7 +73,8 @@ stages:
             az webapp config set \
               -g $(WEBAPP_RG) \
               -n $(WEBAPP_NAME) \
-              --startup-file "gunicorn --bind 0.0.0.0:5000 --timeout 600 app:app"
+              --startup-file "bash -c 'tar -xzf /home/site/wwwroot/output.tar.gz -C /home/site/wwwroot && gunicorn --bind 0.0.0.0:5000 --timeout 600 app:app'"
+
 
       - task: AzureWebApp@1
         displayName: Deploy to App Service (ZipDeploy)
