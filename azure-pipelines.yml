@@ -58,7 +58,7 @@ stages:
               { "name": "PYTHON_VERSION", "value": "$(pythonVersion)", "slotSetting": false },
               { "name": "WEBSITES_PORT", "value": "5000", "slotSetting": false },
               { "name": "FRONTEND_ORIGIN", "value": "$(FRONTEND_ORIGIN)", "slotSetting": false },
-              { "name": "WEBSITE_RUN_FROM_PACKAGE", "value": "0", "slotSetting": false }, 
+              { "name": "WEBSITE_RUN_FROM_PACKAGE", "value": "0", "slotSetting": false },
               { "name": "ENABLE_ORYX_BUILD", "value": "true", "slotSetting": false }
             ]
 
@@ -73,7 +73,7 @@ stages:
             az webapp config set \
               -g $(WEBAPP_RG) \
               -n $(WEBAPP_NAME) \
-              --startup-file "bash -c 'tar -xzf /home/site/wwwroot/output.tar.gz -C /home/site/wwwroot && gunicorn --bind 0.0.0.0:5000 --timeout 600 app:app'"
+              --startup-file "gunicorn --bind 0.0.0.0:\$PORT --timeout 600 app:app'"
 
 
       - task: AzureWebApp@1
