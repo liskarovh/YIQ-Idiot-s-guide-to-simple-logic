@@ -24,9 +24,21 @@ stages:
       - bash: |
           set -eux
           rm -rf out && mkdir -p out
-          cp -R src/backend/* out/
+          
+          # Copy all files from backend directory
+          if [ -d "src/backend" ]; then
+            cp -r src/backend/* out/ 2>/dev/null || echo "No files in src/backend to copy"
+            # Also copy hidden files if any
+            cp -r src/backend/.[!.]* out/ 2>/dev/null || true
+          fi
+          
+          # Copy requirements.txt to root of out
           cp requirements.txt out/requirements.txt
+          
+          echo "Contents of out directory:"
           ls -la out
+          echo "All files:"
+          find out -type f
         displayName: Stage backend package (flatten src to root)
 
       - task: ArchiveFiles@2
