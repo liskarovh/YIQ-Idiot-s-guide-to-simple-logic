@@ -32,7 +32,7 @@ jobs:
         echo "Repository structure:"
         ls -la
         echo "Frontend directory:"
-        ls -la src/frontend || echo "src/frontend not found"
+        ls -la src/Frontend || echo "src/Frontend not found"
       displayName: Debug directory structure
 
     # SWA task: provede npm install + build + deploy
@@ -44,7 +44,7 @@ jobs:
       inputs:
         # ↓ Secret token z portálu SWA (Manage deployment token)
         azure_static_web_apps_api_token: $(SWA_DEPLOYMENT_TOKEN)
-        app_location: '/src/frontend'  # kde je package.json a index.html
+        app_location: '/src/Frontend'  # kde je package.json a index.html
         api_location: ''               # nepoužíváme Functions
         output_location: 'build'       # Build výstup
         skip_api_build: true
