@@ -34,6 +34,15 @@ stages:
           
           # Copy requirements.txt to root of out
           cp requirements.txt out/requirements.txt
+
+          # Create venv and install requirements *inside* the out folder
+          cd out
+          python3 -m venv .venv # Create a virtual environment named .venv
+          source .venv/bin/activate
+          pip install --upgrade pip
+          pip install -r requirements.txt
+          deactivate
+          cd ..
           
           echo "Contents of out directory:"
           ls -la out
@@ -58,7 +67,8 @@ stages:
           resourceGroupName: '$(WEBAPP_RG)'
           appSettings: |
             [
-              { "name": "SCM_DO_BUILD_DURING_DEPLOYMENT", "value": "true", "slotSetting": false },
+              { "name": "SCM_DO_BUILD_DURING_DEPLOYMENT", "value": "false", "slotSetting": false },
+              { "name": "WEBSITE_RUN_FROM_PACKAGE", "value": "1", "slotSetting": false },
               { "name": "WEBSITES_PORT", "value": "5000", "slotSetting": false },
               { "name": "PYTHONPATH", "value": "/home/site/wwwroot", "slotSetting": false },
               { "name": "FRONTEND_ORIGIN", "value": "$(FRONTEND_ORIGIN)", "slotSetting": false }
@@ -75,7 +85,7 @@ stages:
             az webapp config set \
               -g $(WEBAPP_RG) \
               -n $(WEBAPP_NAME) \
-              --startup-file "gunicorn --bind 0.0.0.0:5000 --timeout 600 app:app"
+              --startup-file "/home/site/wwwroot/.venv/bin/python gunicorn --bind 0.0.0.0:5000 --timeout 600 app:app"
 
       - task: AzureWebApp@1
         displayName: Deploy to App Service (ZipDeploy)
