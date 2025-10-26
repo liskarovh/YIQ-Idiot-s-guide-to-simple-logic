@@ -1,7 +1,7 @@
 trigger:
   branches: { include: [ main ] }
   paths:
-    include: [ src/backend/** ]
+    include: [ src/Backend/** ]
 
 
 variables:
@@ -47,7 +47,7 @@ stages:
           rootFolderOrFile: 'out'
           includeRootFolder: false
           archiveType: 'zip'
-          archiveFile: '$(Build.ArtifactStagingDirectory)/backend.zip'
+          archiveFile: '$(Build.ArtifactStagingDirectory)/Backend.zip'
 
       # App Settings (Oryx build + port + import path + CORS)
       - task: AzureAppServiceSettings@1
@@ -83,4 +83,4 @@ stages:
           azureSubscription: '$(AZURE_SUBSCRIPTION)'
           appType: 'webAppLinux'
           appName: '$(WEBAPP_NAME)'
-          package: '$(Build.ArtifactStagingDirectory)/backend.zip'
+          package: '$(Build.ArtifactStagingDirectory)/Backend.zip'
