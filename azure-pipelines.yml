@@ -77,7 +77,7 @@ stages:
 
       # Jednorázově (idempotentně) nastavíme startup (gunnicorn)
       - task: AzureCLI@2
-        displayName: Set startup command (gunnicorn)
+        displayName: Set startup command (gunicorn with --chdir)
         inputs:
           azureSubscription: '$(AZURE_SUBSCRIPTION)'
           scriptType: bash
@@ -86,7 +86,7 @@ stages:
             az webapp config set \
               -g $(WEBAPP_RG) \
               -n $(WEBAPP_NAME) \
-              --startup-file "/home/site/wwwroot/.venv/bin/python -m gunicorn --bind 0.0.0.0:5000 --timeout 600 app:app"
+              --startup-file "/home/site/wwwroot/.venv/bin/python -m gunicorn --bind 0.0.0.0:5000 --timeout 600 --chdir /home/site/wwwroot app:app"
 
       - task: AzureWebApp@1
         displayName: Deploy to App Service (ZipDeploy)
