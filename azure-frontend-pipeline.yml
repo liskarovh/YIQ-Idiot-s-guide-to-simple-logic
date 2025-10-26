@@ -3,16 +3,16 @@ name: Azure Static Web Apps CI/CD
 trigger:
   branches: { include: [ main ] }
   paths:
-    include: [ src/App/web/** ]
+    include: [ src/Frontend/** ]
 
 pr:
   branches: { include: [ main ] }
   paths:
-    include: [ src/App/web/** ]
+    include: [ src/Frontend/** ]
 
 jobs:
 - job: build_and_deploy_frontend
-  displayName: Build & Deploy React (Vite) → Azure Static Web Apps
+  displayName: Build & Deploy React → Azure Static Web Apps
   pool:
     vmImage: ubuntu-latest
   steps:
@@ -21,7 +21,7 @@ jobs:
     # Volitelně připni verzi Node
     - task: NodeTool@0
       inputs:
-        versionSpec: '20'
+        versionSpec: '18'
 
     # SWA task: provede npm install + build + deploy
     - task: AzureStaticWebApp@0
@@ -32,6 +32,6 @@ jobs:
       inputs:
         # ↓ Secret token z portálu SWA (Manage deployment token)
         azure_static_web_apps_api_token: $(SWA_DEPLOYMENT_TOKEN)
-        app_location: 'src/App/web'   # kde je package.json a index.html
+        app_location: 'src/frontend'  # kde je package.json a index.html
         api_location: ''              # nepoužíváme Functions
-        output_location: 'dist'       # Vite build výstup
+        output_location: 'build'      # Build výstup

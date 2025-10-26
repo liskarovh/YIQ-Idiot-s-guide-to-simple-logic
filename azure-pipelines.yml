@@ -1,15 +1,15 @@
 trigger:
   branches: { include: [ main ] }
   paths:
-    include: [ src/** ]
-    exclude: [ src/App/web/** ]  # nepusť BE při čistě FE změnách
+    include: [ src/backend/** ]
+
 
 variables:
   pythonVersion: '3.12'
 
 stages:
 - stage: Backend
-  displayName: Backend (FastAPI → Azure App Service)
+  displayName: Backend (Flask → Azure App Service)
   jobs:
   - job: build_and_deploy_backend
     pool: { vmImage: 'ubuntu-latest' }
@@ -17,18 +17,20 @@ stages:
       - checkout: self
 
       - task: UsePythonVersion@0
+        displayName: Use Python $(pythonVersion)
         inputs: { versionSpec: '$(pythonVersion)' }
 
       # >>> DŮLEŽITÉ: rozbalíme obsah src do KOŘENE balíčku
       - bash: |
           set -eux
           rm -rf out && mkdir -p out
-          cp -R src/* out/
-          cp src/requirements.txt out/requirements.txt
+          cp -R src/backend/* out/
+          cp requirements.txt out/requirements.txt
           ls -la out
         displayName: Stage backend package (flatten src to root)
 
       - task: ArchiveFiles@2
+        displayName: Create deployment package
         inputs:
           rootFolderOrFile: 'out'
           includeRootFolder: false
@@ -45,14 +47,14 @@ stages:
           appSettings: |
             [
               { "name": "SCM_DO_BUILD_DURING_DEPLOYMENT", "value": "true", "slotSetting": false },
-              { "name": "WEBSITES_PORT", "value": "8000", "slotSetting": false },
+              { "name": "WEBSITES_PORT", "value": "5000", "slotSetting": false },
               { "name": "PYTHONPATH", "value": "/home/site/wwwroot", "slotSetting": false },
               { "name": "FRONTEND_ORIGIN", "value": "$(FRONTEND_ORIGIN)", "slotSetting": false }
             ]
 
-      # Jednorázově (idempotentně) nastavíme startup (uvicorn)
+      # Jednorázově (idempotentně) nastavíme startup (gunnicorn)
       - task: AzureCLI@2
-        displayName: Set startup command (uvicorn)
+        displayName: Set startup command (gunnicorn)
         inputs:
           azureSubscription: '$(AZURE_SUBSCRIPTION)'
           scriptType: bash
@@ -61,7 +63,7 @@ stages:
             az webapp config set \
               -g $(WEBAPP_RG) \
               -n $(WEBAPP_NAME) \
-              --startup-file "python -m uvicorn App.api.main:app --host 0.0.0.0 --port 8000 --app-dir /home/site/wwwroot"
+              --startup-file "gunicorn --bind 0.0.0.0:5000 --timeout 600 app:app"
 
       - task: AzureWebApp@1
         displayName: Deploy to App Service (ZipDeploy)

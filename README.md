@@ -1,20 +1,74 @@
-# Introduction 
-TODO: Give a short introduction of your project. Let this section explain the objectives or the motivation behind this project. 
+# React + Python ITU project setup
 
-# Getting Started
-TODO: Guide users through getting your code up and running on their own system. In this section you can talk about:
-1.	Installation process
-2.	Software dependencies
-3.	Latest releases
-4.	API references
+## Project Structure
 
-# Build and Test
-TODO: Describe and show how to build your code and run the tests. 
+```
+project-root/
+├── .gitignore
+├── README.md
+├── azure-frontend-pipeline.yml
+├── azure-pipelines.yml
+├── package.json
+├── requirements.txt
+└── src/
+    ├── backend/
+    │   └── app.py
+    └── frontend/
+        ├── public/
+        │   └── index.html
+        ├── src/
+        │   ├── App.jsx
+        │   └── index.js
+        └── package.json
+```
 
-# Contribute
-TODO: Explain how other users and developers can contribute to make your code better. 
+## Local Development Setup
 
-If you want to learn more about creating good readme files then refer the following [guidelines](https://docs.microsoft.com/en-us/azure/devops/repos/git/create-a-readme?view=azure-devops). You can also seek inspiration from the below readme files:
-- [ASP.NET Core](https://github.com/aspnet/Home)
-- [Visual Studio Code](https://github.com/Microsoft/vscode)
-- [Chakra Core](https://github.com/Microsoft/ChakraCore)
+### Prerequisites
+- Python 3.11+
+- Node.js 18+
+- npm
+
+### Backend Setup
+
+1. Create a virtual environment (from project root):
+```bash
+python -m venv venv
+```
+
+2. Activate the virtual environment:
+- Windows: `venv\Scripts\activate`
+- Mac/Linux: `source venv/bin/activate`
+
+3. Install Python dependencies:
+```bash
+pip install -r requirements.txt
+```
+
+### Frontend Setup
+
+Navigate to frontend directory and install dependencies:
+```bash
+cd src/frontend
+npm install
+```
+
+## Running Both Servers
+
+Open two terminal windows from the project root:
+
+**Terminal 1 (Backend):**
+```bash
+source venv/bin/activate  # or venv\Scripts\activate on Windows
+cd src/backend
+python app.py
+```
+Backend will run on `http://localhost:5000`
+
+**Terminal 2 (Frontend):**
+```bash
+cd src/frontend
+npm start
+```
+
+Visit `http://localhost:3000` to see the app.

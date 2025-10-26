@@ -1,0 +1,13 @@
+{
+  "name": "yiq",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "frontend": "cd src/frontend && npm start",
+    "backend": "cd src/backend && python app.py",
+    "install-frontend": "cd src/frontend && npm install",
+    "install-backend": "pip install -r requirements.txt",
+    "build-frontend": "cd src/frontend && npm run build"
+  },
+  "description": "React + Python Hello World Full Stack App"
+}
