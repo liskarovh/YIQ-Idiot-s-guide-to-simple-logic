@@ -1,3 +1,8 @@
+### Custom
+**/package-lock.json
+**/node_modules
+**/.env
+
 ### ReactNative template
 # React Native Stack Base
 
