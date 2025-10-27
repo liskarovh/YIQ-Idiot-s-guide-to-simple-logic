@@ -1,69 +1,79 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
+import { BrowserRouter, Routes, Route, Link } from 'react-router-dom';
+import Home from './Home';
+import Sudoku from './sudoku/Sudoku';
+import Tic_Tac_Toe from './tic_tac_toe/Tic_Tac_Toe';
+import Minesweeper from './minesweeper/Minesweeper';
+
+/**
+ * MAIN APP COMPONENT
+ * 
+ * This is the root component that sets up routing for the entire application.
+ * 
+ * Key Concepts:
+ * - BrowserRouter: Enables client-side routing (navigation without page reload)
+ * - Routes: Container for all route definitions
+ * - Route: Defines a path and which component to show
+ * - Link: Navigation links (like <a> tags but without page reload)
+ */
 
 function App() {
-  const [message, setMessage] = useState('Loading...');
-  const [error, setError] = useState(null);
-
-  useEffect(() => {
-    const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:5000';
-    
-    fetch(`${apiUrl}/api/hello`)
-      .then(response => response.json())
-      .then(data => {
-        setMessage(data.message);
-      })
-      .catch(err => {
-        setError('Failed to connect to backend');
-        console.error('Error:', err);
-      });
-  }, []);
-
+  // Inline styles for the app
   const styles = {
     app: {
-      textAlign: 'center'
-    },
-    header: {
-      backgroundColor: '#282c34',
       minHeight: '100vh',
-      display: 'flex',
-      flexDirection: 'column',
-      alignItems: 'center',
-      justifyContent: 'center',
-      fontSize: 'calc(10px + 2vmin)',
+      backgroundColor: '#282c34',
       color: 'white'
     },
-    messageBox: {
-      marginTop: '2rem',
-      padding: '2rem',
-      backgroundColor: '#3a3f4b',
-      borderRadius: '8px',
-      minWidth: '400px'
+    nav: {
+      backgroundColor: '#1a1d24',
+      padding: '1rem',
+      display: 'flex',
+      gap: '1rem',
+      borderBottom: '2px solid #61dafb'
     },
-    message: {
+    navLink: {
       color: '#61dafb',
-      fontSize: '1.2rem',
-      margin: 0
+      textDecoration: 'none',
+      padding: '0.5rem 1rem',
+      borderRadius: '4px',
+      transition: 'background-color 0.3s'
     },
-    error: {
-      color: '#ff6b6b',
-      fontSize: '1.2rem',
-      margin: 0
+    content: {
+      padding: '2rem'
     }
   };
 
   return (
-    <div style={styles.app}>
-      <header style={styles.header}>
-        <h1>React + Python Hello World</h1>
-        <div style={styles.messageBox}>
-          {error ? (
-            <p style={styles.error}>{error}</p>
-          ) : (
-            <p style={styles.message}>{message}</p>
-          )}
+    // BrowserRouter wraps the entire app to enable routing
+    <BrowserRouter>
+      <div style={styles.app}>
+        {/* Navigation bar - visible on all pages */}
+        <nav style={styles.nav}>
+          {/* Link components create navigation without page reload */}
+          <Link to="/" style={styles.navLink}>Home</Link>
+          <Link to="/sudoku" style={styles.navLink}>Sudoku</Link>
+          <Link to="/tic_tac_toe" style={styles.navLink}>Tic_Tac_Toe</Link>
+          <Link to="/minesweeper" style={styles.navLink}>Minesweeper</Link>
+        </nav>
+
+        {/* Content area where routed components appear */}
+        <div style={styles.content}>
+          {/* Routes defines which component to show based on URL */}
+          <Routes>
+            {/* 
+              Each Route has:
+              - path: the URL path (e.g., "/sudoku")
+              - element: the component to render
+            */}
+            <Route path="/" element={<Home />} />
+            <Route path="/sudoku" element={<Sudoku />} />
+            <Route path="/tic_tac_toe" element={<Tic_Tac_Toe />} />
+            <Route path="/minesweeper" element={<Minesweeper />} />
+          </Routes>
         </div>
-      </header>
-    </div>
+      </div>
+    </BrowserRouter>
   );
 }
 

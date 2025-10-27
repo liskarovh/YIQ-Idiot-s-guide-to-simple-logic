@@ -11,9 +11,9 @@ project-root/
 ├── package.json
 ├── requirements.txt
 └── src/
-    ├── backend/
+    ├── Backend/
     │   └── app.py
-    └── frontend/
+    └── Frontend/
         ├── public/
         │   └── index.html
         ├── src/
@@ -49,7 +49,7 @@ pip install -r requirements.txt
 
 Navigate to frontend directory and install dependencies:
 ```bash
-cd src/frontend
+cd src/Frontend
 npm install
 ```
 
@@ -60,14 +60,14 @@ Open two terminal windows from the project root:
 **Terminal 1 (Backend):**
 ```bash
 source venv/bin/activate  # or venv\Scripts\activate on Windows
-cd src/backend
+cd src/Backend
 python app.py
 ```
 Backend will run on `http://localhost:5000`
 
 **Terminal 2 (Frontend):**
 ```bash
-cd src/frontend
+cd src/Frontend
 npm start
 ```
 
