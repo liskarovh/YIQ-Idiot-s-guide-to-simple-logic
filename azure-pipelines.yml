@@ -5,6 +5,7 @@ trigger:
 
 variables:
   pythonVersion: '3.12'
+  # (volitelné) defaulty pro obtížnost — můžeš kdykoli upravit v Azure App Settings
   CONNECTK_ROLLOUTS_EASY: '400'
   CONNECTK_ROLLOUTS_MEDIUM: '2000'
   CONNECTK_ROLLOUTS_HARD: '8000'
@@ -16,19 +17,19 @@ stages:
   - job: build_and_deploy_backend
     pool: { vmImage: 'ubuntu-latest' }
     steps:
-      # >>> DŮLEŽITÉ: stáhne i git submoduly
+      # >>> důležité: stáhne i git submoduly
       - checkout: self
         submodules: true
         persistCredentials: true
 
-      # Rychlá kontrola, že je submodul k dispozici
+      # RYCHLÁ KONTROLA: submodul přítomen v repu
       - bash: |
           set -eux
           git submodule status
           test -f src/Backend/third_party/omega_gomoku_ai/Omega_Gomoku_AI/Game/Board.py
           test -f src/Backend/third_party/omega_gomoku_ai/Omega_Gomoku_AI/Player/AI_MCTS.py
-          echo "Submodule OK: Board.py & AI_MCTS.py present"
-        displayName: Verify submodule presence
+          echo "OK (repo): Board.py & AI_MCTS.py present in submodule"
+        displayName: Verify submodule presence (in repo)
 
       - task: UsePythonVersion@0
         displayName: Use Python $(pythonVersion)
@@ -51,6 +52,11 @@ stages:
           ls -la out
           echo "Submodule files inside out (should exist):"
           ls -la out/third_party/omega_gomoku_ai/Omega_Gomoku_AI || true
+          
+          # RYCHLÁ KONTROLA: submodul v balíčku
+          test -f out/third_party/omega_gomoku_ai/Omega_Gomoku_AI/Game/Board.py
+          test -f out/third_party/omega_gomoku_ai/Omega_Gomoku_AI/Player/AI_MCTS.py
+          echo "OK (package): Board.py & AI_MCTS.py present in out/"
         displayName: Stage backend package (files only)
 
       - task: ArchiveFiles@2
@@ -76,7 +82,6 @@ stages:
               { "name": "FRONTEND_ORIGIN", "value": "$(FRONTEND_ORIGIN)", "slotSetting": false },
               { "name": "WEBSITE_RUN_FROM_PACKAGE", "value": "0", "slotSetting": false },
               { "name": "ENABLE_ORYX_BUILD", "value": "true", "slotSetting": false },
-
               { "name": "CONNECTK_ROLLOUTS_EASY", "value": "$(CONNECTK_ROLLOUTS_EASY)", "slotSetting": false },
               { "name": "CONNECTK_ROLLOUTS_MEDIUM", "value": "$(CONNECTK_ROLLOUTS_MEDIUM)", "slotSetting": false },
               { "name": "CONNECTK_ROLLOUTS_HARD", "value": "$(CONNECTK_ROLLOUTS_HARD)", "slotSetting": false }
