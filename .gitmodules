@@ -1,0 +1,3 @@
+[submodule "src/Backend/third_party/omega_gomoku_ai"]
+	path = src/Backend/third_party/omega_gomoku_ai
+	url = https://github.com/cloxnu/Omega_Gomoku_AI
