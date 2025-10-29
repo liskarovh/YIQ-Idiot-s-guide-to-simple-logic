@@ -4,6 +4,7 @@ import Home from './Home';
 import Sudoku from './sudoku/Sudoku';
 import Tic_Tac_Toe from './tic_tac_toe/Tic_Tac_Toe';
 import Minesweeper from './minesweeper/Minesweeper';
+import About from './About';
 
 /**
  * MAIN APP COMPONENT
@@ -38,9 +39,6 @@ function App() {
       padding: '0.5rem 1rem',
       borderRadius: '4px',
       transition: 'background-color 0.3s'
-    },
-    content: {
-      padding: '2rem'
     }
   };
 
@@ -48,14 +46,6 @@ function App() {
     // BrowserRouter wraps the entire app to enable routing
     <BrowserRouter>
       <div style={styles.app}>
-        {/* Navigation bar - visible on all pages */}
-        <nav style={styles.nav}>
-          {/* Link components create navigation without page reload */}
-          <Link to="/" style={styles.navLink}>Home</Link>
-          <Link to="/sudoku" style={styles.navLink}>Sudoku</Link>
-          <Link to="/tic_tac_toe" style={styles.navLink}>Tic_Tac_Toe</Link>
-          <Link to="/minesweeper" style={styles.navLink}>Minesweeper</Link>
-        </nav>
 
         {/* Content area where routed components appear */}
         <div style={styles.content}>
@@ -70,6 +60,7 @@ function App() {
             <Route path="/sudoku" element={<Sudoku />} />
             <Route path="/tic_tac_toe" element={<Tic_Tac_Toe />} />
             <Route path="/minesweeper" element={<Minesweeper />} />
+            <Route path="/about" element={<About />}/>
           </Routes>
         </div>
       </div>
