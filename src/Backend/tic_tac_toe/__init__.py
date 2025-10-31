@@ -6,6 +6,8 @@ import time
 from . import rules
 from . import service as svc
 from .adapter import compute_best_move
+import os
+from flask import send_from_directory
 
 bp = Blueprint("tic_tac_toe", __name__, url_prefix="/api/tictactoe")
 log = logging.getLogger(__name__)
@@ -38,6 +40,17 @@ def _mk_explain(bm_stats: dict, player: str, size: int, k: int, difficulty: str)
     if isinstance(bm_stats, dict):
         rolls = int(bm_stats.get("rollouts", 0) or 0)
     return f"MCTS rollouts={rolls}; size={size}; k={k}; player={player}; difficulty={difficulty}"
+
+
+@bp.route("/meta", methods=["GET"])
+def api_meta():
+    """Konstanty pro UI (neovlivňuje testy)."""
+    return jsonify({
+        "size": {"min": SIZE_MIN, "max": SIZE_MAX},
+        "kToWin": {"min": K_MIN, "max": K_MAX},
+        "difficulties": ["easy", "medium", "hard"],
+        "modes": ["pve", "pvp"],
+    }), 200
 
 
 @bp.route("/new", methods=["POST"])
@@ -183,7 +196,6 @@ def api_best_move():
         meta = {"status": status}
         if status == "win":
             meta["winner"] = term
-        # POZOR: test očekává error.meta.status == "win"
         return json_error("GameOver", "Position is terminal", 409, meta=meta)
 
     t0 = time.perf_counter()
@@ -249,3 +261,10 @@ def api_restart():
     except Exception as e:
         log.exception("Unhandled exception on POST /api/tictactoe/restart")
         return json_error("Internal", str(e), 500)
+
+@bp.route("/static/<path:filename>", methods=["GET"])
+def ttt_static(filename: str):
+    # cesta na adresář s client.js = .../src/Backend/tic_tac_toe/
+    base = os.path.join(os.path.dirname(__file__))
+    return send_from_directory(base, filename)
+

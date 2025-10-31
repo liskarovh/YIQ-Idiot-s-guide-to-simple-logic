@@ -248,3 +248,34 @@ def apply_move(g: Game, row: int, col: int) -> Game:
 def finish_game(g: Game) -> None:
     g.ended_at = time.time()
     save_game(g)
+
+
+# --- AI autoplay helpers (PvE) ---
+
+def _is_ai_turn(g: Game) -> bool:
+    # PvE, definovaný human_mark, hra běží a na tahu je „ne-human“ (AI)
+    return (
+        g.mode == "pve"
+        and getattr(g, "human_mark", None) in ("X", "O")
+        and g.status == "running"
+        and g.player != g.human_mark
+    )
+
+def maybe_ai_autoplay(g: Game, *, difficulty: str | None = None) -> Game:
+    """
+    Pokud je po hráčově tahu na řadě AI, spočítá nejlepší tah a ihned ho provede.
+    Vrací aktualizovanou hru (stejnou referenci).
+    """
+    if not _is_ai_turn(g):
+        return g
+
+    diff = (difficulty or getattr(g, "difficulty", "easy") or "easy").lower()
+    try:
+        bm = compute_best_move(g.board, g.player, g.size, g.k_to_win, difficulty=diff)
+        r, c = bm["move"]
+        g = apply_move(g, r, c)
+    finally:
+        # jistota uložení; apply_move už ukládá, ale kdybychom autoplays rozšířili, necháváme zde
+        save_game(g)
+    return g
+
