@@ -20,7 +20,7 @@ function Home() {
     alignItems: 'center',
     justifyContent: 'center',
     textAlign: 'center',
-    padding: '0 2rem',
+    padding: '5rem 2rem 2rem 2rem',
     gap: '2rem',
   };
 
@@ -40,7 +40,7 @@ function Home() {
   Use numbers as clues to find where the mines are hidden."
 
   return (
-    <div style={styles.container}>
+    <div>
       <Header 
         showBack={false} 
         onNavigate={(path) => navigate(path)}
