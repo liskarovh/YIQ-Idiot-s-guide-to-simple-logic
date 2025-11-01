@@ -21,12 +21,12 @@ function About() {
     justifyContent: 'center',
     flexWrap: 'wrap',
     textAlign: 'center',
-    padding: '0 2rem',
+    padding: '5rem 2rem 2rem 2rem',
     gap: '2rem',
   };
 
   return (
-    <div style={styles.container}>
+    <div>
       <Header 
         showBack={true} 
         onNavigate={() => navigate('/')}
