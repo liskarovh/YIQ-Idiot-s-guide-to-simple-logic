@@ -104,113 +104,97 @@ const normalizeDifficulty = (d) => {
 
 /* ========== Public factory ========== */
 
-export function createTttClient(opts = {}) {
-  const baseUrl = (opts.baseUrl || `${location.origin}/api/tictactoe`).replace(/\/+$/, "");
-  const timeoutMs = Number.isFinite(opts.timeoutMs) ? opts.timeoutMs : 8000;
-  const retries = Number.isFinite(opts.retries) ? opts.retries : 1;
-  const backoffMs = Number.isFinite(opts.backoffMs) ? opts.backoffMs : 250;
+/**
+ * Minimalistic API client for Tic-Tac-Toe backend (browser ESM).
+ * Export: createTttClient({ baseUrl?, timeoutMs?, retries?, backoffMs? })
+ */
+export function createTttClient(options = {}) {
+  const {
+    baseUrl: optBaseUrl,
+    timeoutMs = 8000,
+    retries = 1,
+    backoffMs = 250,
+  } = options;
 
-  async function apiFetch(path, { method = "GET", json } = {}) {
+  // Bezpečný výpočet base URL (CRA ESLint: používej window.location)
+  const computedDefault =
+    (typeof window !== 'undefined' && window.location?.origin)
+      ? `${window.location.origin}/api/tictactoe`
+      : '/api/tictactoe';
+
+  // ← Tohle je jediný baseUrl, který dál používáme
+  const baseUrl = String(optBaseUrl || computedDefault).replace(/\/+$/, '');
+
+  // --- fetch s timeoutem a backoffem ---
+  async function fetchWithRetry(path, { method = 'GET', json } = {}) {
     const url = `${baseUrl}${path}`;
-    const init = {
-      method,
-      headers: { "Content-Type": "application/json" },
-      body: json ? JSON.stringify(json) : undefined,
-      credentials: "same-origin",
-    };
-    const res = await fetchWithRetry(url, init, { timeoutMs, retries, backoffMs });
-    if (!res.ok) throw await makeHttpError(res);
-    return res.json();
-  }
-
-  /** Create new game. */
-  async function newGame(p) {
-    const payload = {
-      size: p.size,
-      kToWin: p.kToWin,
-      startMark: normalizeStartMark(p.startMark),
-      mode: normalizeMode(p.mode),
-      humanMark: p.humanMark ? normalizeStartMark(p.humanMark) : undefined,
-      turnTimerSec: p.turnTimerSec,
-      difficulty: p.difficulty ? normalizeDifficulty(p.difficulty) : undefined,
-    };
-    return apiFetch("/new", { method: "POST", json: payload });
-  }
-
-  /** Get status/state (supports both /state/:id and /status/:id). */
-  async function status(gameId) {
-    if (!gameId) throw new Error("status(gameId) requires gameId");
-    try {
-      return await apiFetch(`/state/${encodeURIComponent(gameId)}`, { method: "GET" });
-    } catch (e) {
-      if (e?.status === 404) throw e; // real 404
-      // if /state not available, try /status
-      return apiFetch(`/status/${encodeURIComponent(gameId)}`, { method: "GET" });
-    }
-  }
-
-  /** Back-compat alias. */
-  const state = status;
-
-  /**
-   * Play a move.
-   * @param {{gameId:string,row:number,col:number}} p
-   * @param {{game?:{board:string[][],status:string}, validate?:boolean}} [ctx]
-   * - FE má validace v tomto modulu; tohle je jen opt-in guard (nepoužívá se pro AI/autoritu).
-   */
-  async function play(p, ctx) {
-    if (ctx?.validate && ctx?.game) {
-      const v = validateLocalMove(ctx.game, p.row, p.col);
-      if (!v.ok) {
-        const err = new Error(`Invalid move: ${v.reason}`);
-        err.code = "LocalInvalidMove";
+    let lastErr;
+    for (let attempt = 0; attempt <= retries; attempt++) {
+      const ctrl = new AbortController();
+      const t = setTimeout(() => ctrl.abort(), timeoutMs);
+      try {
+        const res = await fetch(url, {
+          method,
+          headers: { 'Content-Type': 'application/json' },
+          body: json ? JSON.stringify(json) : undefined,
+          signal: ctrl.signal,
+          credentials: 'same-origin',
+        });
+        clearTimeout(t);
+        if (res.status >= 500 && attempt < retries) {
+          await new Promise(r => setTimeout(r, backoffMs * Math.pow(2, attempt)));
+          continue;
+        }
+        return res;
+      } catch (err) {
+        clearTimeout(t);
+        lastErr = err;
+        if (attempt < retries) {
+          await new Promise(r => setTimeout(r, backoffMs * Math.pow(2, attempt)));
+          continue;
+        }
         throw err;
       }
     }
-    return apiFetch("/play", { method: "POST", json: p });
+    throw lastErr;
   }
 
-  /** Best move — backend only (no local AI). */
-  async function bestMove(p) {
-    const payload = {
-      ...p,
-      difficulty: p?.difficulty ? normalizeDifficulty(p.difficulty) : undefined,
-    };
-    return apiFetch("/best-move", { method: "POST", json: payload });
+  async function api(path, { method = 'GET', json } = {}) {
+    const res = await fetchWithRetry(path, { method, json });
+    if (!res.ok) {
+      let body = '';
+      try { body = await res.text(); } catch {}
+      let payload;
+      try { payload = JSON.parse(body); } catch {}
+      const e = new Error(payload?.error?.message || body || `HTTP ${res.status}`);
+      e.status = res.status;
+      e.payload = payload;
+      throw e;
+    }
+    return res.json();
   }
 
-  /** Validate move using backend (stateless). */
-  async function validateMove(p) {
-    return apiFetch("/validate-move", { method: "POST", json: p });
-  }
-
-  /** Restart game with the same settings. */
-  async function restart(p) {
-    return apiFetch("/restart", { method: "POST", json: p });
-  }
+  // ---- veřejné metody klienta ----
+  async function newGame(p)     { return api('/new',         { method: 'POST', json: p }); }
+  async function status(id)     { if(!id) throw new Error('status(gameId) required'); return api(`/status/${encodeURIComponent(id)}`); }
+  async function play(p)        { return api('/play',        { method: 'POST', json: p }); }
+  async function bestMove(p)    { return api('/best-move',   { method: 'POST', json: p }); }
+  async function validateMove(p){ return api('/validate-move',{ method: 'POST', json: p }); }
+  async function restart(p)     { return api('/restart',     { method: 'POST', json: p }); }
 
   return {
-    // Low-level fetch (debug)
-    _fetch: apiFetch,
-    // Validators (pure)
-    inBounds,
-    isEmpty,
-    isRunning,
-    validateLocalMove,
-    // Endpoints
+    baseUrl,
+    _fetch: api,
     new: newGame,
     newGame,
     status,
-    state,
     play,
     bestMove,
     validateMove,
     restart,
-    // Debug info
-    baseUrl,
-    version: "0.2.0",
   };
 }
+
 
 /* Optional default export for convenience */
 export default { createTttClient, inBounds, isEmpty, isRunning, validateLocalMove };
