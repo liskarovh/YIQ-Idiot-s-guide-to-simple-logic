@@ -6,7 +6,7 @@ import { useNavigate } from 'react-router-dom';
 
 /**
  * HOME COMPONENT - Landing page
- * 
+ *
  * Clean page with gradient background using colors from Styles
  */
 
@@ -41,8 +41,8 @@ function Home() {
 
   return (
     <div>
-      <Header 
-        showBack={false} 
+      <Header
+        showBack={false}
         onNavigate={(path) => navigate(path)}
       />
       <div style={contentStyle}>
@@ -53,23 +53,23 @@ function Home() {
           Pick a game to start playing and stop being Ydea impaired.
         </p>
         <div style={gameListStyle}>
-          <GameCard 
+          <GameCard
             title="Sudoku"
             description={sudokuDescription}
             image="/sudoku_icon.png"
             onClick={() => navigate('/sudoku')}
           />
-          <GameCard 
+          <GameCard
             title="Tic-Tac-Toe"
             description={ticTacToeDescription}
             image="/tic_tac_toe_icon.png"
             onClick={() => navigate('/tic_tac_toe')}
           />
-          <GameCard 
+          <GameCard
             title="Minesweeper"
             description={minesweeperDescription}
             image="/minesweeper_icon.png"
-            onClick={() => navigate('/minesweeper')}
+            onClick={() => navigate('/minesweeper-settings')}
           />
         </div>
       </div>
