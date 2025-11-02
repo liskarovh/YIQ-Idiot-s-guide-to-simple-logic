@@ -1,33 +1,75 @@
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, request, Response
+import os
+import json
+import urllib.request
+import urllib.error
 
 minesweeper_bp = Blueprint('minesweeper', __name__)
 
-@minesweeper_bp.route('/hello', methods=['GET'])
-def hello():
-    """Example endpoint for Minesweeper"""
-    return jsonify({
-        'message': 'Hello from Minesweeper!',
-        'game': 'Minesweeper'
-    })
+NODE_BASE = os.getenv("MINESWEEPER_NODE_URL", "http://127.0.0.1:5051")
 
-@minesweeper_bp.route('/score', methods=['GET'])
-def get_score():
-    """Get current score for Minesweeper"""
-    return jsonify({
-        'score': 500,
-        'player': 'Player 3',
-        'level': 7
-    })
 
-@minesweeper_bp.route('/score', methods=['POST'])
-def save_score():
-    """Save score for Minesweeper"""
-    data = request.get_json()
-    score = data.get('score', 0)
-    player = data.get('player', 'Unknown')
-    
-    return jsonify({
-        'success': True,
-        'message': f'Score {score} saved for {player}',
-        'saved_score': score
-    })
+def _proxy(method: str, path: str):
+    url = f"{NODE_BASE}{path}"
+    data = None
+    headers = {"Content-Type": "application/json"}
+
+    if request.data:
+        data = request.data
+
+    req = urllib.request.Request(url, data = data, headers = headers, method = method)
+    try:
+        with urllib.request.urlopen(req, timeout = 10) as resp:
+            payload = resp.read()
+            status = resp.getcode()
+            ct = resp.headers.get("Content-Type", "application/json")
+            return Response(payload, status = status, content_type = ct)
+    except urllib.error.HTTPError as e:
+        return Response(e.read(), status = e.code, content_type = e.headers.get("Content-Type", "application/json"))
+    except Exception as e:
+        body = json.dumps({"error": f"proxy_error: {str(e)}"}).encode("utf-8")
+        return Response(body, status = 502, content_type = "application/json")
+
+@minesweeper_bp.route('/game', methods = ['POST'])
+def create_game():
+    return _proxy('POST', '/game')
+
+
+@minesweeper_bp.route('/game/<game_id>', methods = ['GET'])
+def get_game(game_id):
+    return _proxy('GET', f'/game/{game_id}')
+
+
+@minesweeper_bp.route('/game/<game_id>/reveal', methods = ['POST'])
+def reveal(game_id):
+    return _proxy('POST', f'/game/{game_id}/reveal')
+
+
+@minesweeper_bp.route('/game/<game_id>/flag', methods = ['POST'])
+def flag(game_id):
+    return _proxy('POST', f'/game/{game_id}/flag')
+
+
+@minesweeper_bp.route('/game/<game_id>/mode', methods = ['POST'])
+def mode(game_id):
+    return _proxy('POST', f'/game/{game_id}/mode')
+
+
+@minesweeper_bp.route('/game/<game_id>/undo', methods = ['POST'])
+def undo(game_id):
+    return _proxy('POST', f'/game/{game_id}/undo')
+
+
+@minesweeper_bp.route('/game/<game_id>/seek', methods = ['POST'])
+def seek(game_id):
+    return _proxy('POST', f'/game/{game_id}/seek')
+
+
+@minesweeper_bp.route('/game/<game_id>/revive', methods = ['POST'])
+def revive(game_id):
+    return _proxy('POST', f'/game/{game_id}/revive')
+
+
+@minesweeper_bp.route('/game/<game_id>/hint', methods = ['GET'])
+def hint(game_id):
+    return _proxy('GET', f'/game/{game_id}/hint')
