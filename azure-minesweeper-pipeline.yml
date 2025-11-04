@@ -7,10 +7,7 @@ trigger:
       - src/Backend/minesweeper/**
 
 variables:
-  nodeVersion: '20.x'
-  appName: '$(WEBAPP_MINESWEEPER_NAME)'
-  resourceGroup: '$(WEBAPP_RG)'
-  azureSubscription: '$(AZURE_SUBSCRIPTION)'
+  nodeVersion: '22.x'
 
 stages:
   - stage: Minesweeper_Backend
@@ -30,11 +27,17 @@ stages:
             inputs:
               version: '$(nodeVersion)'
 
-          # === Install dependencies ===
+          # === Install dependencies (use npm install instead of npm ci if no lock file) ===
           - script: |
               cd src/Backend/minesweeper
-              echo "Installing dependencies..."
-              npm ci
+              echo "Checking for package-lock.json..."
+              if [ -f "package-lock.json" ]; then
+                echo "Found package-lock.json, using npm ci..."
+                npm ci
+              else
+                echo "No package-lock.json found, using npm install..."
+                npm install
+              fi
             displayName: 'Install npm dependencies'
 
           # === Build TypeScript project ===
@@ -47,16 +50,22 @@ stages:
           # === Stage deployment files ===
           - script: |
               set -eux
-              mkdir -p out
+              mkdir -p src/Backend/out
               cd src/Backend/minesweeper
 
               # Copy built JS + package.json + node_modules (prod only)
               cp -r dist ../out/
               cp package.json ../out/
-              cp package-lock.json ../out/ || true
+              cp package-lock.json ../out/ 2>/dev/null || echo "No package-lock.json to copy"
+              
               cd ../out
-
-              npm ci --omit=dev
+              
+              echo "Installing production dependencies..."
+              if [ -f "package-lock.json" ]; then
+                npm ci --omit=dev
+              else
+                npm install --omit=dev
+              fi
 
               echo "Contents of out directory:"
               ls -la
@@ -75,37 +84,39 @@ stages:
           - task: AzureAppServiceSettings@1
             displayName: 'Configure Azure App Settings (Node backend)'
             inputs:
-              azureSubscription: '$(azureSubscription)'
-              appName: '$(appName)'
-              resourceGroupName: '$(resourceGroup)'
+              azureSubscription: '$(AZURE_SUBSCRIPTION)'
+              appName: '$(WEBAPP_MINESWEEPER_NAME)'
+              resourceGroupName: '$(WEBAPP_RG)'
               appSettings: |
                 [
-                  { "name": "SCM_DO_BUILD_DURING_DEPLOYMENT", "value": "true", "slotSetting": false },
+                  { "name": "SCM_DO_BUILD_DURING_DEPLOYMENT", "value": "false", "slotSetting": false },
                   { "name": "NODE_ENV", "value": "production", "slotSetting": false },
                   { "name": "PORT", "value": "5051", "slotSetting": false },
                   { "name": "WEBSITES_PORT", "value": "5051", "slotSetting": false },
-                  { "name": "ENABLE_ORYX_BUILD", "value": "true", "slotSetting": false },
-                  { "name": "MINESWEEPER_NODE_PORT", "value": "5051", "slotSetting": false }
+                  { "name": "ENABLE_ORYX_BUILD", "value": "false", "slotSetting": false },
+                  { "name": "MINESWEEPER_NODE_PORT", "value": "5051", "slotSetting": false },
+                  { "name": "MINESWEEPER_NODE_HOST", "value": "0.0.0.0", "slotSetting": false }
                 ]
 
           # === Startup configuration (Node) ===
           - task: AzureCLI@2
             displayName: 'Set startup command (Node.js backend)'
             inputs:
-              azureSubscription: '$(azureSubscription)'
+              azureSubscription: '$(AZURE_SUBSCRIPTION)'
               scriptType: bash
               scriptLocation: inlineScript
               inlineScript: |
                 az webapp config set \
-                  -g $(resourceGroup) \
-                  -n $(appName) \
-                  --startup-file "bash -lc 'node dist/server.js'"
+                  -g $(WEBAPP_RG) \
+                  -n $(WEBAPP_MINESWEEPER_NAME) \
+                  --startup-file "node dist/server.js"
 
           # === Deploy ===
           - task: AzureWebApp@1
             displayName: 'Deploy Minesweeper backend to Azure'
             inputs:
-              azureSubscription: '$(azureSubscription)'
+              azureSubscription: '$(AZURE_SUBSCRIPTION)'
               appType: 'webAppLinux'
-              appName: '$(appName)'
+              appName: '$(WEBAPP_MINESWEEPER_NAME)'
               package: '$(Build.ArtifactStagingDirectory)/MinesweeperBackend.zip'
+              runtimeStack: 'NODE|22-lts'
