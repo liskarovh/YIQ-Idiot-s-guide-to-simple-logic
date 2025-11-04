@@ -6,16 +6,23 @@ import urllib.error
 
 minesweeper_bp = Blueprint('minesweeper', __name__)
 
-NODE_BASE = os.getenv("MINESWEEPER_NODE_URL", "http://127.0.0.1:5051")
+# === Base URL autodetection ===
+if "WEBSITE_HOSTNAME" in os.environ:
+    NODE_BASE = os.getenv(
+            "MINESWEEPER_NODE_URL",
+            "https://itu-minesweeper-backend-a0a0a0d4d3b6dmha.westeurope-01.azurewebsites.net"
+            )
+else:
+    NODE_BASE = os.getenv("MINESWEEPER_NODE_URL", "http://127.0.0.1:5051")
+
+print(f"[Minesweeper Proxy] Using Node backend at: {NODE_BASE}")
 
 
 def _proxy(method: str, path: str):
+    """Generic proxy helper: forwards request from Flask → Node backend."""
     url = f"{NODE_BASE}{path}"
-    data = None
+    data = request.data if request.data else None
     headers = {"Content-Type": "application/json"}
-
-    if request.data:
-        data = request.data
 
     req = urllib.request.Request(url, data = data, headers = headers, method = method)
     try:
@@ -25,11 +32,18 @@ def _proxy(method: str, path: str):
             ct = resp.headers.get("Content-Type", "application/json")
             return Response(payload, status = status, content_type = ct)
     except urllib.error.HTTPError as e:
-        return Response(e.read(), status = e.code, content_type = e.headers.get("Content-Type", "application/json"))
+        return Response(
+                e.read(),
+                status = e.code,
+                content_type = e.headers.get("Content-Type", "application/json"),
+                )
     except Exception as e:
         body = json.dumps({"error": f"proxy_error: {str(e)}"}).encode("utf-8")
+        print(f"[Proxy Error] {e}")
         return Response(body, status = 502, content_type = "application/json")
 
+
+# === Routes mapping ===
 @minesweeper_bp.route('/game', methods = ['POST'])
 def create_game():
     return _proxy('POST', '/game')
