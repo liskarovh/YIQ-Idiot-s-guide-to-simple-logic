@@ -63,7 +63,7 @@ function NumberField({
         borderRadius: borderRadius,
         border: "1px solid rgba(255,255,255,0.35)",
         boxShadow: "inset 0 0 0 1px rgba(255,255,255,0.15)",
-        background: "rgba(148,163,184,0.15)",
+        background: colors.secondary,
         boxSizing: "border-box"
     };
 
