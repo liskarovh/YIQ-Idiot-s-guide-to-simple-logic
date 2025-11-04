@@ -1,0 +1,111 @@
+trigger:
+  branches:
+    include:
+      - main
+  paths:
+    include:
+      - src/Backend/minesweeper/**
+
+variables:
+  nodeVersion: '20.x'
+  appName: '$(WEBAPP_MINESWEEPER_NAME)'
+  resourceGroup: '$(WEBAPP_RG)'
+  azureSubscription: '$(AZURE_SUBSCRIPTION)'
+
+stages:
+  - stage: Minesweeper_Backend
+    displayName: Minesweeper Backend (Node/TypeScript)
+    jobs:
+      - job: build_and_deploy_minesweeper
+        displayName: Build & Deploy Minesweeper TS Backend
+        pool:
+          vmImage: 'ubuntu-latest'
+
+        steps:
+          - checkout: self
+
+          # === Setup Node.js environment ===
+          - task: UseNode@1
+            displayName: 'Use Node.js $(nodeVersion)'
+            inputs:
+              version: '$(nodeVersion)'
+
+          # === Install dependencies ===
+          - script: |
+              cd src/Backend/minesweeper
+              echo "Installing dependencies..."
+              npm ci
+            displayName: 'Install npm dependencies'
+
+          # === Build TypeScript project ===
+          - script: |
+              cd src/Backend/minesweeper
+              echo "Building TypeScript..."
+              npm run build
+            displayName: 'Build TypeScript project'
+
+          # === Stage deployment files ===
+          - script: |
+              set -eux
+              mkdir -p out
+              cd src/Backend/minesweeper
+
+              # Copy built JS + package.json + node_modules (prod only)
+              cp -r dist ../out/
+              cp package.json ../out/
+              cp package-lock.json ../out/ || true
+              cd ../out
+
+              npm ci --omit=dev
+
+              echo "Contents of out directory:"
+              ls -la
+            displayName: 'Prepare deployment package'
+
+          # === Archive for deployment ===
+          - task: ArchiveFiles@2
+            displayName: 'Create deployment ZIP'
+            inputs:
+              rootFolderOrFile: 'src/Backend/out'
+              includeRootFolder: false
+              archiveType: 'zip'
+              archiveFile: '$(Build.ArtifactStagingDirectory)/MinesweeperBackend.zip'
+
+          # === Configure App Settings ===
+          - task: AzureAppServiceSettings@1
+            displayName: 'Configure Azure App Settings (Node backend)'
+            inputs:
+              azureSubscription: '$(azureSubscription)'
+              appName: '$(appName)'
+              resourceGroupName: '$(resourceGroup)'
+              appSettings: |
+                [
+                  { "name": "SCM_DO_BUILD_DURING_DEPLOYMENT", "value": "true", "slotSetting": false },
+                  { "name": "NODE_ENV", "value": "production", "slotSetting": false },
+                  { "name": "PORT", "value": "5051", "slotSetting": false },
+                  { "name": "WEBSITES_PORT", "value": "5051", "slotSetting": false },
+                  { "name": "ENABLE_ORYX_BUILD", "value": "true", "slotSetting": false },
+                  { "name": "MINESWEEPER_NODE_PORT", "value": "5051", "slotSetting": false }
+                ]
+
+          # === Startup configuration (Node) ===
+          - task: AzureCLI@2
+            displayName: 'Set startup command (Node.js backend)'
+            inputs:
+              azureSubscription: '$(azureSubscription)'
+              scriptType: bash
+              scriptLocation: inlineScript
+              inlineScript: |
+                az webapp config set \
+                  -g $(resourceGroup) \
+                  -n $(appName) \
+                  --startup-file "bash -lc 'node dist/server.js'"
+
+          # === Deploy ===
+          - task: AzureWebApp@1
+            displayName: 'Deploy Minesweeper backend to Azure'
+            inputs:
+              azureSubscription: '$(azureSubscription)'
+              appType: 'webAppLinux'
+              appName: '$(appName)'
+              package: '$(Build.ArtifactStagingDirectory)/MinesweeperBackend.zip'
