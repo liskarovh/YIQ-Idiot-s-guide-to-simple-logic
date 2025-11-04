@@ -21,6 +21,7 @@ function Home() {
     justifyContent: 'center',
     textAlign: 'center',
     padding: '5rem 2rem 2rem 2rem',
+    marginTop: '3rem',
     gap: '2rem',
   };
 
@@ -69,7 +70,7 @@ function Home() {
             title="Minesweeper"
             description={minesweeperDescription}
             image="/minesweeper_icon.png"
-            onClick={() => navigate('/minesweeper-settings')}
+            onClick={() => navigate('/minesweeper')}
           />
         </div>
       </div>
