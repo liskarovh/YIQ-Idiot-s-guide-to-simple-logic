@@ -3,7 +3,8 @@ import { BrowserRouter, Routes, Route, Link } from 'react-router-dom';
 import Home from './Home';
 import Sudoku from './sudoku/Sudoku';
 import Tic_Tac_Toe from './tic_tac_toe/Tic_Tac_Toe';
-import MinesweeperSettings from './minesweeper/MinesweeperSettings';
+import MinesweeperSettingsView from './minesweeper/MinesweeperSettingsView';
+import {MinesweeperGameView} from "./minesweeper/MinesweeperGameView";
 import About from './About';
 import styles from './Styles';
 
@@ -30,7 +31,10 @@ function App() {
           <Route path="/" element={<Home />} />
           <Route path="/sudoku" element={<Sudoku />} />
           <Route path="/tic_tac_toe" element={<Tic_Tac_Toe />} />
-          <Route path="/minesweeper-settings" element={<MinesweeperSettings />} />
+            <Route path="/minesweeper">
+                <Route index element={<MinesweeperSettingsView />} />
+                <Route path="play/:gameId" element={<MinesweeperGameView />} />
+            </Route>
           <Route path="/about" element={<About />}/>
         </Routes>
       </div>
