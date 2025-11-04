@@ -1,23 +1,37 @@
-import React, {useMemo, useRef, useState} from "react";
+import React, {useMemo, useRef} from "react";
 import MineCell from "./MineCell";
 import HintOverlay from "./HintOverlay";
 
-
 function MineGrid({
+                      /* Coordinates */
                       rows,
                       cols,
+
+                      /* State */
                       opened = [],
                       flagged = [],
                       lostOn,
+                      mines = [],
+
+                      /* Highlighting */
                       hintRect,
+                      highlightCell = null,
+
+                      /* Mutability */
                       quickFlag = false,
+                      isPaused = false,
+
+                      /* Sizing */
                       cellSize = 28,
                       gap = 4,
+
+                      /* Callbacks */
                       onReveal,
                       onFlag,
                       onMoveFlag,
                       onBeginHold,
-                      onEndHold
+                      onEndHold,
+                      holdHighlight = true
                   }) {
 
     const openedMap = useMemo(() => {
@@ -36,9 +50,23 @@ function MineGrid({
         return s;
     }, [flagged]);
 
-    // Long-press highlight (8-neighborhood)
-    const [highlightKeys, setHighlightKeys] = useState(() => new Set());
-    const computeNeighborhood = (r, c) => {
+    const mineSet = useMemo(() => {
+        const s = new Set();
+        for(const m of mines || []) {
+            s.add(`${m.r},${m.c}`);
+        }
+        return s;
+    }, [mines]);
+
+    // highlightKeys se teď počítá z prop `highlightCell` a pouze pokud je cílová buňka opravdu odkrytá
+    const highlightKeys = useMemo(() => {
+        if(!highlightCell || !holdHighlight) {
+            return new Set();
+        }
+        const {r, c} = highlightCell;
+        if(!openedMap.has(`${r},${c}`)) {
+            return new Set();
+        }
         const keys = new Set();
         for(let dr = -1; dr <= 1; dr++) {
             for(let dc = -1; dc <= 1; dc++) {
@@ -50,17 +78,7 @@ function MineGrid({
             }
         }
         return keys;
-    };
-
-    function handleBeginHold(r, c) {
-        setHighlightKeys(computeNeighborhood(r, c));
-        onBeginHold?.(r, c);
-    }
-
-    function handleEndHold() {
-        setHighlightKeys(new Set());
-        onEndHold?.();
-    }
+    }, [highlightCell, openedMap, rows, cols, holdHighlight]);
 
     const frameStyle = {
         position: "relative",
@@ -86,6 +104,76 @@ function MineGrid({
 
     function allowDrop(e) { e.preventDefault(); }
 
+    // Formátované logování: nejprve přehledná tabulka (grid), pak detailní seznam buněk
+    try {
+        const matrix = [];
+        const details = [];
+
+        for(let r = 0; r < rows; r++) {
+            const rowObj = {};
+            for(let c = 0; c < cols; c++) {
+                const key = `${r},${c}`;
+                const isOpen = openedMap.has(key);
+                const adj = openedMap.get(key) ?? 0;
+                const isFlagged = flaggedSet.has(key);
+                const lostOnCell = !!(lostOn && lostOn.r === r && lostOn.c === c);
+                const isHighlighted = highlightKeys.has(key);
+                const isMine = mineSet.has(key);
+                const inHint = !!hintRect && r >= hintRect.r0 && r <= hintRect.r1 && c >= hintRect.c0 && c <= hintRect.c1;
+
+                // krátká reprezentace pro grid: O# = open with adj, F = flag, · = closed
+                let short;
+                if(isOpen) {
+                    short = `O${adj}`;
+                }
+                else if(isFlagged) {
+                    short = "F";
+                }
+                else {
+                    short = "·";
+                }
+
+                // přidej vizuální markery
+                if(isHighlighted) {
+                    short = `*${short}`;
+                }
+                if(inHint) {
+                    short = `${short}H`;
+                }
+                if(lostOnCell) {
+                    short = `${short}!`;
+                }
+
+                rowObj[`c${c}`] = short;
+
+                details.push({
+                                 r, c,
+                                 key,
+                                 isOpen,
+                                 adj,
+                                 isFlagged,
+                                 isMine,
+                                 lostOn: lostOnCell,
+                                 highlighted: isHighlighted,
+                                 inHintRect: inHint
+                             });
+            }
+            matrix.push(rowObj);
+        }
+
+        console.groupCollapsed("[MineGrid] grid view");
+        console.log(`size: ${rows}x${cols}, opened: ${opened.length}, flagged: ${flagged.length}, minesKnown: ${mines?.length ?? 0}`);
+        console.table(matrix);
+        console.groupCollapsed("[MineGrid] cell details");
+        console.table(details);
+        console.groupEnd();
+        console.groupEnd();
+    }
+    catch(e) {
+        // logging must never crash render
+        console.error("[MineGrid] logging error", e);
+    }
+
     return (
             <div style={frameStyle}>
                 <div
@@ -95,13 +183,12 @@ function MineGrid({
                         onDrop={onGridDrop}
                         onContextMenu={(e) => e.preventDefault()}
                 >
-                    {/* overlay (hint) */}
                     <HintOverlay
                             rect={hintRect}
                             cellSize={cellSize}
-                            gap={gap} />
+                            gap={gap}
+                    />
 
-                    {/* cells */}
                     {Array.from({length: rows * cols}, (_, idx) => {
                         const r = Math.floor(idx / cols);
                         const c = idx % cols;
@@ -111,6 +198,8 @@ function MineGrid({
                         const isFlagged = flaggedSet.has(key);
                         const lostOnCell = !!(lostOn && lostOn.r === r && lostOn.c === c);
                         const isHighlighted = highlightKeys.has(key);
+                        const isMine = mineSet.has(key);
+                        const inHint = !!hintRect && r >= hintRect.r0 && r <= hintRect.r1 && c >= hintRect.c0 && c <= hintRect.c1;
 
                         return (
                                 <MineCell
@@ -120,23 +209,25 @@ function MineGrid({
                                         isOpen={isOpen}
                                         adj={adj}
                                         isFlagged={isFlagged}
+                                        isMine={isMine}
                                         lostOn={lostOnCell}
                                         isHighlighted={isHighlighted}
-                                        inHintRect={!!hintRect && r >= hintRect.r0 && r <= hintRect.r1 && c >= hintRect.c0 && c <= hintRect.c1}
+                                        inHintRect={inHint}
                                         size={cellSize}
-                                        quickFlag={quickFlag}
+                                        quickFlagEnabled={quickFlag}
+                                        isFlaggable={!isPaused}
+                                        isRevealable={!isPaused}
+                                        isPermaFlagged={false}
                                         onReveal={onReveal}
                                         onFlag={onFlag}
-                                        onBeginHold={handleBeginHold}
-                                        onEndHold={handleEndHold}
+                                        onBeginHold={onBeginHold}
+                                        onEndHold={onEndHold}
                                         onFlagDragStart={() => {}}
                                         onFlagDrop={(fr, fc, tr, tc) => onMoveFlag?.(fr, fc, tr, tc)}
-                                />
-                        );
+                                />);
                     })}
                 </div>
-            </div>
-    );
+            </div>);
 }
 
 export default MineGrid;
