@@ -77,6 +77,9 @@ export function calculateElapsedTime(g: GameSession): number {
  * - `elapsedTime` is recomputed live for each request.
  */
 export function maskForClient(g: GameSession, s: Snapshot): GameView {
+    const revealMines = !!(s.lostOn || s.cleared); // reveal only after loss or win
+    const mines = revealMines ? g.minePositions.map(([r, c]) => ({ r, c })) : undefined;
+
     return {
         gameId: g.id,
         rows: g.rows,
@@ -90,7 +93,10 @@ export function maskForClient(g: GameSession, s: Snapshot): GameView {
         elapsedTime: calculateElapsedTime(g),
         board: {
             opened: s.opened,
-            flagged: s.flagged
+            flagged: s.flagged,
+            lostOn: s.lostOn,
+            cleared: s.cleared,
+            mines
         }
     };
 }

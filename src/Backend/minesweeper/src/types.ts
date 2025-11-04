@@ -35,6 +35,11 @@ export type Action =
      */
     | { type: "flag"; row: number; column: number; set?: boolean };
 
+export interface ComputedCell {
+    isMine: boolean;
+    adjacentMines: number; // 0-8
+}
+
 /** Complete game configuration.
  * Defines board dimensions, mine count, and feature toggles.
  */
@@ -132,8 +137,8 @@ export interface GameSession {
     /** SECRET: all mine positions as `[row, col]` pairs. */
     minePositions: Array<[number, number]>;
 
-    /** No-guess mode enabled? */
-    firstClickNoGuess: boolean;
+    /** precomputed grid with all cell properties */
+    solutionGrid: ComputedCell[][];
 
     /** Lives at start. */
     livesTotal: number;
@@ -207,5 +212,14 @@ export interface GameView {
 
         /** Flagged cells. */
         flagged: Array<{ r: number; c: number }>;
+
+        /** Cell that caused a loss (if any) */
+        lostOn?: { r: number; c: number };
+
+        /** True if all safe cells have been revealed (win). */
+        cleared?: boolean;
+
+        /** Revealed mine positions (only present when safe to reveal, e.g. after loss/win) */
+        mines?: Array<{ r: number; c: number }>;
     };
 }
