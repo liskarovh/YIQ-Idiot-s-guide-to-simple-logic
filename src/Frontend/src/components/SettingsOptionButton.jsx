@@ -21,7 +21,7 @@ function SettingsOptionButton({ selected = false, onClick, children }) {
         background: backgroundColor,
         color: textColor,
         fontWeight: 700,
-        fontSize: 32,
+        fontSize: 18,
         cursor: 'pointer',
         transition: 'transform 120ms ease, box-shadow 120ms ease, background 120ms ease',
   };

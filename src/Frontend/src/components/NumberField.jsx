@@ -1,97 +1,233 @@
-// javascript
-import React from 'react';
-import colors from '../Colors';
+import React, {useMemo} from "react";
+import colors from "../Colors";
 
 /**
- * NumberField — numeric input with optional icon and parameterized sizing.
+ * NumberField is a styled numeric input component with increment/decrement buttons.
+ * It supports minValue/maxValue bounds, step, custom digit width, and can display zero as infinity.
  *
- * Props:
- * - value: number | string — current input value (controlled)
- * - onChange: (n: number) => void — callback invoked with the parsed numeric value
- * - min?: number — optional minimum allowed value
- * - max?: number — optional maximum allowed value
- * - step?: number — step increment for the native input (default: 1)
- * - icon?: ReactNode — optional trailing icon element (e.g. <svg/>)
- * - inputWidth?: number — width of the input itself in px (default: 88)
- * - height?: number — height of the entire component in px (default: 40)
- * - padding?: number — inner horizontal padding in px (default: 10)
- * - fontSize?: number — font size in px (default: 18)
- * - borderRadius?: number — border radius in px (default: 12)
+ * @param {Object} props
+ * @param {number} presetValue - Current presetValue of the field.
+ * @param {number} minValue - Minimum allowed presetValue.
+ * @param {number} maxValue - Maximum allowed presetValue.
+ * @param {number} [maxDigits=3] - Maximum number of digits to display.
+ * @param {function} onChange - Callback when presetValue changes.
+ * @param {number} [step=1] - Step for increment/decrement.
+ * @param {number} [height=40] - Height of the input.
+ * @param {number} [padding=10] - Horizontal padding.
+ * @param {number} [fontSize=18] - Font size.
+ * @param {number} [borderRadius=12] - Border radius.
+ * @param {boolean} [zeroAsInfinity=false] - If true, display zero as ∞.
  */
 function NumberField({
-                         value,
+                         presetValue,
+                         minValue,
+                         maxValue,
+                         maxDigits = 3,
                          onChange,
-                         min,
-                         max,
                          step = 1,
-                         icon,
-                         inputWidth = 88,
                          height = 40,
                          padding = 10,
                          fontSize = 18,
-                         borderRadius = 12
+                         borderRadius = 12,
+                         zeroAsInfinity = false
                      }) {
-    // Wrapper for the whole NumberField
+
+    // Calculate input width based on maxDigits or min/max values
+    const inputWidth = useMemo(() => {
+        let digits = maxDigits;
+
+        // If not explicitly set, calculate from min/max
+        if(!digits && (maxValue != null || minValue != null)) {
+            const maxVal = Math.max(
+                    Math.abs(maxValue ?? 0),
+                    Math.abs(minValue ?? 0)
+            );
+
+            digits = maxVal.toString().length;
+        }
+
+        // At least 2 digits, add space for ∞ if needed
+        digits = Math.max(digits || 2, zeroAsInfinity ? 1 : 0);
+
+        // Each digit ~14px
+        return digits * 14;
+    }, [maxValue, minValue, zeroAsInfinity, maxDigits]);
+
+    // Styles for the component
     const wrap = {
-        display: 'inline-flex',
-        alignItems: 'center',
-        gap: 8,                                              // gap between the input and the icon
-        padding: `6px ${padding}px`,                         // fixed vertical padding, horizontal is parameterized
+        display: "inline-flex",
+        alignItems: "center",
+        gap: 8,
+        padding: `6px ${padding}px`,
         height: height,
         borderRadius: borderRadius,
-        border: '1px solid rgba(255,255,255,0.35)',         // subtle light border
-        boxShadow: 'inset 0 0 0 1px rgba(255,255,255,0.15)', // inner light effect
-        background: 'rgba(148,163,184,0.15)',               // semi-transparent background
-        boxSizing: 'border-box',
+        border: "1px solid rgba(255,255,255,0.35)",
+        boxShadow: "inset 0 0 0 1px rgba(255,255,255,0.15)",
+        background: "rgba(148,163,184,0.15)",
+        boxSizing: "border-box"
     };
 
-    // Style for the numeric input itself
+    const inputContainer = {
+        position: "relative",
+        display: "inline-flex",
+        alignItems: "center"
+    };
+
     const input = {
         width: inputWidth,
-        background: 'transparent',                           // transparent background
-        border: 'none',                                     // no border (container provides it)
-        outline: 'none',                                    // no outline on focus
-        color: colors.text_header,                          // text color
+        background: "transparent",
+        border: "none",
+        outline: "none",
+        color: colors.text_header,
         fontSize: fontSize,
-        fontWeight: 700,                                    // bold font
-        textAlign: 'right',                                 // text aligned right
+        fontWeight: 700,
+        textAlign: "center",
+        MozAppearance: "textfield",
+        paddingRight: 28
     };
 
-    // Container for the icon (if provided)
-    const iconBox = {
-        width: 22,
-        height: 22,
-        borderRadius: 6,                                    // slightly smaller radius than main container
-        display: 'grid',
-        placeItems: 'center',                               // center the icon
-        background: 'rgba(255,255,255,0.15)',               // lighter background for the icon box
-        boxShadow: 'inset 0 0 0 1px rgba(255,255,255,0.25)', // subtle inner border
+    const spinnerContainer = {
+        position: "absolute",
+        right: 2,
+        display: "flex",
+        flexDirection: "column",
+        gap: 3
     };
 
-    // Handler for input value changes
-    function handleChange(e) {
-        const v = e.target.value;                           // get value from event
-        const n = Number(v);                                // convert to number
-        if (!Number.isNaN(n)) {                             // if it's a valid number
-            let next = n;
-            if (min != null) next = Math.max(min, next);   // enforce minimum if provided
-            if (max != null) next = Math.min(max, next);   // enforce maximum if provided
-            onChange?.(next);                               // call the callback
+    const arrowButton = {
+        width: 20,
+        height: 14,
+        background: "linear-gradient(180deg, rgba(255,255,255,0.2) 0%, rgba(255,255,255,0.12) 100%)",
+        border: "1px solid rgba(255,255,255,0.3)",
+        borderRadius: 4,
+        cursor: "pointer",
+        display: "grid",
+        placeItems: "center",
+        color: colors.text_header,
+        fontSize: 9,
+        transition: "all 0.15s ease",
+        userSelect: "none",
+        boxShadow: "0 1px 2px rgba(0,0,0,0.15), inset 0 1px 0 rgba(255,255,255,0.2)",
+        position: "relative",
+        overflow: "hidden"
+    };
+
+    const arrowIcon = {
+        fontSize: 8,
+        lineHeight: 1,
+        opacity: 0.85,
+        fontWeight: 900
+    };
+
+    // If zeroAsInfinity is true and value is 0, show ∞
+    const showInfinity = zeroAsInfinity && presetValue === 0;
+    const displayValue = showInfinity ? "∞" : presetValue;
+
+    // Handle manual input change.
+    function handleChange(event) {
+        const valueString = event.target.value;
+        const valueNumber = Number(valueString);
+        if(!Number.isNaN(valueNumber)) {
+            let nextNumber = valueNumber;
+            if(minValue != null) {
+                nextNumber = Math.max(minValue, nextNumber);
+            }
+            if(maxValue != null) {
+                nextNumber = Math.min(maxValue, nextNumber);
+            }
+            onChange?.(nextNumber);
         }
+    }
+
+    // Increment value by step, respecting max.
+    function increment() {
+        let nextNumber = presetValue + step;
+        if(maxValue != null) {
+            nextNumber = Math.min(maxValue, nextNumber);
+        }
+        onChange?.(nextNumber);
+    }
+
+    // Decrement value by step, respecting min.
+    function decrement() {
+        let next = presetValue - step;
+        if(minValue != null) {
+            next = Math.max(minValue, next);
+        }
+        onChange?.(next);
     }
 
     return (
             <div style={wrap}>
-                <input
-                        type="number"
-                        value={value}
-                        min={min}
-                        max={max}
-                        step={step}
-                        onChange={handleChange}
-                        style={input}
-                />
-                {icon && <div style={iconBox}>{icon}</div>}
+                {/* Hide default browser number spinners */}
+                <style>
+                    {`
+                        input[type="number"]::-webkit-inner-spin-button,
+                        input[type="number"]::-webkit-outer-spin-button {
+                            -webkit-appearance: none;
+                            margin: 0;
+                        }
+                    `}
+                </style>
+                <div style={inputContainer}>
+                    <input
+                            type="text"
+                            value={displayValue}
+                            min={minValue}
+                            max={maxValue}
+                            step={step}
+                            onChange={handleChange}
+                            style={input}
+                    />
+                    <div style={spinnerContainer}>
+                        <button
+                                style={arrowButton}
+                                onClick={increment}
+                                disabled={maxValue != null && presetValue >= maxValue}
+                                onMouseEnter={(e) => {
+                                    e.currentTarget.style.background = "linear-gradient(180deg, rgba(255,255,255,0.3) 0%, rgba(255,255,255,0.2) 100%)";
+                                    e.currentTarget.style.transform = "scale(1.05)";
+                                    e.currentTarget.style.boxShadow = "0 2px 4px rgba(0,0,0,0.2), inset 0 1px 0 rgba(255,255,255,0.3)";
+                                }}
+                                onMouseLeave={(e) => {
+                                    e.currentTarget.style.background = "linear-gradient(180deg, rgba(255,255,255,0.2) 0%, rgba(255,255,255,0.12) 100%)";
+                                    e.currentTarget.style.transform = "scale(1)";
+                                    e.currentTarget.style.boxShadow = "0 1px 2px rgba(0,0,0,0.15), inset 0 1px 0 rgba(255,255,255,0.2)";
+                                }}
+                                onMouseDown={(e) => {
+                                    e.currentTarget.style.transform = "scale(0.95)";
+                                }}
+                                onMouseUp={(e) => {
+                                    e.currentTarget.style.transform = "scale(1.05)";
+                                }}
+                        >
+                            <span style={arrowIcon}>▲</span>
+                        </button>
+                        <button
+                                style={arrowButton}
+                                onClick={decrement}
+                                disabled={minValue != null && presetValue <= minValue}
+                                onMouseEnter={(e) => {
+                                    e.currentTarget.style.background = "linear-gradient(180deg, rgba(255,255,255,0.3) 0%, rgba(255,255,255,0.2) 100%)";
+                                    e.currentTarget.style.transform = "scale(1.05)";
+                                    e.currentTarget.style.boxShadow = "0 2px 4px rgba(0,0,0,0.2), inset 0 1px 0 rgba(255,255,255,0.3)";
+                                }}
+                                onMouseLeave={(e) => {
+                                    e.currentTarget.style.background = "linear-gradient(180deg, rgba(255,255,255,0.2) 0%, rgba(255,255,255,0.12) 100%)";
+                                    e.currentTarget.style.transform = "scale(1)";
+                                    e.currentTarget.style.boxShadow = "0 1px 2px rgba(0,0,0,0.15), inset 0 1px 0 rgba(255,255,255,0.2)";
+                                }}
+                                onMouseDown={(e) => {
+                                    e.currentTarget.style.transform = "scale(0.95)";
+                                }}
+                                onMouseUp={(e) => {
+                                    e.currentTarget.style.transform = "scale(1.05)";
+                                }}
+                        >
+                            <span style={arrowIcon}>▼</span>
+                        </button>
+                    </div>
+                </div>
             </div>
     );
 }
