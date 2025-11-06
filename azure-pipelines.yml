@@ -3,9 +3,12 @@ trigger:
   paths:
     include: [ src/Backend/** ]
 
-
 variables:
   pythonVersion: '3.12'
+  # (volitelné) defaulty pro obtížnost — můžeš kdykoli upravit v Azure App Settings
+  CONNECTK_ROLLOUTS_EASY: '400'
+  CONNECTK_ROLLOUTS_MEDIUM: '2000'
+  CONNECTK_ROLLOUTS_HARD: '8000'
 
 stages:
 - stage: Backend
@@ -14,7 +17,19 @@ stages:
   - job: build_and_deploy_backend
     pool: { vmImage: 'ubuntu-latest' }
     steps:
+      # >>> důležité: stáhne i git submoduly
       - checkout: self
+        submodules: true
+        persistCredentials: true
+
+      # RYCHLÁ KONTROLA: submodul přítomen v repu
+      - bash: |
+          set -eux
+          git submodule status
+          test -f src/Backend/third_party/omega_gomoku_ai/Omega_Gomoku_AI/Game/Board.py
+          test -f src/Backend/third_party/omega_gomoku_ai/Omega_Gomoku_AI/Player/AI_MCTS.py
+          echo "OK (repo): Board.py & AI_MCTS.py present in submodule"
+        displayName: Verify submodule presence (in repo)
 
       - task: UsePythonVersion@0
         displayName: Use Python $(pythonVersion)
@@ -35,6 +50,13 @@ stages:
           
           echo "Contents of out directory (no venv):"
           ls -la out
+          echo "Submodule files inside out (should exist):"
+          ls -la out/third_party/omega_gomoku_ai/Omega_Gomoku_AI || true
+          
+          # RYCHLÁ KONTROLA: submodul v balíčku
+          test -f out/third_party/omega_gomoku_ai/Omega_Gomoku_AI/Game/Board.py
+          test -f out/third_party/omega_gomoku_ai/Omega_Gomoku_AI/Player/AI_MCTS.py
+          echo "OK (package): Board.py & AI_MCTS.py present in out/"
         displayName: Stage backend package (files only)
 
       - task: ArchiveFiles@2
@@ -45,7 +67,7 @@ stages:
           archiveType: 'zip'
           archiveFile: '$(Build.ArtifactStagingDirectory)/Backend.zip'
 
-      # App Settings: Povolíme Oryx Build
+      # App Settings: Oryx Build
       - task: AzureAppServiceSettings@1
         displayName: Configure App Settings (Enable Oryx Build)
         inputs:
@@ -59,10 +81,13 @@ stages:
               { "name": "WEBSITES_PORT", "value": "5000", "slotSetting": false },
               { "name": "FRONTEND_ORIGIN", "value": "$(FRONTEND_ORIGIN)", "slotSetting": false },
               { "name": "WEBSITE_RUN_FROM_PACKAGE", "value": "0", "slotSetting": false },
-              { "name": "ENABLE_ORYX_BUILD", "value": "true", "slotSetting": false }
+              { "name": "ENABLE_ORYX_BUILD", "value": "true", "slotSetting": false },
+              { "name": "CONNECTK_ROLLOUTS_EASY", "value": "$(CONNECTK_ROLLOUTS_EASY)", "slotSetting": false },
+              { "name": "CONNECTK_ROLLOUTS_MEDIUM", "value": "$(CONNECTK_ROLLOUTS_MEDIUM)", "slotSetting": false },
+              { "name": "CONNECTK_ROLLOUTS_HARD", "value": "$(CONNECTK_ROLLOUTS_HARD)", "slotSetting": false }
             ]
 
-      # Nastavíme startup (gunicorn) - BEZ .venv cesty
+      # Startup command
       - task: AzureCLI@2
         displayName: Set startup command (gunicorn)
         inputs:
@@ -74,7 +99,6 @@ stages:
               -g $(WEBAPP_RG) \
               -n $(WEBAPP_NAME) \
               --startup-file "bash -lc \"tar -xzf /home/site/wwwroot/output.tar.gz -C /home/site/wwwroot && export PORT=\\\${PORT:-5000} && exec /home/site/wwwroot/antenv/bin/gunicorn --bind 0.0.0.0:\\\$PORT --chdir /home/site/wwwroot app:app\""
-
 
       - task: AzureWebApp@1
         displayName: Deploy to App Service (ZipDeploy)

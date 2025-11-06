@@ -1,0 +1,70 @@
+openapi: 3.0.3
+info:
+  title: TicTacToe API
+  version: "1.0"
+servers:
+  - url: http://127.0.0.1:5000
+paths:
+  /api/tictactoe/new:
+    post:
+      summary: Create a new game
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                size: { type: integer, minimum: 3, maximum: 8 }
+                kToWin: { type: integer, minimum: 3, maximum: 5 }
+                startMark: { type: string, enum: [X, O, Random] }
+                mode: { type: string, enum: [pve, pvp] }
+                humanMark: { type: string, enum: [X, O] }
+                difficulty: { type: string, enum: [easy, medium, hard] }
+                turnTimerSec: { type: integer, minimum: 0 }
+      responses:
+        "200": { description: OK }
+        "400": { description: Invalid input }
+  /api/tictactoe/status/{id}:
+    get:
+      summary: Get game status
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      responses:
+        "200": { description: OK }
+        "404": { description: Not found }
+  /api/tictactoe/play:
+    post:
+      summary: Apply a move
+      responses:
+        "200": { description: OK }
+        "400": { description: Invalid input }
+        "404": { description: Not found }
+        "409": { description: Game over }
+  /api/tictactoe/best-move:
+    post:
+      summary: Compute best move (stateful/stateless)
+      responses:
+        "200": { description: OK }
+        "400": { description: Invalid input }
+        "404": { description: Not found }
+        "409": { description: Terminal position }
+  /api/tictactoe/validate-move:
+    post:
+      summary: Validate a candidate move
+      responses:
+        "200": { description: OK }
+  /api/tictactoe/restart:
+    post:
+      summary: Restart a game with same settings
+      responses:
+        "200": { description: OK }
+        "404": { description: Not found }
+  /api/tictactoe/meta:
+    get:
+      summary: Constants for UI
+      responses:
+        "200": { description: OK }

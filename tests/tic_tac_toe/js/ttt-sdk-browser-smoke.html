@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <title>TTT SDK — Browser Smoke</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <style>
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; padding: 24px; }
+    .ok { color: #0a0; }
+    .fail { color: #a00; }
+    code { background: #f3f3f3; padding: 2px 4px; border-radius: 4px; }
+  </style>
+</head>
+<body>
+  <h1>TTT SDK — Browser Smoke</h1>
+  <p>Open DevTools console to see the flow. Backend must run at <code>http://127.0.0.1:5000</code>.</p>
+  <p>Status: <span id="status">Running…</span></p>
+  <script>
+    const BASE = "http://127.0.0.1:5000";
+    const $ = sel => document.querySelector(sel);
+    function set(msg, ok) {
+      const el = $("#status"); el.textContent = msg; el.className = ok ? "ok" : "fail";
+    }
+    async function post(path, body) {
+      const res = await fetch(BASE + path, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body ?? {})
+      });
+      const txt = await res.text();
+      let json; try { json = JSON.parse(txt); } catch { json = { __raw: txt }; }
+      return { status: res.status, json };
+    }
+    async function get(path) {
+      const res = await fetch(BASE + path);
+      const txt = await res.text();
+      let json; try { json = JSON.parse(txt); } catch { json = { __raw: txt }; }
+      return { status: res.status, json };
+    }
+    function assert(cond, msg) { if (!cond) throw new Error(msg || "assertion failed"); }
+
+    (async function run() {
+      console.log("[SMOKE] Base =", BASE);
+      const rNew = await post("/api/tictactoe/new", { size: 3, kToWin: 3 });
+      console.log("[NEW]", rNew.status, rNew.json);
+      assert(rNew.status === 200, "NEW 200");
+      const gid = rNew.json?.game?.id;
+      assert(typeof gid === "string", "game.id string");
+
+      const rPlay = await post("/api/tictactoe/play", { gameId: gid, row: 0, col: 0 });
+      console.log("[PLAY]", rPlay.status, rPlay.json);
+      assert(rPlay.status === 200, "PLAY 200");
+      assert(rPlay.json?.game?.board?.[0]?.[0] === "X", "board (0,0)=X");
+      assert(rPlay.json?.game?.player === "O", "player toggled to O");
+
+      const rBm = await post("/api/tictactoe/best-move", { gameId: gid, difficulty: "easy" });
+      console.log("[BEST-MOVE]", rBm.status, rBm.json);
+      assert(rBm.status === 200, "BM 200");
+      assert(Array.isArray(rBm.json?.move) && rBm.json.move.length === 2, "move [r,c]");
+      assert(typeof rBm.json?.analysis === "object" && typeof rBm.json?.explain === "string", "analysis & explain");
+      assert(typeof rBm.json?.stats?.elapsedMs === "number", "elapsedMs");
+      assert(rBm.json?.meta?.difficulty === "easy", "meta.difficulty");
+
+      const rSt = await get("/api/tictactoe/status/" + gid);
+      console.log("[STATUS]", rSt.status, rSt.json);
+      assert(rSt.status === 200, "STATUS 200");
+      assert(rSt.json?.game?.id === gid, "status id");
+      set("Smoke OK — all requests passed", true);
+    })().catch(err => {
+      console.error(err);
+      set("Smoke FAILED — see console", false);
+    });
+  </script>
+</body>
+</html>
