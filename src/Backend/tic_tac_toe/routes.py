@@ -1,145 +1,110 @@
-from __future__ import annotations
+# src/Backend/tic_tac_toe/routes.py
 from flask import Blueprint, request, jsonify
+from . import rules, adapter, service
+from .util import json_error
+from .config import SIZE_MIN, SIZE_MAX, K_MIN, K_MAX
 
-# service import – balíček už máme, stačí relativní
-from . import service
+bp_stateless = Blueprint("tic_tac_toe_stateless", __name__)
 
-bp = Blueprint("react", __name__, url_prefix="/api/tictactoe")
+def _basic_validate_board(board, size: int) -> bool:
+    if not isinstance(board, list) or len(board) != size:
+        return False
+    allowed = {".", "X", "O"}
+    for row in board:
+        if not isinstance(row, list) or len(row) != size:
+            return False
+        for cell in row:
+            if cell not in allowed:
+                return False
+    return True
 
-
-def json_error(code: str, message: str, status: int, meta: dict | None = None):
-    payload = {"error": {"code": code, "message": message}}
-    if meta is not None:
-        payload["error"]["meta"] = meta
-    return jsonify(payload), status
-
-
-@bp.post("/new")
-def api_new():
-    data = request.get_json(force=True, silent=True) or {}
-    try:
-        g = service.new_game_from_payload(data)
-        return jsonify(service.to_response(g)), 200
-    except Exception as e:
-        return json_error("bad_request", f"{e}", 400)
-
-
-@bp.post("/play")
-def api_play():
-    data = request.get_json(force=True, silent=True) or {}
-    gid = data.get("gameId")
-    row = data.get("row")
-    col = data.get("col")
-    if gid is None or row is None or col is None:
-        return json_error("bad_request", "Missing gameId/row/col", 400)
-
-    g = service.get_game(gid)
-    if not g:
-        return json_error("not_found", "Game not found", 404)
-
-    try:
-        service.apply_move(g, int(row), int(col))  # lidský tah
-        service.maybe_ai_autoplay(g)               # případný AI tah
-        return jsonify(service.to_response(g)), 200
-    except AssertionError as e:
-        return json_error("turn_mismatch", str(e), 409)
-    except Exception as e:
-        return json_error("invalid_move", f"{e}", 400)
-
-
-@bp.post("/restart")
-def api_restart():
-    data = request.get_json(force=True, silent=True) or {}
-    gid = data.get("gameId")
-    if not gid:
-        return json_error("bad_request", "Missing gameId", 400)
-
-    g = service.get_game(gid)
-    if not g:
-        return json_error("not_found", "Game not found", 404)
-
-    g2 = service.new_game(
-        size=g.size,
-        k_to_win=g.k_to_win,
-        start_mark=g.start_mark,
-        human_mark=g.human_mark,
-        mode=g.mode,
-        turn_timer_s=g.turn_timer_s,
-        difficulty=g.difficulty,
-        players={"X": {"nickname": g.players["X"].nickname},
-                 "O": {"nickname": g.players["O"].nickname}},
-        player_name=None,
-    )
-    return jsonify(service.to_response(g2)), 200
-
-
-@bp.post("/best-move")
-def api_best_move():
+@bp_stateless.post("/best-move")
+def best_move():
     """
-    MERGED:
-    - zkusí analýzu enginu (pokud je),
-    - tah ale vždy určí bezpečný wrapperem (win/block/legální),
-    - pokud se liší od enginu, přidá safetyOverride=true.
+    Podporuje dvě formy:
+    1) STATEFUL: {gameId, difficulty?, timeCapMs?}
+       - načte hru, zvýší hints_used, vrátí tah
+    2) STATELESS: {board, player, size, kToWin, difficulty?, timeCapMs?}
     """
-    data = request.get_json(force=True, silent=True) or {}
-    board = data.get("board")
-    player = data.get("player")
-    size = int(data.get("size", len(board) if board else 3))
-    k = int(data.get("kToWin", data.get("k", size)))
-    difficulty = data.get("difficulty", "easy")
+    data = request.get_json(force=True) or {}
 
-    if not isinstance(board, list) or player not in ("X", "O"):
-        return json_error("bad_request", "Invalid board/player", 400)
+    # ==== STATEFUL větev ====
+    gid = data.get("gameId")
+    if gid:
+        g = service.get_game(gid)
+        if not g:
+            return json_error("NotFound", "game not found", 404)
 
-    # 1) engine analýza (best-effort)
-    engine = {}
+        # Terminál → 409
+        term = rules.check_winner(g.board, g.k_to_win)
+        if term is not None:
+            status = "win" if term in ("X", "O") else "draw"
+            meta = {"status": status, "winner": term if status == "win" else None}
+            return json_error("GameOver", "Position is terminal; best-move is undefined.", 409, meta=meta)
+
+        difficulty = "hard"
+        time_cap = data.get("timeCapMs")
+
+        try:
+            result = adapter.compute_best_move(
+                g.board, g.player, g.size, g.k_to_win,
+                difficulty=difficulty, time_cap_ms=time_cap
+            )
+        except adapter.EngineTimeout as ex:
+            return json_error("EngineTimeout", str(ex), 503)
+        except Exception as ex:
+            return json_error("Internal", f"best-move failed: {ex}", 500)
+
+        # zvýšit hints_used a uložit
+        g.hints_used = int(getattr(g, "hints_used", 0)) + 1
+        service.save_game(g)
+        return jsonify(result), 200
+
+    # ==== STATELESS větev ====
+    board = data.get("board"); player = data.get("player")
+    size = data.get("size"); k = data.get("kToWin")
+    difficulty = data.get("difficulty", "easy"); time_cap = data.get("timeCapMs")
+
+    if not isinstance(size, int) or not isinstance(k, int) or size < SIZE_MIN or size > SIZE_MAX:
+        return json_error("InvalidInput", "Invalid size range", 400)
+    if k < K_MIN or k > min(K_MAX, size):
+        return json_error("InvalidInput", "Invalid kToWin range", 400)
+    if player not in ("X", "O"):
+        return json_error("InvalidInput", "player must be 'X' or 'O'", 400)
+    if not _basic_validate_board(board, size):
+        return json_error("InvalidInput", "board does not match size or contains invalid symbols", 400)
+
+    term = rules.check_winner(board, k)
+    if term is not None:
+        status = "win" if term in ("X", "O") else "draw"
+        meta = {"status": status, "winner": term if status == "win" else None}
+        return json_error("GameOver", "Position is terminal; best-move is undefined.", 409, meta=meta)
+
     try:
-        from .adapter import compute_best_move as _bm
-        engine = _bm(board, player, size, k, difficulty=difficulty) or {}
-    except Exception as e:
-        engine = {"engineError": str(e)}
+        result = adapter.compute_best_move(board, player, size, k, difficulty=difficulty, time_cap_ms=time_cap)
+        return jsonify(result), 200
+    except adapter.EngineTimeout as ex:
+        return json_error("EngineTimeout", str(ex), 503)
+    except Exception as ex:
+        return json_error("Internal", f"best-move failed: {ex}", 500)
 
-    # 2) bezpečný tah
-    human = "O" if player == "X" else "X"
-    r, c = service._pick_ai_move_safe(
-        board, ai_mark=player, human_mark=human, size=size, k=k, difficulty=difficulty
-    )
+@bp_stateless.post("/validate-move")
+def validate_move():
+    data = request.get_json(force=True) or {}
+    board = data.get("board"); size = data.get("size")
+    row = data.get("row"); col = data.get("col")
 
-    # 3) odpověď (move = bezpečný; analýzu zachováme)
-    resp = {
-        "move": [int(r), int(c)],
-        "meta": {"indexBase": 0, "origin": "top-left", "orientation": "row-major", "validated": True},
-    }
-    for key in ("analysis", "explain", "explainRich", "stats", "score", "version"):
-        if key in engine:
-            resp[key] = engine[key]
-    if "meta" in engine:
-        resp["engineMeta"] = engine["meta"]
+    if not isinstance(size, int) or size < SIZE_MIN or size > SIZE_MAX:
+        return json_error("InvalidInput", "Invalid size", 400)
+    if not _basic_validate_board(board, size):
+        return json_error("InvalidInput", "board does not match size or contains invalid symbols", 400)
 
-    if isinstance(engine.get("move"), (list, tuple)) and engine["move"] != [r, c]:
-        resp["safetyOverride"] = True
+    try:
+        row = int(row); col = int(col)
+    except Exception:
+        return json_error("InvalidInput", "row and col must be integers", 400)
+    if row < 0 or row >= size or col < 0 or col >= size:
+        return json_error("InvalidInput", "row/col out of bounds", 400)
 
-    return jsonify(resp), 200
-
-
-@bp.post("/best-move-safe")
-def api_best_move_safe():
-    """Čistě bezpečná varianta (bez engine analýzy)."""
-    data = request.get_json(force=True, silent=True) or {}
-    board = data.get("board")
-    player = data.get("player")
-    size = int(data.get("size", len(board) if board else 3))
-    k = int(data.get("kToWin", data.get("k", size)))
-    difficulty = data.get("difficulty", "easy")
-
-    if not isinstance(board, list) or player not in ("X", "O"):
-        return json_error("bad_request", "Invalid board/player", 400)
-
-    human = "O" if player == "X" else "X"
-    r, c = service._pick_ai_move_safe(
-        board, ai_mark=player, human_mark=human, size=size, k=k, difficulty=difficulty
-    )
-    return jsonify({
-        "move": [int(r), int(c)],
-        "meta": {"indexBase": 0, "origin": "top-left", "orientation": "row-major", "validated": True}
-    }), 200
+    ok = rules.is_legal_move(board, row, col)
+    return jsonify({"ok": ok}), 200
