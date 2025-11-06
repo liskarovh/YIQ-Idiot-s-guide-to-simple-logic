@@ -1,4 +1,4 @@
-# src/Backend/tic_tac_toe/util.py
+# src/Backend/react/util.py
 from __future__ import annotations
 from typing import Any, Mapping
 from flask import jsonify

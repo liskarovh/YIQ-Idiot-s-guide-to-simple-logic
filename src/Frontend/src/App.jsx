@@ -1,41 +1,47 @@
-import React from 'react';
-import { BrowserRouter, Routes, Route, Link } from 'react-router-dom';
-import Home from './Home';
-import Sudoku from './sudoku/Sudoku';
-import Tic_Tac_Toe from './tic_tac_toe/Tic_Tac_Toe';
-import Minesweeper from './minesweeper/Minesweeper';
-import About from './About';
-import styles from './Styles'
+// src/Frontend/src/App.jsx
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import styles from './Styles';
 
-/**
- * MAIN APP COMPONENT
- * 
- * This is the root component that sets up routing for the entire application.
- * 
- */
+import Home from './Home.jsx';
+import About from './About.jsx';
+import GamePage from './tic_tac_toe/react/pages/GamePage.jsx';
+import GameSettingsPage from './tic_tac_toe/react/pages/GameSettingsPage.jsx';
+import StrategyPage from "./tic_tac_toe/react/pages/StrategyPage";
 
-function App() {
+
+// Gradient pozadí z Styles na celou aplikaci (bez centrování layoutu)
+const appBg = {
+  ...styles.container,
+  display: 'block',
+  alignItems: 'initial',
+  justifyContent: 'initial',
+};
+
+export default function App() {
   return (
-    // BrowserRouter wraps the entire app to enable routing
-    <BrowserRouter>
-      <div style={styles.container}>
-      {/* Content area where routed components appear */}
-        {/* Routes defines which component to show based on URL */}
+    <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+      <div style={appBg}>
         <Routes>
-          {/* 
-            Each Route has:
-            - path: the URL path (e.g., "/sudoku")
-            - element: the component to render
-          */}
+          {/* existující stránky */}
           <Route path="/" element={<Home />} />
-          <Route path="/sudoku" element={<Sudoku />} />
-          <Route path="/tic_tac_toe" element={<Tic_Tac_Toe />} />
-          <Route path="/minesweeper" element={<Minesweeper />} />
-          <Route path="/about" element={<About />}/>
+          <Route path="/about" element={<About />} />
+
+          {/* Tic-Tac-Toe – SETTINGS (otevře se z Home) */}
+          <Route path="/tic-tac-toe/settings" element={<GameSettingsPage />} />
+          <Route path="/tic_tac_toe/settings" element={<GameSettingsPage />} />
+
+          {/* Tic-Tac-Toe – samotná hra (otevře se po „Play“ na settings) */}
+          <Route path="/tic-tac-toe" element={<GamePage />} />
+          <Route path="/tic_tac_toe" element={<GamePage />} />
+
+
+            <Route path="/tic-tac-toe/strategy" element={<StrategyPage />} />
+          <Route path="/tic_tac_toe/strategy" element={<StrategyPage />} />
+
+          {/* fallback na Home */}
+          <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </div>
     </BrowserRouter>
   );
 }
-
-export default App;

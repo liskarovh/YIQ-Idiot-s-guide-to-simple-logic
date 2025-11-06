@@ -1,4 +1,4 @@
-# tests/tic_tac_toe/api/test_flow.py
+# tests/react/api/test_flow.py
 def test_api_flow_new_play_status_bestmove(client):
     # NEW
     r = client.post("/api/tictactoe/new", json={"size":3, "kToWin":3})

@@ -1,4 +1,4 @@
-# src/Backend/tic_tac_toe/adapter.py
+# src/Backend/react/adapter.py
 from __future__ import annotations
 import time
 from typing import List, Tuple, Optional
@@ -6,6 +6,24 @@ from .config import difficulty_params, TIMEOUT_MS, ENGINE_VERSION
 
 class EngineTimeout(Exception):
     pass
+
+# ─── přidej do adapter.py beze změny zbytku ───
+
+def to_engine_coords(r: int, c: int) -> tuple[int, int]:
+    """
+    Místo pro případnou transpozici/flip/rotaci při předávání do engine.
+    Aktuálně identity; pokud by diagnostika hlásila 'swap' apod., uprav tady.
+    """
+    return r, c
+
+
+def from_engine_coords(r: int, c: int) -> tuple[int, int]:
+    """
+    Místo pro zpětné mapování souřadnic z engine do našeho API kontraktu.
+    Aktuálně identity.
+    """
+    return r, c
+
 
 def _first_empty(board: List[List[str]]) -> Optional[Tuple[int, int]]:
     for r, row in enumerate(board):

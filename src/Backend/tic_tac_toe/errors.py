@@ -1,4 +1,4 @@
-# src/Backend/tic_tac_toe/errors.py
+# src/Backend/react/errors.py
 from __future__ import annotations
 from werkzeug.exceptions import HTTPException, NotFound, MethodNotAllowed, BadRequest, UnprocessableEntity
 from .util import json_error

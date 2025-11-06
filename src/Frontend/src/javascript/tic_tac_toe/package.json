@@ -1,8 +1,0 @@
-{
-  "name": "@itu/tictactoe-js",
-  "version": "0.1.0",
-  "type": "module",
-  "main": "./client.js",
-  "module": "./client.js",
-  "exports": { ".": { "import": "./client.js" } }
-}

@@ -1,4 +1,4 @@
-# src/Backend/tic_tac_toe/models/__init__.py
+# src/Backend/react/models/__init__.py
 from .types import GameStatus, PlayerMark
 from .move import Move
 from .game import Game

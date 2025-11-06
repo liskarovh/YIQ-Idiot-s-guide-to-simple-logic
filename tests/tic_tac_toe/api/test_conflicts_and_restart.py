@@ -1,4 +1,4 @@
-# /tests/tic_tac_toe/api/test_conflicts_and_restart.py
+# /tests/react/api/test_conflicts_and_restart.py
 import json
 
 def _post_json(client, url, payload):

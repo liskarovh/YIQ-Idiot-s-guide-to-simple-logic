@@ -1,4 +1,4 @@
-# /tests/tic_tac_toe/api/test_best_move_and_validate.py
+# /tests/react/api/test_best_move_and_validate.py
 import json
 
 def _post_json(client, url, payload):

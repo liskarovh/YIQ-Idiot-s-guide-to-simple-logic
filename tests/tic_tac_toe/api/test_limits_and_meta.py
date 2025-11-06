@@ -1,4 +1,4 @@
-# tests/tic_tac_toe/api/test_limits_and_meta.py
+# tests/react/api/test_limits_and_meta.py
 def test_max_board_size_limit_in_new(client):
     # limit N <= 8
     r = client.post("/api/tictactoe/new", json={"size":9, "kToWin":3})

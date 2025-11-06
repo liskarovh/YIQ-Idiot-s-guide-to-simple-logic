@@ -1,15 +1,15 @@
 from __future__ import annotations
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request, jsonify, send_from_directory
 import logging
 import time
+import os
 
 from . import rules
 from . import service as svc
 from .adapter import compute_best_move
-import os
-from flask import send_from_directory
+from .explain import build_explanation  # ← zůstává
 
-bp = Blueprint("tic_tac_toe", __name__, url_prefix="/api/tictactoe")
+bp = Blueprint("react", __name__, url_prefix="/api/tictactoe")
 log = logging.getLogger(__name__)
 
 SIZE_MIN, SIZE_MAX = 3, 8
@@ -42,9 +42,8 @@ def _mk_explain(bm_stats: dict, player: str, size: int, k: int, difficulty: str)
     return f"MCTS rollouts={rolls}; size={size}; k={k}; player={player}; difficulty={difficulty}"
 
 
-@bp.route("/meta", methods=["GET"])
+@bp.get("/meta")
 def api_meta():
-    """Konstanty pro UI (neovlivňuje testy)."""
     return jsonify({
         "size": {"min": SIZE_MIN, "max": SIZE_MAX},
         "kToWin": {"min": K_MIN, "max": K_MAX},
@@ -53,50 +52,50 @@ def api_meta():
     }), 200
 
 
-@bp.route("/new", methods=["POST"])
+@bp.post("/new")
 def api_new():
     data = request.get_json(silent=True) or {}
     log.debug("api_new payload: %s", data)
 
-    size = int(data.get("size", 3))
-    k = int(data.get("kToWin", 3))
+    try:
+        size = int(data.get("size", 3))
+        k = int(data.get("kToWin", 3))
+    except Exception:
+        return json_error("InvalidInput", "size/kToWin must be integers", 400)
 
     if not (SIZE_MIN <= size <= SIZE_MAX):
         return json_error("InvalidInput", f"size must be between {SIZE_MIN} and {SIZE_MAX}", 400)
     if not (K_MIN <= k <= K_MAX) or k > size:
         return json_error("InvalidInput", "kToWin out of range or larger than size", 400)
 
-    start_mark = data.get("startMark")
-    human_mark = data.get("humanMark")
-    mode = data.get("mode")
-    turn_timer_s = data.get("turnTimerSec")
-    difficulty = _norm_difficulty(data.get("difficulty"))
-
     try:
-        g = svc.new_game(
-            size=size,
-            k_to_win=k,
-            start_mark=start_mark,
-            human_mark=human_mark,
-            mode=mode,
-            turn_timer_s=turn_timer_s,
-            difficulty=difficulty,
-        )
-        return jsonify({"game": svc.to_dto(g)}), 200
+        g = svc.new_game_from_payload(data)
+        return jsonify(svc.to_response(g)), 200
     except Exception as e:
         log.exception("Unhandled exception on POST /api/tictactoe/new")
         return json_error("Internal", str(e), 500)
 
 
-@bp.route("/status/<game_id>", methods=["GET"])
+@bp.get("/status/<game_id>")
 def api_status(game_id: str):
     g = svc.get_game(game_id)
     if not g:
         return json_error("NotFound", "Game not found", 404)
-    return jsonify({"game": svc.to_dto(g)}), 200
+    return jsonify(svc.to_response(g)), 200
 
 
-@bp.route("/play", methods=["POST"])
+@bp.get("/state")
+def api_state():
+    game_id = request.args.get("gameId")
+    if not game_id:
+        return json_error("BadRequest", "gameId required", 400)
+    g = svc.get_game(game_id)
+    if not g:
+        return json_error("NotFound", "Game not found", 404)
+    return jsonify(svc.to_response(g)), 200
+
+
+@bp.post("/play")
 def api_play():
     data = request.get_json(silent=True) or {}
     gid = data.get("gameId")
@@ -126,18 +125,23 @@ def api_play():
         log.exception("apply_move failed")
         return json_error("Internal", str(e), 500)
 
-    return jsonify({"game": svc.to_dto(g)}), 200
+    if g.mode == "pve":
+        g = svc.maybe_ai_autoplay(g, difficulty=g.difficulty)
+
+    return jsonify(svc.to_response(g)), 200
 
 
-@bp.route("/best-move", methods=["POST"])
+@bp.post("/best-move")
 def api_best_move():
     """
-    - stateful: { "gameId": "...", "difficulty": "easy|medium|hard" }
-    - stateless: { "board": [...], "size": N, "kToWin": K, "player": "X|O", "difficulty": ... }
+    MERGED varianta:
+    - stateful poradna: vždy počítá HARD, vrací bezpečný tah (win/block/legální),
+      přidá safetyOverride=true, když engine navrhl něco jiného.
+    - stateless kalkul: stejné chování, ale s payload board/size/k/player/difficulty.
     """
     data = request.get_json(silent=True) or {}
 
-    # === stateful ===
+    # === stateful poradna (gameId) ===
     gid = data.get("gameId")
     if isinstance(gid, str):
         g = svc.get_game(gid)
@@ -146,35 +150,53 @@ def api_best_move():
         if g.status != "running":
             return json_error("GameOver", "Game is terminal", 409)
 
-        diff = _norm_difficulty(data.get("difficulty") or getattr(g, "difficulty", "easy"))
-
+        diff = "hard"  # poradna = vždy nejlepší výpočet
         t0 = time.perf_counter()
-        bm = compute_best_move(g.board, g.player, g.size, g.k_to_win, difficulty=diff)
+        engine = {}
+        try:
+            engine = compute_best_move(g.board, g.player, g.size, g.k_to_win, difficulty=diff) or {}
+        except Exception as e:
+            engine = {"engineError": str(e)}
         elapsed_ms = int((time.perf_counter() - t0) * 1000)
 
-        stats = bm.get("stats", {}) or {}
-        stats.setdefault("elapsedMs", elapsed_ms)
+        # bezpečný tah
+        human = "O" if g.player == "X" else "X"
+        r, c = svc._pick_ai_move_safe(g.board, ai_mark=g.player, human_mark=human,
+                                      size=g.size, k=g.k_to_win, difficulty=diff)
+        safe_move = [int(r), int(c)]
+        engine_move = engine.get("move") if isinstance(engine.get("move"), (list, tuple)) else None
+        safety_override = (engine_move is None) or (engine_move != safe_move)
 
+        stats = (engine.get("stats") or {}).copy() if isinstance(engine.get("stats"), dict) else {}
+        stats.setdefault("elapsedMs", elapsed_ms)
+        explain = _mk_explain(stats, g.player, g.size, g.k_to_win, diff)
+        analysis = _mk_analysis(g.player, g.size, g.k_to_win, diff, explain=explain)
+        rich = build_explanation(g.board, safe_move, g.player, g.size, g.k_to_win)
+
+        # inkrementace hintů
         try:
             g.hints_used = int(getattr(g, "hints_used", 0)) + 1
         except Exception:
             pass
         svc.save_game(g)
 
-        explain = _mk_explain(stats, g.player, g.size, g.k_to_win, diff)
-        analysis = _mk_analysis(g.player, g.size, g.k_to_win, diff, explain=explain)
-
-        return jsonify({
-            "move": bm.get("move"),
-            "score": bm.get("score", 0.0),
+        resp = {
+            "move": safe_move,
+            "score": engine.get("score", 0.0),
             "stats": stats,
-            "version": bm.get("version", "py-omega-1.2.0"),
+            "version": engine.get("version", "py-omega-1.2.0"),
             "analysis": analysis,
             "explain": explain,
+            "explainRich": rich,
             "meta": {"difficulty": diff, "elapsedMs": elapsed_ms},
-        }), 200
+        }
+        if safety_override:
+            resp["safetyOverride"] = True
+        if "meta" in engine:
+            resp["engineMeta"] = engine["meta"]
+        return jsonify(resp), 200
 
-    # === stateless ===
+    # === stateless kalkul ===
     board = data.get("board")
     size = int(data.get("size", 0) or 0)
     k = int(data.get("kToWin", 0) or 0)
@@ -199,27 +221,82 @@ def api_best_move():
         return json_error("GameOver", "Position is terminal", 409, meta=meta)
 
     t0 = time.perf_counter()
-    bm = compute_best_move(board, player, size, k, difficulty=diff)
+    engine = {}
+    try:
+        engine = compute_best_move(board, player, size, k, difficulty=diff) or {}
+    except Exception as e:
+        engine = {"engineError": str(e)}
     elapsed_ms = int((time.perf_counter() - t0) * 1000)
 
-    stats = bm.get("stats", {}) or {}
-    stats.setdefault("elapsedMs", elapsed_ms)
+    # bezpečný tah
+    human = "O" if player == "X" else "X"
+    r, c = svc._pick_ai_move_safe(board, ai_mark=player, human_mark=human,
+                                  size=size, k=k, difficulty=diff)
+    safe_move = [int(r), int(c)]
+    engine_move = engine.get("move") if isinstance(engine.get("move"), (list, tuple)) else None
+    safety_override = (engine_move is None) or (engine_move != safe_move)
 
+    stats = (engine.get("stats") or {}).copy() if isinstance(engine.get("stats"), dict) else {}
+    stats.setdefault("elapsedMs", elapsed_ms)
     explain = _mk_explain(stats, player, size, k, diff)
     analysis = _mk_analysis(player, size, k, diff, explain=explain)
+    rich = build_explanation(board, safe_move, player, size, k)
 
-    return jsonify({
-        "move": bm.get("move"),
-        "score": bm.get("score", 0.0),
+    resp = {
+        "move": safe_move,
+        "score": engine.get("score", 0.0),
         "stats": stats,
-        "version": bm.get("version", "py-omega-1.2.0"),
+        "version": engine.get("version", "py-omega-1.2.0"),
         "analysis": analysis,
         "explain": explain,
+        "explainRich": rich,
         "meta": {"difficulty": diff, "elapsedMs": elapsed_ms},
+    }
+    if safety_override:
+        resp["safetyOverride"] = True
+    if "meta" in engine:
+        resp["engineMeta"] = engine["meta"]
+
+    return jsonify(resp), 200
+
+
+@bp.post("/best-move-safe")
+def api_best_move_safe():
+    """Čistě bezpečný výpočet bez engine analýzy (rychlé smoke testy / A/B)."""
+    data = request.get_json(silent=True) or {}
+    board = data.get("board")
+    size = int(data.get("size", 0) or 0)
+    k = int(data.get("kToWin", 0) or 0)
+    player = (data.get("player") or "X").strip().upper()
+    diff = _norm_difficulty(data.get("difficulty"))
+
+    if not (SIZE_MIN <= size <= SIZE_MAX):
+        return json_error("InvalidInput", f"size must be between {SIZE_MIN} and {SIZE_MAX}", 400)
+    if not (K_MIN <= k <= K_MAX) or k > size:
+        return json_error("InvalidInput", "kToWin out of range or larger than size", 400)
+    if player not in ("X", "O"):
+        return json_error("InvalidInput", "player must be X or O", 400)
+    if not isinstance(board, list) or len(board) != size or any(len(r) != size for r in board):
+        return json_error("InvalidInput", "board shape mismatch", 400)
+
+    term = rules.check_winner(board, k)
+    if term is not None:
+        status = "win" if term in ("X", "O") else "draw"
+        meta = {"status": status}
+        if status == "win":
+            meta["winner"] = term
+        return json_error("GameOver", "Position is terminal", 409, meta=meta)
+
+    human = "O" if player == "X" else "X"
+    r, c = svc._pick_ai_move_safe(board, ai_mark=player, human_mark=human,
+                                  size=size, k=k, difficulty=diff)
+    return jsonify({
+        "move": [int(r), int(c)],
+        "meta": {"indexBase": 0, "origin": "top-left", "orientation": "row-major", "validated": True}
     }), 200
 
 
-@bp.route("/validate-move", methods=["POST"])
+@bp.post("/validate-move")
 def api_validate_move():
     data = request.get_json(silent=True) or {}
     board = data.get("board")
@@ -236,7 +313,7 @@ def api_validate_move():
     return jsonify({"ok": bool(valid), "valid": bool(valid)}), 200
 
 
-@bp.route("/restart", methods=["POST"])
+@bp.post("/restart")
 def api_restart():
     data = request.get_json(silent=True) or {}
     gid = data.get("gameId")
@@ -247,6 +324,13 @@ def api_restart():
     if not old:
         return json_error("NotFound", "Game not found", 404)
 
+    old_px = getattr(old.players.get("X"), "nickname", None) if old.players else None
+    old_po = getattr(old.players.get("O"), "nickname", None) if old.players else None
+    players_payload = {
+        "X": {"nickname": old_px} if old_px else {},
+        "O": {"nickname": old_po} if old_po else {},
+    }
+
     try:
         g = svc.new_game(
             size=old.size,
@@ -256,15 +340,15 @@ def api_restart():
             mode=old.mode,
             turn_timer_s=old.turn_timer_s,
             difficulty=getattr(old, "difficulty", "easy"),
+            players=players_payload,
         )
-        return jsonify({"game": svc.to_dto(g)}), 200
+        return jsonify(svc.to_response(g)), 200
     except Exception as e:
         log.exception("Unhandled exception on POST /api/tictactoe/restart")
         return json_error("Internal", str(e), 500)
 
-@bp.route("/static/<path:filename>", methods=["GET"])
+
+@bp.get("/static/<path:filename>")
 def ttt_static(filename: str):
-    # cesta na adresář s client.js = .../src/Backend/tic_tac_toe/
     base = os.path.join(os.path.dirname(__file__))
     return send_from_directory(base, filename)
-

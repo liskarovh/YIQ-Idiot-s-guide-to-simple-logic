@@ -23,7 +23,7 @@ tic-tac-toe/
 Blueprint bude registrován v `app.py`:
 ```py
 # app.py (ukázka zápisu – implementace přijde v dalším kroku)
-# from tic_tac_toe import bp as ttt_bp
+# from react import bp as ttt_bp
 # app.register_blueprint(ttt_bp, url_prefix="/api/tictactoe")
 ```
 
