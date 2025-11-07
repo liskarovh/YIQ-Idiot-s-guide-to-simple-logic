@@ -1,6 +1,8 @@
 import React, {useMemo, useRef} from "react";
+import colors from "../../Colors";
 import MineCell from "./MineCell";
 import HintOverlay from "./HintOverlay";
+import AutoScale from "../AutoScale";
 
 function MineGrid({
                       /* Coordinates */
@@ -10,6 +12,7 @@ function MineGrid({
                       /* State */
                       opened = [],
                       flagged = [],
+                      permanentFlags = new Set(),
                       lostOn,
                       mines = [],
 
@@ -20,10 +23,11 @@ function MineGrid({
                       /* Mutability */
                       quickFlag = false,
                       isPaused = false,
+                      beforeStart = false,
 
                       /* Sizing */
-                      cellSize = 28,
-                      gap = 4,
+                      cellSize = 30,
+                      gap = 3,
 
                       /* Callbacks */
                       onReveal,
@@ -58,7 +62,6 @@ function MineGrid({
         return s;
     }, [mines]);
 
-    // highlightKeys se teď počítá z prop `highlightCell` a pouze pokud je cílová buňka opravdu odkrytá
     const highlightKeys = useMemo(() => {
         if(!highlightCell || !holdHighlight) {
             return new Set();
@@ -80,14 +83,15 @@ function MineGrid({
         return keys;
     }, [highlightCell, openedMap, rows, cols, holdHighlight]);
 
+    const framePadding = 5;
+
     const frameStyle = {
         position: "relative",
-        display: "inline-block",
-        padding: 8,
-        borderRadius: 10,
-        border: "1px solid rgba(255,255,255,0.45)",
-        boxShadow: "inset 0 0 0 1px rgba(255,255,255,0.25)",
-        background: "linear-gradient(180deg, rgba(255,255,255,0.06), rgba(255,255,255,0.02))"
+        display: "grid",
+        placeItems: "center",
+        padding: framePadding,
+        background: "linear-gradient(180deg, rgba(255,255,255,0.06), rgba(255,255,255,0.02))",
+        boxSizing: "border-box"
     };
 
     const gridStyle = {
@@ -98,136 +102,110 @@ function MineGrid({
         gap
     };
 
+    const gridWidth = cols * cellSize + Math.max(0, cols - 1) * gap;
+    const gridHeight = rows * cellSize + Math.max(0, rows - 1) * gap;
+    const baseWidth = gridWidth + framePadding * 2;
+    const baseHeight = gridHeight + framePadding * 2;
+
     const gridRef = useRef(null);
 
     function onGridDrop(e) { e.preventDefault(); }
 
     function allowDrop(e) { e.preventDefault(); }
 
-    // Formátované logování: nejprve přehledná tabulka (grid), pak detailní seznam buněk
-    try {
-        const matrix = [];
-        const details = [];
-
-        for(let r = 0; r < rows; r++) {
-            const rowObj = {};
-            for(let c = 0; c < cols; c++) {
-                const key = `${r},${c}`;
-                const isOpen = openedMap.has(key);
-                const adj = openedMap.get(key) ?? 0;
-                const isFlagged = flaggedSet.has(key);
-                const lostOnCell = !!(lostOn && lostOn.r === r && lostOn.c === c);
-                const isHighlighted = highlightKeys.has(key);
-                const isMine = mineSet.has(key);
-                const inHint = !!hintRect && r >= hintRect.r0 && r <= hintRect.r1 && c >= hintRect.c0 && c <= hintRect.c1;
-
-                // krátká reprezentace pro grid: O# = open with adj, F = flag, · = closed
-                let short;
-                if(isOpen) {
-                    short = `O${adj}`;
-                }
-                else if(isFlagged) {
-                    short = "F";
-                }
-                else {
-                    short = "·";
-                }
-
-                // přidej vizuální markery
-                if(isHighlighted) {
-                    short = `*${short}`;
-                }
-                if(inHint) {
-                    short = `${short}H`;
-                }
-                if(lostOnCell) {
-                    short = `${short}!`;
-                }
-
-                rowObj[`c${c}`] = short;
-
-                details.push({
-                                 r, c,
-                                 key,
-                                 isOpen,
-                                 adj,
-                                 isFlagged,
-                                 isMine,
-                                 lostOn: lostOnCell,
-                                 highlighted: isHighlighted,
-                                 inHintRect: inHint
-                             });
-            }
-            matrix.push(rowObj);
-        }
-
-        console.groupCollapsed("[MineGrid] grid view");
-        console.log(`size: ${rows}x${cols}, opened: ${opened.length}, flagged: ${flagged.length}, minesKnown: ${mines?.length ?? 0}`);
-        console.table(matrix);
-        console.groupCollapsed("[MineGrid] cell details");
-        console.table(details);
-        console.groupEnd();
-        console.groupEnd();
-    }
-    catch(e) {
-        // logging must never crash render
-        console.error("[MineGrid] logging error", e);
-    }
-
     return (
-            <div style={frameStyle}>
-                <div
-                        ref={gridRef}
-                        style={gridStyle}
-                        onDragOver={allowDrop}
-                        onDrop={onGridDrop}
-                        onContextMenu={(e) => e.preventDefault()}
-                >
-                    <HintOverlay
-                            rect={hintRect}
-                            cellSize={cellSize}
-                            gap={gap}
-                    />
+            <AutoScale
+                    baseWidth={baseWidth}
+                    baseHeight={baseHeight}
+                    center={false}
+                    minScale={0.5}
+                    maxScale={1}
+                    style={{
+                        alignSelf: 'flex-start',
+                        display: 'inline-block',
+                        border: `3px solid ${colors.text_header}`,
+                        boxShadow: "inset 0 0 0 1px rgba(255,255,255,0.25)",
+                        borderRadius: 5,
+                        overflow: "hidden"
+                    }}
+            >
+                <div style={frameStyle}>
+                    <div
+                            ref={gridRef}
+                            style={gridStyle}
+                            onDragOver={allowDrop}
+                            onDrop={onGridDrop}
+                            onContextMenu={(e) => e.preventDefault()}
+                    >
+                        <HintOverlay
+                                rect={hintRect}
+                                cellSize={cellSize}
+                                gap={gap}
+                        />
 
-                    {Array.from({length: rows * cols}, (_, idx) => {
-                        const r = Math.floor(idx / cols);
-                        const c = idx % cols;
-                        const key = `${r},${c}`;
-                        const isOpen = openedMap.has(key);
-                        const adj = openedMap.get(key) ?? 0;
-                        const isFlagged = flaggedSet.has(key);
-                        const lostOnCell = !!(lostOn && lostOn.r === r && lostOn.c === c);
-                        const isHighlighted = highlightKeys.has(key);
-                        const isMine = mineSet.has(key);
-                        const inHint = !!hintRect && r >= hintRect.r0 && r <= hintRect.r1 && c >= hintRect.c0 && c <= hintRect.c1;
+                        {Array.from({length: rows * cols}, (_, idx) => {
+                            const r = Math.floor(idx / cols);
+                            const c = idx % cols;
+                            const key = `${r},${c}`;
+                            const isOpen = openedMap.has(key);
+                            const adj = openedMap.get(key) ?? 0;
+                            const isFlagged = flaggedSet.has(key);
+                            const lostOnCell = !!(lostOn && lostOn.r === r && lostOn.c === c);
+                            const isHighlighted = highlightKeys.has(key);
+                            const isMine = mineSet.has(key);
+                            const inHint = !!hintRect && r >= hintRect.r0 && r <= hintRect.r1 && c >= hintRect.c0 && c <= hintRect.c1;
+                            const isPermaFlagged = permanentFlags.has(key);
 
-                        return (
-                                <MineCell
-                                        key={key}
-                                        r={r}
-                                        c={c}
-                                        isOpen={isOpen}
-                                        adj={adj}
-                                        isFlagged={isFlagged}
-                                        isMine={isMine}
-                                        lostOn={lostOnCell}
-                                        isHighlighted={isHighlighted}
-                                        inHintRect={inHint}
-                                        size={cellSize}
-                                        quickFlagEnabled={quickFlag}
-                                        isFlaggable={!isPaused}
-                                        isRevealable={!isPaused}
-                                        isPermaFlagged={false}
-                                        onReveal={onReveal}
-                                        onFlag={onFlag}
-                                        onBeginHold={onBeginHold}
-                                        onEndHold={onEndHold}
-                                        onFlagDragStart={() => {}}
-                                        onFlagDrop={(fr, fc, tr, tc) => onMoveFlag?.(fr, fc, tr, tc)}
-                                />);
-                    })}
+                            // Cell interactivity according to spec:
+                            let isFlaggable, isRevealable;
+
+                            if (isOpen) {
+                                // Opened cells: cannot flag or reveal again
+                                isFlaggable = false;
+                                isRevealable = false;
+                            } else if (isPaused) {
+                                // During explosion (with lives remaining): all interactions blocked
+                                isFlaggable = false;
+                                isRevealable = false;
+                            } else if (beforeStart) {
+                                // Before first reveal: can only reveal, cannot flag
+                                isFlaggable = false;
+                                isRevealable = true;
+                            } else {
+                                // Normal gameplay: all interactions allowed
+                                isFlaggable = true;
+                                isRevealable = true;
+                            }
+
+                            return (
+                                    <MineCell
+                                            key={key}
+                                            r={r}
+                                            c={c}
+                                            isOpen={isOpen}
+                                            adj={adj}
+                                            isFlagged={isFlagged}
+                                            isPermaFlagged={isPermaFlagged}
+                                            isMine={isMine}
+                                            lostOn={lostOnCell}
+                                            isHighlighted={isHighlighted}
+                                            inHintRect={inHint}
+                                            size={cellSize}
+                                            quickFlagEnabled={quickFlag}
+                                            isFlaggable={isFlaggable}
+                                            isRevealable={isRevealable}
+                                            onReveal={onReveal}
+                                            onFlag={onFlag}
+                                            onBeginHold={onBeginHold}
+                                            onEndHold={onEndHold}
+                                            onFlagDragStart={() => {}}
+                                            onFlagDrop={(fr, fc, tr, tc) => onMoveFlag?.(fr, fc, tr, tc)}
+                                    />);
+                        })}
+                    </div>
                 </div>
-            </div>);
+            </AutoScale>
+    );
 }
 
 export default MineGrid;

@@ -17,14 +17,13 @@ const ActionPill = ({ children, onClick, disabled }) => {
     const style = {
         padding: '10px 18px',
         borderRadius: 14,
-        background: disabled ? 'rgba(100,100,100,0.18)' : 'rgba(148,163,184,0.18)',
+        background: 'rgba(148,163,184,0.18)',
         border: '1px solid rgba(255,255,255,0.35)',
         boxShadow: 'inset 0 0 0 1px rgba(255,255,255,0.15)',
-        color: disabled ? 'rgba(255,255,255,0.4)' : '#fff',
+        color: colors.text,
         fontWeight: 800,
-        cursor: disabled ? 'not-allowed' : 'pointer',
         outline: 'none',
-        opacity: disabled ? 0.5 : 1,
+        cursor: 'pointer',
     };
     return (
             <button style={style} onClick={onClick} type="button" disabled={disabled}>
@@ -100,32 +99,29 @@ export function MinesweeperGameView() {
     const {gameId} = useParams();
     const navigate = useNavigate();
 
-    console.log('[GameView] Component mounted/updated', {gameId});
+    console.log('[GameView] Component mounted', {gameId});
 
     useEffect(() => {
         if(!gameId) {
-            console.warn('[GameView] No gameId found, redirecting to /minesweeper');
+            console.warn('[GameView] No gameId, redirecting');
             navigate('/minesweeper', {replace: true});
         }
     }, [gameId, navigate]);
 
     const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:5000';
     const base = `${apiUrl}/api/minesweeper`;
-    console.log('[GameView] API base URL:', base);
 
     const [view, setView] = useState(null);
     const [busy, setBusy] = useState(false);
     const [error, setError] = useState(null);
-    const lastRefreshRef = useRef(0);
 
     const uiPrefs = useMemo(() => {
         try {
             const raw = localStorage.getItem(`ms:uiPrefs:${gameId}`);
-            console.log('[GameView] Loading UI preferences:', {gameId, raw});
             return JSON.parse(raw || '{}');
         }
         catch(e) {
-            console.error('[GameView] Failed to parse UI preferences:', e);
+            console.error('[GameView] Failed to parse prefs', e);
             return {};
         }
     }, [gameId]);
@@ -135,7 +131,7 @@ export function MinesweeperGameView() {
     const enableHints = uiPrefs.enableHints ?? true;
     const holdHighlight = uiPrefs.holdHighlight ?? true;
 
-    console.log('[GameView] UI preferences:', {showTimer, allowUndo, enableHints, holdHighlight});
+    console.log('[GameView] UI prefs', {showTimer, allowUndo, enableHints, holdHighlight});
 
     const [paused, setPaused] = useState(false);
     const [hintRect, setHintRect] = useState(null);
@@ -143,95 +139,68 @@ export function MinesweeperGameView() {
     const [seekIndex, setSeekIndex] = useState(0);
     const [quickFlag, setQuickFlag] = useState(false);
     const [highlightCell, setHighlightCell] = useState(null);
+    const [explodedMode, setExplodedMode] = useState(false);
 
-    // separátní stav pro timer — periodický tick mění jen toto, zbytek UI se nerenderuje z důvodu timeru
+    // Timer state - updates every second independently
     const [timerSec, setTimerSec] = useState(0);
 
     const req = useCallback(async(path, init) => {
         const url = `${base}${path}`;
-        console.log(`[API Request] ${init?.method || 'GET'} ${url}`, init?.body ? JSON.parse(init.body) : {});
+        console.log(`[API] ${init?.method || 'GET'} ${url}`);
 
         try {
             const res = await fetch(url, init);
             const data = await res.json().catch(() => ({}));
 
             if(!res.ok) {
-                console.error(`[API Error] ${res.status}`, data);
+                console.error(`[API] Error ${res.status}`, data);
                 throw new Error(data?.error || `HTTP ${res.status}`);
             }
 
-            console.log(`[API Success] ${init?.method || 'GET'} ${url}`, data);
+            console.log(`[API] Success`, data);
             return data;
         }
         catch(e) {
-            console.error(`[API Exception] ${init?.method || 'GET'} ${url}`, e);
+            console.error(`[API] Exception`, e);
             throw e;
         }
-    }, []);
+    }, [base]);
 
-    const refresh = useCallback(async(force = false) => {
-        if(!gameId) {
-            console.warn('[Refresh] No gameId, skipping refresh');
-            return;
-        }
+    const refresh = useCallback(async() => {
+        if(!gameId) return;
 
-        const now = Date.now();
-        if(!force && now - lastRefreshRef.current < 900) {
-            console.log('[Refresh] Throttled (too soon)');
-            return;
-        }
-        lastRefreshRef.current = now;
-
-        console.log('[Refresh] Fetching game state', {gameId, force});
-
+        console.log('[Refresh] Fetching game state');
         const data = await req(`/game/${gameId}`, {method: 'GET'});
 
-        setView(prev => {
-            if(!prev) {
-                console.log('[Refresh] Initial view loaded', data);
-                return data;
-            }
-
-            const unchanged =
-                    prev.cursor === data.cursor &&
-                    prev.status === data.status &&
-                    JSON.stringify(prev.board?.opened) === JSON.stringify(data.board?.opened) &&
-                    JSON.stringify(prev.board?.flagged) === JSON.stringify(data.board?.flagged);
-
-            if(unchanged) {
-                console.log('[Refresh] View unchanged, keeping old state');
-            }
-            else {
-                console.log('[Refresh] View updated', {
-                    cursor: {old: prev.cursor, new: data.cursor},
-                    status: {old: prev.status, new: data.status},
-                    opened: {old: prev.board?.opened?.length, new: data.board?.opened?.length},
-                    flagged: {old: prev.board?.flagged?.length, new: data.board?.flagged?.length},
-                });
-            }
-
-            return unchanged ? prev : data;
-        });
-
-        // synchronizace timeru a seekIndex / quickFlag
-        setQuickFlag(!!data.quickFlagEnabled);
+        setView(data);
+        setQuickFlag(!!data.quickFlag);
         setSeekIndex(data.cursor ?? 0);
         setTimerSec(data.elapsedTime ?? 0);
-        console.log('[Refresh] State updated', {quickFlag: data.quickFlagEnabled, seekIndex: data.cursor, timerSec: data.elapsedTime});
+        console.log('[Refresh] State updated', {cursor: data.cursor, status: data.status});
     }, [gameId, req]);
 
     useEffect(() => {
-        console.log('[Effect] Initial refresh on mount');
-        refresh(true).catch((e) => {
-            console.error('[Effect] Initial refresh failed:', e);
+        console.log('[Effect] Initial refresh');
+        refresh().catch((e) => {
+            console.error('[Effect] Refresh failed', e);
             setError(String(e.message || e));
         });
     }, [refresh]);
 
-    // Timer: jen tento efekt mění periodicky `timerSec` — zamezí zbytečným rerenderům jiných částí
+    // Game state detection
+    const beforeStart = view?.status === 'new';
+    const isGameOver = view?.status === 'lost' || view?.status === 'won';
+    const isExploded = explodedMode;
+
+    console.log('[State]', {beforeStart, isGameOver, isExploded, status: view?.status});
+
+    // Timer effect - runs only during active gameplay
     useEffect(() => {
-        if(!showTimer || paused || !view || view.status !== 'playing') {
-            console.log('[Timer] Stopped', {showTimer, paused, status: view?.status});
+        // Timer runs when: not paused, playing status, not exploded, not game over
+        const shouldRun = showTimer && !paused && view?.status === 'playing' && !isExploded && !isGameOver;
+
+        if(!shouldRun) {
+            console.log('[Timer] Stopped', {showTimer, paused, status: view?.status, isExploded, isGameOver});
             return;
         }
 
@@ -244,12 +213,13 @@ export function MinesweeperGameView() {
             console.log('[Timer] Cleanup');
             clearInterval(timer);
         };
-    }, [showTimer, paused, view?.status]);
+    }, [showTimer, paused, view?.status, isExploded, isGameOver]);
 
-    // If server updates view.elapsedTime (e.g. after undo/seek), keep local timer in sync
+    // Sync timer when server updates elapsed time
     useEffect(() => {
         if(view?.elapsedTime !== undefined) {
             setTimerSec(view.elapsedTime);
+            console.log('[Timer] Synced from server', view.elapsedTime);
         }
     }, [view?.elapsedTime]);
 
@@ -261,19 +231,36 @@ export function MinesweeperGameView() {
             const raw = localStorage.getItem('ms:lastCreate');
             if(!raw) return null;
             const cp = JSON.parse(raw);
-            console.log('[Difficulty] Loaded:', cp.preset || 'Custom');
             return cp.preset || 'Custom';
         }
         catch(e) {
-            console.error('[Difficulty] Parse error:', e);
             return null;
         }
     }, []);
 
+    useEffect(() => {
+        // Detekce exploze - vstup do režimu
+        if (view?.board?.lostOn && view?.lives?.left > 0) {
+            if (!explodedMode) {
+                console.log('[Explosion] Entering exploded mode');
+                setExplodedMode(true);
+            }
+        }
+
+        // Reset exploze - JEN pokud NENÍ preview
+        if (explodedMode &&
+            !view?.isPreview &&  // ← Klíčová změna
+            !view?.board?.lostOn &&
+            view?.status === 'playing') {
+            console.log('[Explosion] Exiting exploded mode after revive');
+            setExplodedMode(false);
+        }
+    }, [view?.board?.lostOn, view?.lives?.left, view?.status, view?.isPreview, explodedMode]);
+
     const hearts = useMemo(() => {
         const total = view?.lives?.total ?? 0;
         const left = view?.lives?.left ?? 0;
-        console.log('[Hearts] Calculated:', {total, left});
+        console.log('[Hearts]', {total, left});
         return Array.from({length: total}, (_, i) => i < left);
     }, [view?.lives?.total, view?.lives?.left]);
 
@@ -281,21 +268,20 @@ export function MinesweeperGameView() {
         return view?.board?.opened?.some(cell => cell.r === r && cell.c === c);
     }, [view?.board?.opened]);
 
-    // Interakční pravidla:
-    const beforeStart = view?.status === 'new';
-    const isOver = view?.status === 'lost' || view?.status === 'won';
-    const canInteractCommon = !paused && !isOver && !busy;
-    const canLeftClick = canInteractCommon; // levý klik (reveal) povolen i pokud hra ještě nezačala
-    const canOtherActions = canInteractCommon && !beforeStart; // ostatní akce zakázat pokud beforeStart
+    // Interaction rules according to spec
+    const canReveal = !paused && !isGameOver && !busy && !isExploded;
+    const canFlag = !paused && !isGameOver && !busy && !isExploded && !beforeStart;
+    const canUseActions = !paused && !isGameOver && !busy && !isExploded && !beforeStart;
 
-    // reveal — levý klik (povoleno i před startem)
+    console.log('[Interactions]', {canReveal, canFlag, canUseActions});
+
     const doReveal = useCallback(async(r, c) => {
-        console.debug('[doReveal] called', { gameId, r, c, paused, cursor: view?.cursor });
-        if(!view || paused || busy) {
-            console.debug('[doReveal] skipped - no view/paused/busy', { viewExists: !!view, paused, busy });
+        if(!view || !canReveal) {
+            console.log('[doReveal] Blocked', {view: !!view, canReveal});
             return;
         }
-        const start = performance.now();
+
+        console.log('[doReveal]', {r, c});
         setBusy(true);
         setError(null);
         try {
@@ -304,34 +290,26 @@ export function MinesweeperGameView() {
                 headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify({r, c}),
             });
-            console.debug('[doReveal] response', { r, c, durationMs: Math.round(performance.now() - start), data });
             setView(data);
             setSeekIndex(data.cursor ?? 0);
-            // sync timer immediately after action
             setTimerSec(data.elapsedTime ?? 0);
         }
         catch(e) {
-            console.error('[doReveal] error', e);
+            console.error('[doReveal] Error', e);
             setError(String(e.message || e));
         }
         finally {
             setBusy(false);
-            console.debug('[doReveal] finished', { r, c, totalMs: Math.round(performance.now() - start) });
         }
-    }, [gameId, req, view, paused, busy]);
+    }, [gameId, req, view, canReveal]);
 
-    // flag — zakázáno před startem
     const doFlag = useCallback(async(r, c, set) => {
-        console.debug('[doFlag] called', { gameId, r, c, set, paused, cursor: view?.cursor });
-        if(!view || paused || busy) {
-            console.debug('[doFlag] skipped - no view/paused/busy', { viewExists: !!view, paused, busy });
+        if(!view || !canFlag) {
+            console.log('[doFlag] Blocked', {view: !!view, canFlag});
             return;
         }
-        if(beforeStart) {
-            console.debug('[doFlag] skipped - game not started (flags disabled before first reveal)');
-            return;
-        }
-        const start = performance.now();
+
+        console.log('[doFlag]', {r, c, set});
         setBusy(true);
         setError(null);
         try {
@@ -340,62 +318,42 @@ export function MinesweeperGameView() {
                 headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify({r, c, set}),
             });
-            console.debug('[doFlag] response', { r, c, set, durationMs: Math.round(performance.now() - start), data });
             setView(data);
             setSeekIndex(data.cursor ?? 0);
             setTimerSec(data.elapsedTime ?? 0);
         }
         catch(e) {
-            console.error('[doFlag] error', e);
+            console.error('[doFlag] Error', e);
             setError(String(e.message || e));
         }
         finally {
             setBusy(false);
-            console.debug('[doFlag] finished', { r, c, set, totalMs: Math.round(performance.now() - start) });
         }
-    }, [gameId, req, view, paused, busy, beforeStart]);
+    }, [gameId, req, view, canFlag]);
 
     const doMoveFlag = useCallback(async(fr, fc, tr, tc) => {
-        console.debug('[doMoveFlag] called', { gameId, from: [fr, fc], to: [tr, tc], paused, cursor: view?.cursor });
-        if(!view || paused || busy) {
-            console.debug('[doMoveFlag] skipped - no view/paused/busy', { viewExists: !!view, paused, busy });
-            return;
-        }
-        if(beforeStart) {
-            console.debug('[doMoveFlag] skipped - game not started (move-flag disabled before first reveal)');
-            return;
-        }
-        const start = performance.now();
+        if(!view || !canFlag) return;
+
+        console.log('[doMoveFlag]', {from: [fr, fc], to: [tr, tc]});
         setBusy(true);
         setError(null);
         try {
-            console.debug('[doMoveFlag] removing flag from', { fr, fc });
             await doFlag(fr, fc, false);
-            console.debug('[doMoveFlag] placing flag to', { tr, tc });
             await doFlag(tr, tc, true);
-            console.debug('[doMoveFlag] completed moves', { durationMs: Math.round(performance.now() - start) });
         }
         catch(e) {
-            console.error('[doMoveFlag] error', e);
+            console.error('[doMoveFlag] Error', e);
             setError(String(e.message || e));
         }
         finally {
             setBusy(false);
-            console.debug('[doMoveFlag] finished', { from: [fr, fc], to: [tr, tc], totalMs: Math.round(performance.now() - start) });
         }
-    }, [doFlag, view, paused, busy, beforeStart, gameId]);
+    }, [doFlag, view, canFlag]);
 
     const toggleQuickFlag = useCallback(async() => {
-        console.debug('[toggleQuickFlag] called', { gameId, currentQuickFlag: quickFlag });
-        if(!view || paused || busy) {
-            console.debug('[toggleQuickFlag] skipped - no view/paused/busy');
-            return;
-        }
-        if(beforeStart) {
-            console.debug('[toggleQuickFlag] skipped - cannot toggle quick-flag before first reveal');
-            return;
-        }
-        const start = performance.now();
+        if(!view || !canUseActions) return;
+
+        console.log('[toggleQuickFlag]', {current: quickFlag});
         setBusy(true);
         setError(null);
         try {
@@ -404,30 +362,24 @@ export function MinesweeperGameView() {
                 headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify({quickFlag: !quickFlag}),
             });
-            console.debug('[toggleQuickFlag] response', { durationMs: Math.round(performance.now() - start), data });
             setQuickFlag(!!data.quickFlagEnabled);
         }
         catch(e) {
-            console.error('[toggleQuickFlag] error', e);
+            console.error('[toggleQuickFlag] Error', e);
             setError(String(e.message || e));
         }
         finally {
             setBusy(false);
-            console.debug('[toggleQuickFlag] finished', { previous: quickFlag, now: !quickFlag, totalMs: Math.round(performance.now() - start) });
         }
-    }, [gameId, req, quickFlag, view, paused, busy, beforeStart]);
+    }, [gameId, req, quickFlag, view, canUseActions]);
 
     const doUndo = useCallback(async() => {
-        console.debug('[doUndo] called', { gameId, allowUndo, paused, cursor: view?.cursor });
-        if(!allowUndo || !view || (view.cursor ?? 0) === 0 || paused || busy) {
-            console.debug('[doUndo] skipped - not allowed/at start/paused/busy', { allowUndo, currentCursor: view?.cursor });
+        if(!allowUndo || !view || (view.cursor ?? 0) === 0 || !canUseActions) {
+            console.log('[doUndo] Blocked', {allowUndo, cursor: view?.cursor, canUseActions});
             return;
         }
-        if(beforeStart) {
-            console.debug('[doUndo] skipped - cannot undo before game started');
-            return;
-        }
-        const start = performance.now();
+
+        console.log('[doUndo]');
         setBusy(true);
         setError(null);
         try {
@@ -436,65 +388,75 @@ export function MinesweeperGameView() {
                 headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify({steps: 1}),
             });
-            console.debug('[doUndo] response', { durationMs: Math.round(performance.now() - start), data });
             setView(data);
             setSeekIndex(data.cursor ?? 0);
             setTimerSec(data.elapsedTime ?? 0);
         }
         catch(e) {
-            console.error('[doUndo] error', e);
+            console.error('[doUndo] Error', e);
             setError(String(e.message || e));
         }
         finally {
             setBusy(false);
-            console.debug('[doUndo] finished', { totalMs: Math.round(performance.now() - start) });
         }
-    }, [gameId, req, view, paused, busy, allowUndo, beforeStart]);
+    }, [gameId, req, view, allowUndo, canUseActions]);
 
     const doHint = useCallback(async() => {
-        console.debug('[doHint] called', { gameId, enableHints, paused, cursor: view?.cursor });
-        if(!enableHints || !view || paused || busy) {
-            console.debug('[doHint] skipped - disabled/no view/paused/busy', { enableHints, viewExists: !!view });
+        if(!enableHints || !view || !canUseActions) {
+            console.log('[doHint] Blocked');
             return;
         }
-        if(beforeStart) {
-            console.debug('[doHint] skipped - cannot hint before first reveal');
-            return;
-        }
-        const start = performance.now();
+
+        console.log('[doHint]');
         setBusy(true);
         setError(null);
         try {
             const data = await req(`/game/${gameId}/hint`, {method: 'GET'});
-            console.debug('[doHint] response', { durationMs: Math.round(performance.now() - start), data });
             if(data?.type === 'mine-area') {
                 setHintRect(data.rect);
                 setHintsUsed(h => h + 1);
                 setTimeout(() => setHintRect(null), 2500);
-                console.debug('[doHint] revealed rect', { rect: data.rect });
+                console.log('[doHint] Showing rect', data.rect);
             }
         }
         catch(e) {
-            console.error('[doHint] error', e);
+            console.error('[doHint] Error', e);
             setError(String(e.message || e));
         }
         finally {
             setBusy(false);
-            console.debug('[doHint] finished', { totalMs: Math.round(performance.now() - start) });
         }
-    }, [gameId, req, view, paused, busy, enableHints, beforeStart]);
+    }, [gameId, req, view, enableHints, canUseActions]);
 
-    const doRevive = useCallback(async() => {
-        console.debug('[doRevive] called', { gameId, seekIndex, paused });
-        if(!view || paused || busy) {
-            console.debug('[doRevive] skipped - no view/paused/busy');
-            return;
+    const doUndoAndRevive = useCallback(async() => {
+        if(!view || paused || busy) return;
+
+        console.log('[doUndoAndRevive]');
+        setBusy(true);
+        setError(null);
+        try {
+            const data = await req(`/game/${gameId}/revive`, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({}), // No toIndex = undo and revive
+            });
+            setView(data);
+            setSeekIndex(data.cursor ?? 0);
+            setTimerSec(data.elapsedTime ?? 0);
         }
-        if(beforeStart) {
-            console.debug('[doRevive] skipped - cannot revive before game started');
-            return;
+        catch(e) {
+            console.error('[doUndoAndRevive] Error', e);
+            setError(String(e.message || e));
         }
-        const start = performance.now();
+        finally {
+            setBusy(false);
+        }
+    }, [gameId, req, paused, busy, view]);
+
+    const doReviveFromMove = useCallback(async() => {
+        if(!view || paused || busy) return;
+
+        console.log('[doReviveFromMove]', {seekIndex});
         setBusy(true);
         setError(null);
         try {
@@ -503,32 +465,67 @@ export function MinesweeperGameView() {
                 headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify({toIndex: seekIndex}),
             });
-            console.debug('[doRevive] response', { durationMs: Math.round(performance.now() - start), data });
             setView(data);
+            setSeekIndex(data.cursor ?? 0);
             setTimerSec(data.elapsedTime ?? 0);
         }
         catch(e) {
-            console.error('[doRevive] error', e);
+            console.error('[doReviveFromMove] Error', e);
             setError(String(e.message || e));
         }
         finally {
             setBusy(false);
-            console.debug('[doRevive] finished', { seekIndex, totalMs: Math.round(performance.now() - start) });
         }
-    }, [gameId, req, seekIndex, paused, busy, beforeStart]);
+    }, [gameId, req, seekIndex, paused, busy, view]);
+
+    const handleSliderChange = useCallback(async (v) => {
+        if (busy) return;
+
+        const endpoint = explodedMode || isGameOver ? 'preview' : 'seek';
+
+        console.log('[Slider]', {endpoint, toIndex: v, explodedMode, isGameOver});
+
+        try {
+            setBusy(true);
+            const data = await req(`/game/${gameId}/${endpoint}`, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({toIndex: v}),
+            });
+
+            // Preview NEMĚNÍ skutečný cursor - jen zobrazí
+            if (endpoint === 'preview') {
+                setSeekIndex(v); // Jen pro UI display
+            }
+
+            setView(data);
+        } catch(e) {
+            console.error(`[Slider] error`, e);
+        } finally {
+            setBusy(false);
+        }
+    }, [gameId, req, explodedMode, isGameOver, busy]);
 
     const handleBeginHold = useCallback((r, c) => {
-        // Zadáno: zvýraznění osmiokolí jen pro odkrytou buňku — parent kontroluje
         if(holdHighlight && isOpened(r, c)) {
-            console.log('[Hold] Begin highlight', {r, c});
+            console.log('[Hold] Begin', {r, c});
             setHighlightCell({r, c});
         }
     }, [isOpened, holdHighlight]);
 
     const handleEndHold = useCallback(() => {
-        console.log('[Hold] End highlight');
+        console.log('[Hold] End');
         setHighlightCell(null);
     }, []);
+
+    // Convert permanent flags to Set for MineGrid
+    const permanentFlagsSet = useMemo(() => {
+        const set = new Set();
+        for(const {r, c} of view?.board?.permanentFlags || []) {
+            set.add(`${r},${c}`);
+        }
+        return set;
+    }, [view?.board?.permanentFlags]);
 
     const page = {
         minHeight: '100vh',
@@ -556,12 +553,9 @@ export function MinesweeperGameView() {
     };
 
     if(!view) {
-        console.log('[Render] Loading state');
         return (
                 <div style={page}>
-                    <Header showBack={true}
-                            onNavigate={() => navigate(-1)}
-                    />
+                    <Header showBack={true} onNavigate={() => navigate(-1)} />
                     <div style={{...shell, placeItems: 'center'}}>
                         <div style={{color: colors.text_header}}>Loading game…</div>
                     </div>
@@ -569,17 +563,9 @@ export function MinesweeperGameView() {
         );
     }
 
-    const isGameOver = view.status === 'lost' || view.status === 'won';
-    // levý klik povolen i před startem
-    const canInteractLeft = !paused && !isGameOver && !busy;
-    const canInteractOthers = !paused && !isGameOver && !busy && view.status !== 'new';
-    console.log('[Render] Game state', {status: view.status, isOver: isGameOver, canInteractLeft, canInteractOthers, paused, busy});
-
     return (
             <div style={page}>
-                <Header showBack={true}
-                        onNavigate={() => navigate(-1)}
-                />
+                <Header showBack={true} onNavigate={() => navigate(-1)} />
 
                 <div style={shell}>
                     <PanelCard
@@ -615,9 +601,7 @@ export function MinesweeperGameView() {
 
                         <div style={{display: 'flex', gap: 8, marginTop: 14, marginBottom: 6, flexWrap: 'wrap'}}>
                             {hearts.slice(0, 15).map((full, i) => (
-                                    <span key={i}
-                                          style={{fontSize: 28}}
-                                    >
+                                    <span key={i} style={{fontSize: 28}}>
                                 {full ? '❤️' : '🖤'}
                             </span>
                             ))}
@@ -661,38 +645,30 @@ export function MinesweeperGameView() {
                     </PanelCard>
 
                     <div style={boardWrap}>
-                        <div
-                                style={{
-                                    padding: 8,
-                                    borderRadius: 10,
-                                    border: '1px solid rgba(255,255,255,0.45)',
-                                    boxShadow: 'inset 0 0 0 1px rgba(255,255,255,0.2)',
-                                }}
-                        >
-                            <div style={{opacity: paused ? 0.2 : 1, transition: 'opacity 120ms'}}>
-                                <MineGrid
-                                        rows={view.rows}
-                                        cols={view.cols}
-                                        opened={view.board.opened}
-                                        flagged={view.board.flagged}
-                                        lostOn={view.board?.lostOn}
-                                        hintRect={hintRect}
-                                        highlightCell={highlightCell}
-                                        quickFlag={quickFlag}
-                                        cellSize={28}
-                                        gap={4}
-                                        onReveal={(r, c) => canInteractLeft && doReveal(r, c)}
-                                        onFlag={(r, c, set) => canInteractOthers && doFlag(r, c, set)}
-                                        onMoveFlag={(fr, fc, tr, tc) => canInteractOthers && doMoveFlag(fr, fc, tr, tc)}
-                                        onBeginHold={handleBeginHold}
-                                        onEndHold={handleEndHold}
-                                        holdHighlight={holdHighlight}
-                                        mines={view.board.mines}
-                                />
-                            </div>
+                        <div style={{opacity: paused ? 0.2 : 1, transition: 'opacity 120ms'}}>
+                            <MineGrid
+                                    rows={view.rows}
+                                    cols={view.cols}
+                                    opened={view.board.opened}
+                                    flagged={view.board.flagged}
+                                    permanentFlags={permanentFlagsSet}
+                                    lostOn={view.board?.lostOn}
+                                    hintRect={hintRect}
+                                    highlightCell={highlightCell}
+                                    quickFlag={quickFlag}
+                                    isPaused={isExploded}
+                                    beforeStart={beforeStart}
+                                    onReveal={(r, c) => canReveal && doReveal(r, c)}
+                                    onFlag={(r, c, set) => canFlag && doFlag(r, c, set)}
+                                    onMoveFlag={(fr, fc, tr, tc) => canFlag && doMoveFlag(fr, fc, tr, tc)}
+                                    onBeginHold={handleBeginHold}
+                                    onEndHold={handleEndHold}
+                                    holdHighlight={holdHighlight}
+                                    mines={view.board.mines}
+                            />
                         </div>
 
-                        {!isGameOver ? (
+                        {!isGameOver && !isExploded ? (
                                 <div
                                         style={{
                                             display: 'flex',
@@ -706,21 +682,22 @@ export function MinesweeperGameView() {
                                     <BarBtn
                                             icon={IHint}
                                             label="Hint"
-                                            disabled={!enableHints || !canInteractOthers}
+                                            disabled={!enableHints || !canUseActions}
                                             onClick={doHint}
                                     />
                                     <BarBtn
                                             icon={paused ? IPlay : IPause}
                                             label={paused ? 'Resume' : 'Pause'}
+                                            disabled={beforeStart}
                                             onClick={() => {
-                                                console.log('[Pause] Toggling', {current: paused});
+                                                console.log('[Pause] Toggle', {paused});
                                                 setPaused((p) => !p);
                                             }}
                                     />
                                     <BarBtn
                                             icon={IUndo}
                                             label="Undo"
-                                            disabled={!allowUndo || !canInteractOthers || (view.cursor ?? 0) === 0}
+                                            disabled={!allowUndo || !canUseActions || (view.cursor ?? 0) === 0}
                                             onClick={doUndo}
                                     />
                                     <BarBtn
@@ -733,77 +710,111 @@ export function MinesweeperGameView() {
                                                 </div>
                                             }
                                             label="Quick Flag"
-                                            disabled={!canInteractOthers}
+                                            disabled={!canUseActions}
                                             onClick={toggleQuickFlag}
                                             active={quickFlag}
                                     />
                                     <BarBtn
                                             icon={IDrag}
                                             label="Drag Flag"
-                                            disabled={!canInteractOthers}
+                                            disabled={!canUseActions}
                                             onClick={() => {}}
                                     />
                                 </div>
-                        ) : (
-                                 <div
-                                         style={{
-                                             width: '100%',
-                                             display: 'grid',
-                                             gap: 12,
-                                             justifyItems: 'center',
-                                             marginTop: 6,
-                                         }}
-                                 >
-                                     <div
-                                             style={{
-                                                 width: '82%',
-                                                 display: 'flex',
-                                                 alignItems: 'center',
-                                                 gap: 10,
-                                             }}
-                                     >
+                        ) : isExploded ? (
+                                <div
+                                        style={{
+                                            width: '100%',
+                                            display: 'grid',
+                                            gap: 12,
+                                            justifyItems: 'center',
+                                            marginTop: 6,
+                                        }}
+                                >
+                                    <div
+                                            style={{
+                                                width: '82%',
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                gap: 10,
+                                            }}
+                                    >
                                 <span style={{color: colors.text, fontWeight: 700, minWidth: 56}}>
                                     Move:
                                 </span>
-                                         <div style={{flex: 1}}>
-                                             <Slider
-                                                     min={0}
-                                                     max={view.totalActions ?? 0}
-                                                     value={seekIndex}
-                                                     onChange={(v) => {
-                                                         console.log('[Slider] Seek index changed', v);
-                                                         setSeekIndex(v);
-                                                     }}
-                                             />
-                                         </div>
-                                         <NumberField
-                                                 value={seekIndex}
-                                                 onChange={(v) => {
-                                                     console.log('[NumberField] Seek index changed', v);
-                                                     setSeekIndex(v);
-                                                 }}
-                                                 min={0}
-                                                 max={view.totalActions ?? 0}
-                                         />
-                                     </div>
-                                     <div style={{display: 'flex', gap: 16}}>
-                                         <ActionPill
-                                                 onClick={doRevive}
-                                                 disabled={busy}
-                                         >
-                                             Undo & Revive
-                                         </ActionPill>
-                                         <ActionPill
-                                                 onClick={() => {
-                                                     console.log('[NewGame] Navigating to /minesweeper');
-                                                     navigate('/minesweeper');
-                                                 }}
-                                         >
-                                             New Game
-                                         </ActionPill>
-                                     </div>
-                                 </div>
-                         )}
+                                        <div style={{flex: 1}}>
+                                            <Slider
+                                                    min={0}
+                                                    max={view.totalActions ?? 0}
+                                                    value={view.cursor ?? 0}
+                                                    onChange={handleSliderChange}
+                                            />
+                                        </div>
+                                        <NumberField
+                                                presetValue={view.cursor ?? 0}
+                                                minValue={0}
+                                                maxValue={view.totalActions ?? 0}
+                                                onChange={(v) => handleSliderChange(v)}
+                                        />
+                                    </div>
+                                    <div style={{display: 'flex', gap: 16, flexWrap: 'wrap', justifyContent: 'center'}}>
+                                        <ActionPill onClick={doUndoAndRevive} disabled={busy}>
+                                            Undo & Revive
+                                        </ActionPill>
+                                        <ActionPill onClick={doReviveFromMove} disabled={busy}>
+                                            Revive from Move {view.cursor ?? 0}
+                                        </ActionPill>
+                                        <ActionPill onClick={() => navigate('/minesweeper')}>
+                                            Play Again
+                                        </ActionPill>
+                                    </div>
+                                </div>
+                        ) : (
+                                    <div
+                                            style={{
+                                                width: '100%',
+                                                display: 'grid',
+                                                gap: 12,
+                                                justifyItems: 'center',
+                                                marginTop: 6,
+                                            }}
+                                    >
+                                        <div
+                                                style={{
+                                                    width: '82%',
+                                                    display: 'flex',
+                                                    alignItems: 'center',
+                                                    gap: 10,
+                                                }}
+                                        >
+                                <span style={{color: colors.text, fontWeight: 700, minWidth: 56}}>
+                                    Move:
+                                </span>
+                                            <div style={{flex: 1}}>
+                                                <Slider
+                                                        min={0}
+                                                        max={view.totalActions ?? 0}
+                                                        value={seekIndex}
+                                                        onChange={handleSliderChange}
+                                                />
+                                            </div>
+                                            <NumberField
+                                                    value={seekIndex}
+                                                    onChange={(v) => handleSliderChange(v)}
+                                                    min={0}
+                                                    max={view.totalActions ?? 0}
+                                            />
+                                        </div>
+                                        <div style={{display: 'flex', gap: 16}}>
+                                            <ActionPill onClick={() => navigate('/minesweeper')}>
+                                                Play Again
+                                            </ActionPill>
+                                            <ActionPill onClick={() => navigate('/')}>
+                                                Exit Minesweeper
+                                            </ActionPill>
+                                        </div>
+                                    </div>
+                            )}
 
                         {error && (
                                 <div style={{color: '#ff6b6b', fontWeight: 700, textAlign: 'center'}}>
@@ -815,3 +826,5 @@ export function MinesweeperGameView() {
             </div>
     );
 }
+
+export default MinesweeperGameView;

@@ -110,11 +110,16 @@ export interface Snapshot {
     /** Flagged cells. */
     flagged: Array<{ r: number; c: number }>;
 
+    permanentFlags?: Array<{ r: number; c: number }>;
+
     /** Cell that triggered a loss (if any). */
     lostOn?: { r: number; c: number };
 
     /** True if all safe cells have been revealed (win). */
     cleared?: boolean;
+
+    /** Number of lives consumed up to this snapshot. */
+    livesConsumed?: number;
 }
 
 /** Server-side representation of a game session (contains secrets).
@@ -136,6 +141,8 @@ export interface GameSession {
 
     /** SECRET: all mine positions as `[row, col]` pairs. */
     minePositions: Array<[number, number]>;
+
+    permanentFlags: Set<string>;
 
     /** precomputed grid with all cell properties */
     solutionGrid: ComputedCell[][];
@@ -213,6 +220,8 @@ export interface GameView {
         /** Flagged cells. */
         flagged: Array<{ r: number; c: number }>;
 
+        permanentFlags?: Array<{ r: number; c: number }>;
+
         /** Cell that caused a loss (if any) */
         lostOn?: { r: number; c: number };
 
@@ -222,4 +231,10 @@ export interface GameView {
         /** Revealed mine positions (only present when safe to reveal, e.g. after loss/win) */
         mines?: Array<{ r: number; c: number }>;
     };
+
+    /** True if this is a preview view (not actual game state). */
+    isPreview?: boolean;
+
+    /** Index being previewed (only when isPreview=true). */
+    previewIndex?: number;
 }

@@ -1,4 +1,4 @@
-import React, { useRef, useMemo, useCallback } from "react";
+import React, { useRef, useMemo, useState } from "react";
 import colors from "../../Colors";
 import unopenedCellTexture from '../../assets/minesweeper/UnopenedCellTexture.svg';
 import flaggedCellTexture from '../../assets/minesweeper/FlaggedCellTexture.svg';
@@ -18,27 +18,43 @@ const numberColors = {
 
 function MineCell({
                       r, c,
-                      isOpen, adj, isFlagged, isMine, lostOn,
-                      isHighlighted, inHintRect,
-                      size, quickFlagEnabled = false,
-                      isFlaggable = false,
+                      isOpen = false,
+                      adj = 0,
+                      isFlagged = false,
+                      isMine = false,
+                      lostOn = false,
+                      isHighlighted = false,
+                      inHintRect = false,
+                      size,
+                      quickFlagEnabled = false,
+                      isFlaggable = true,
                       isRevealable = true,
                       isPermaFlagged = false,
-                      onReveal, onFlag, onBeginHold, onEndHold,
-                      onFlagDragStart, onFlagDrop
+                      onReveal,
+                      onFlag,
+                      onBeginHold,
+                      onEndHold,
+                      onFlagDragStart,
+                      onFlagDrop
                   }) {
     const holdTimer = useRef(null);
+    const hoverTimer = useRef(null);
+    const [hovered, setHovered] = useState(false);
 
     const baseCell = {
         position: "relative",
         width: size,
         height: size,
-        borderRadius: 6,
+        borderRadius: 5,
         userSelect: "none",
         display: "grid",
         placeItems: "center",
         cursor: "pointer",
-        transition: "all 0.1s ease-in-out",
+        transition: "transform 120ms ease, box-shadow 120ms ease",
+        willChange: "transform, box-shadow",
+        boxSizing: "border-box",
+        border: `1px solid rgba(255,255,255,0.7)`,
+        boxShadow: "inset -1px -1px 0 rgba(0,0,0,0.45), inset 1px 1px 0 rgba(255,255,255,0.15)",
     };
 
     const unopenedStyle = {
@@ -47,14 +63,12 @@ function MineCell({
         backgroundSize: 'cover',
         backgroundRepeat: 'no-repeat',
         backgroundPosition: 'center',
-        border: "1px solid rgba(255,255,255,0.25)",
-        boxShadow: "inset -1px -1px 0 rgba(0,0,0,0.45), inset 1px 1px 0 rgba(255,255,255,0.15)",
     };
 
     const openedStyle = {
         ...baseCell,
         backgroundColor: colors.secondary,
-        border: "1px solid rgba(255,255,255,0.15)",
+        border: `1px solid rgba(255,255,255,0.6)`,
         boxShadow: "inset 0 0 2px rgba(255,255,255,0.1)",
     };
 
@@ -72,8 +86,10 @@ function MineCell({
         backgroundSize: 'cover',
         backgroundRepeat: 'no-repeat',
         backgroundPosition: 'center',
-        border: "1px solid rgba(255,255,255,0.25)",
-        boxShadow: "inset -1px -1px 0 rgba(0,0,0,0.45), inset 1px 1px 0 rgba(255,255,255,0.15)",
+        // Permanent flags have golden glow
+        boxShadow: isPermaFlagged
+                   ? '0 0 12px rgba(255,215,0,0.8), inset -1px -1px 0 rgba(0,0,0,0.45), inset 1px 1px 0 rgba(255,255,255,0.15)'
+                   : undefined
     };
 
     const MineCellStyle = useMemo(() => ({
@@ -82,8 +98,6 @@ function MineCell({
         backgroundSize: '60% 60%',
         backgroundRepeat: 'no-repeat',
         backgroundPosition: 'center',
-        border: "1px solid rgba(255,255,255,0.25)",
-        boxShadow: "inset -1px -1px 0 rgba(0,0,0,0.45), inset 1px 1px 0 rgba(255,255,255,0.15)",
     }), [baseCell]);
 
     const flaggingModeCellStyle = {
@@ -92,43 +106,56 @@ function MineCell({
         backgroundSize: 'cover',
         backgroundRepeat: 'no-repeat',
         backgroundPosition: 'center',
-        border: "1px solid rgba(255,255,255,0.25)",
-        boxShadow: "inset -1px -1px 0 rgba(0,0,0,0.45), inset 1px 1px 0 rgba(255,255,255,0.15)",
     };
 
-    // === efekty ===
+    // Effects
     const hintRing = inHintRect ? {
-        outline: "2px solid rgba(255,255,255,0.3)",
-        outlineOffset: -2,
+        boxShadow: "0 0 0 2px rgba(255,255,255,0.06), inset -1px -1px 0 rgba(0,0,0,0.45)",
     } : null;
 
     const holdRing = isHighlighted ? {
-        boxShadow: "0 0 0 2px rgba(255,255,255,0.4), inset 0 0 0 2px rgba(255,255,255,0.2)",
+        boxShadow: "0 0 0 2px rgba(255,255,255,0.14), inset 0 0 0 2px rgba(255,255,255,0.08)",
     } : null;
 
     const lostOverlay = lostOn ? {
-        background: "linear-gradient(180deg, rgba(255,33,33,0.15), rgba(255,33,33,0.05))",
-        boxShadow: "inset 0 0 0 2px rgba(255,33,33,0.3)",
+        background: "linear-gradient(180deg, rgba(255,33,33,0.12), rgba(255,33,33,0.04))",
+        boxShadow: "inset 0 0 0 2px rgba(255,33,33,0.2)",
     } : null;
 
-    // === interakce ===
-    function handleLeftClick() {
-        if (!isRevealable || isOpen || isFlagged || isPermaFlagged) return;
-        onReveal?.(r, c);
+    // Subtle hover effect (GPU accelerated)
+    const hoverEffect = (!isOpen && hovered) ? {
+        boxShadow: "0 6px 10px rgba(0,0,0,0.06)",
+        transform: "translateZ(0) translateY(-0.5px)"
+    } : {};
+
+    // Interaction handlers according to spec
+    function handleClick(e) {
+        e.preventDefault();
+        if (isOpen) return;
+
+        // QuickFlag mode: only flagging (if allowed)
+        if (quickFlagEnabled) {
+            if (!isPermaFlagged && isFlaggable) {
+                onFlag?.(r, c);
+            }
+            return;
+        }
+
+        // Classic mode: revealing has priority
+        if (isRevealable && !isFlagged && !isPermaFlagged) {
+            onReveal?.(r, c);
+        }
     }
 
     function handleRightClick(e) {
         e.preventDefault();
-        if (!isFlaggable || isOpen || isPermaFlagged) return;
-        onFlag?.(r, c, !isFlagged);
-    }
 
-    function handleClick() {
-        if (quickFlagEnabled) {
-            if (!isFlaggable || isOpen || isPermaFlagged) return;
-            onFlag?.(r, c, !isFlagged);
-        } else {
-            handleLeftClick();
+        // Right click never works in QuickFlag mode or on opened cells
+        if (quickFlagEnabled || isOpen || isPermaFlagged) return;
+
+        // Can only flag if isFlaggable is true
+        if (isFlaggable) {
+            onFlag?.(r, c);
         }
     }
 
@@ -142,8 +169,16 @@ function MineCell({
     function handleMouseDown(e) {
         if (e.button !== 0) return;
         clearHoldTimer();
+
         holdTimer.current = setTimeout(() => {
-            onBeginHold?.(r, c);
+            // Long press on OPENED cell -> highlight neighborhood
+            if (isOpen) {
+                onBeginHold?.(r, c);
+            }
+            // Long press on UNOPENED cell in classic mode -> flagging
+            else if (!quickFlagEnabled && !isPermaFlagged && isFlaggable) {
+                onFlag?.(r, c);
+            }
             holdTimer.current = null;
         }, 350);
     }
@@ -152,23 +187,44 @@ function MineCell({
         if (holdTimer.current) {
             clearHoldTimer();
         } else {
-            onEndHold?.();
+            onEndHold?.(r, c);
         }
     }
 
-    function handleMouseLeave() {
-        if (holdTimer.current) clearHoldTimer();
+    // Debounced hover handlers - eliminate short transitions during fast mouse movement
+    function handleMouseEnter() {
+        if (hoverTimer.current) clearTimeout(hoverTimer.current);
+        hoverTimer.current = setTimeout(() => {
+            setHovered(true);
+            hoverTimer.current = null;
+        }, 50);
     }
 
-    // === drag & drop (vlajky) ===
-    const draggable = isFlagged && !isOpen;
+    function handleMouseLeave() {
+        if (hoverTimer.current) {
+            clearTimeout(hoverTimer.current);
+            hoverTimer.current = null;
+        }
+        setHovered(false);
+        if (holdTimer.current) clearHoldTimer();
+        onEndHold?.(r, c);
+    }
+
+    // Drag & drop for flags - disabled for permanent flags
+    const draggable = isFlagged && !isOpen && !isPermaFlagged;
+
     function onDragStart(e) {
         if (!draggable) return;
         e.dataTransfer.setData("text/plain", JSON.stringify({ r, c }));
         onFlagDragStart?.(r, c);
     }
-    function onDragOver(e) { e.preventDefault(); }
+
+    function onDragOver(e) {
+        e.preventDefault();
+    }
+
     function onDrop(e) {
+        e.preventDefault();
         const txt = e.dataTransfer.getData("text/plain");
         try {
             const { r: fr, c: fc } = JSON.parse(txt || "{}");
@@ -178,16 +234,16 @@ function MineCell({
         } catch { }
     }
 
-    // === výsledný styl ===
+    // Final style (combine effects)
     const style = isOpen
                   ? { ...openedStyle, ...hintRing, ...holdRing, ...lostOverlay }
-                  : { ...unopenedStyle, ...hintRing, ...holdRing };
+                  : { ...unopenedStyle, ...hintRing, ...holdRing, ...hoverEffect };
 
-    // === obsah buňky ===
+    // Cell content
     const content = (() => {
         if (isOpen) {
             if (isMine) {
-                return <span style={MineCellStyle}></span>;
+                return <span style={MineCellStyle} />;
             }
             if (adj > 0) {
                 return <span style={numberStyle}>{adj}</span>;
@@ -196,11 +252,11 @@ function MineCell({
         }
 
         if (isFlagged) {
-            return <span style={flaggedCellStyle}></span>;
+            return <span style={flaggedCellStyle} />;
         }
 
         if (quickFlagEnabled) {
-            return <span style={flaggingModeCellStyle}></span>;
+            return <span style={flaggingModeCellStyle} />;
         }
 
         return null;
@@ -216,13 +272,11 @@ function MineCell({
                     onMouseDown={handleMouseDown}
                     onMouseUp={handleMouseUp}
                     onMouseLeave={handleMouseLeave}
+                    onMouseEnter={handleMouseEnter}
                     draggable={draggable}
                     onDragStart={onDragStart}
                     onDragOver={onDragOver}
                     onDrop={onDrop}
-                    onMouseEnter={(e) => {
-                        if (!isOpen) e.currentTarget.style.border = "1px solid rgba(255,255,255,0.35)";
-                    }}
             >
                 {content}
             </div>
@@ -239,7 +293,10 @@ function areEqual(prev, next) {
             prev.quickFlagEnabled === next.quickFlagEnabled &&
             prev.isHighlighted === next.isHighlighted &&
             prev.inHintRect === next.inHintRect &&
-            prev.size === next.size
+            prev.size === next.size &&
+            prev.isPermaFlagged === next.isPermaFlagged &&
+            prev.isFlaggable === next.isFlaggable &&
+            prev.isRevealable === next.isRevealable
     );
 }
 

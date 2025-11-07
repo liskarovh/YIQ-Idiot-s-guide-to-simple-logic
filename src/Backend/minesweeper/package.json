@@ -1,14 +1,13 @@
 {
   "name": "minesweeper-ts-backend",
   "private": true,
+  "type": "module",
   "version": "1.0.0",
-  "type": "commonjs",
   "main": "dist/server.js",
   "scripts": {
     "build": "tsc -p tsconfig.json",
-    "dev": "tsx watch src/server.ts",
-    "start": "node dist/server.js",
-    "clean": "rimraf dist"
+    "dev": "tsx src/server.ts",
+    "start": "node dist/server.js"
   },
   "dependencies": {
     "express": "^4.19.2",
@@ -18,7 +17,6 @@
     "@types/express": "^5.0.4",
     "@types/node": "^24.9.1",
     "tsx": "^4.16.2",
-    "typescript": "^5.6.3",
-    "rimraf": "^6.1.0"
+    "typescript": "^5.6.3"
   }
 }

@@ -79,6 +79,11 @@ def seek(game_id):
     return _proxy('POST', f'/game/{game_id}/seek')
 
 
+@minesweeper_bp.route('/game/<game_id>/preview', methods = ['POST'])
+def preview(game_id):
+    return _proxy('POST', f'/game/{game_id}/preview')
+
+
 @minesweeper_bp.route('/game/<game_id>/revive', methods = ['POST'])
 def revive(game_id):
     return _proxy('POST', f'/game/{game_id}/revive')
