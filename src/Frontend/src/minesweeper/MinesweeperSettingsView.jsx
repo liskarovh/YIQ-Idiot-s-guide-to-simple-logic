@@ -9,6 +9,7 @@ import Box from "../components/Box";
 import PlayButton from "../components/PlayButton";
 import ButtonSelect from "../components/ButtonSelect";
 import Header from "../components/Header";
+import AutoScale from "../components/AutoScale";
 
 const presetMaps = {
     Easy: {rows: 9, cols: 9, mines: 10},
@@ -264,6 +265,8 @@ function MinesweeperSettingsView({initial = {}}) {
     const boxStyle = {
         display: "flex",
         flexDirection: "column",
+        maxWidth: boxWidth,
+        maxHeight: boxHeight,
         gap: "1.75rem"
     };
 
@@ -271,14 +274,17 @@ function MinesweeperSettingsView({initial = {}}) {
         display: "flex",
         flexDirection: "row",
         justifyContent: "center",
+        padding: "0rem 0rem 0rem 2rem",
         flexWrap: "wrap",
         textAlign: "center",
-        padding: "2rem 2rem",
-        gap: "4rem"
+        alignItems: "flex-start"
     };
 
     const contentStyle = {
-        padding: "5rem 2rem 2rem 2rem"
+        padding: "7rem 2rem 2rem 2rem",
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center"
     };
 
     const sliderAndNumberFieldStyle = {
@@ -290,7 +296,7 @@ function MinesweeperSettingsView({initial = {}}) {
     const footer = {
         display: "flex",
         justifyContent: "center",
-        marginTop: 26,
+        marginTop: "2rem",
         width: "100%"
     };
 
@@ -306,155 +312,169 @@ function MinesweeperSettingsView({initial = {}}) {
                         onNavigate={() => navigate(-1)}
                 />
                 <div style={boxLayoutStyle}>
-                    {/* LEFT: Game Basics */}
-                    <Box width={boxWidth}
-                         height={boxHeight}
-                         title="Game Basics"
-                         style={boxStyle}
+                    <AutoScale
+                            baseWidth={750}
+                            baseHeight={550}
+                            maxScale={1}
+                            minScale={0.5}
+                            center={true}
                     >
-                        <SettingRow
-                                label="Difficulty:"
-                                inline={true}
-                                control={
+                        <Box width={boxWidth}
+                             height={boxHeight}
+                             title="Game Basics"
+                             style={boxStyle}
+                        >
+                            <SettingRow
+                                    label="Difficulty:"
+                                    inline={true}
+                                    control={
                                         <ButtonSelect
                                                 options={difficultyOptions}
                                                 selected={preset}
                                                 onChange={changePreset}
                                         />
-                                }
-                        />
-                        <SettingRow
-                                label="Rows:"
-                                inline={true}
-                                control={
-                                    <div style={sliderAndNumberFieldStyle}>
-                                        <Slider
-                                                min={3}
-                                                max={30}
-                                                value={rows}
-                                                onChange={safeSetRows}
-                                                width={295}
-                                        />
-                                        <NumberField
-                                                presetValue={rows}
-                                                onChange={safeSetRows}
-                                                minValue={3}
-                                                maxValue={30}
-                                                maxDigits={3}
-                                        />
-                                    </div>
-                                }
-                        />
-                        <SettingRow
-                                label="Columns:"
-                                inline={true}
-                                control={
-                                    <div style={sliderAndNumberFieldStyle}>
-                                        <Slider min={3}
-                                                max={30}
-                                                value={cols}
-                                                onChange={safeSetCols}
-                                                width={295}
-                                        />
-                                        <NumberField
-                                                presetValue={cols}
-                                                onChange={safeSetCols}
-                                                minValue={3}
-                                                maxValue={30}
-                                                maxDigits={3}
-                                        />
-                                    </div>
-                                }
-                        />
-                        <SettingRow
-                                label="Mines:"
-                                inline={true}
-                                control={
-                                    <div style={sliderAndNumberFieldStyle}>
-                                        <Slider min={1}
-                                                max={maxMines}
-                                                value={mines}
-                                                onChange={safeSetMines}
-                                                width={295}
-                                        />
-                                        <NumberField
-                                                presetValue={mines}
-                                                onChange={safeSetMines}
-                                                minValue={1}
-                                                maxValue={maxMines}
-                                                maxDigits={3}
-                                        />
-                                    </div>
-                                }
-                        />
-                    </Box>
-
-                    {/* RIGHT: Gameplay */}
-                    <Box width={boxWidth}
-                         height={boxHeight}
-                         title="Gameplay"
-                         style={boxStyle}
+                                    }
+                            />
+                            <SettingRow
+                                    label="Rows:"
+                                    inline={true}
+                                    control={
+                                        <div style={sliderAndNumberFieldStyle}>
+                                            <Slider
+                                                    min={3}
+                                                    max={30}
+                                                    value={rows}
+                                                    onChange={safeSetRows}
+                                                    width={295}
+                                            />
+                                            <NumberField
+                                                    presetValue={rows}
+                                                    onChange={safeSetRows}
+                                                    minValue={3}
+                                                    maxValue={30}
+                                                    maxDigits={3}
+                                            />
+                                        </div>
+                                    }
+                            />
+                            <SettingRow
+                                    label="Columns:"
+                                    inline={true}
+                                    control={
+                                        <div style={sliderAndNumberFieldStyle}>
+                                            <Slider min={3}
+                                                    max={30}
+                                                    value={cols}
+                                                    onChange={safeSetCols}
+                                                    width={295}
+                                            />
+                                            <NumberField
+                                                    presetValue={cols}
+                                                    onChange={safeSetCols}
+                                                    minValue={3}
+                                                    maxValue={30}
+                                                    maxDigits={3}
+                                            />
+                                        </div>
+                                    }
+                            />
+                            <SettingRow
+                                    label="Mines:"
+                                    inline={true}
+                                    control={
+                                        <div style={sliderAndNumberFieldStyle}>
+                                            <Slider min={1}
+                                                    max={maxMines}
+                                                    value={mines}
+                                                    onChange={safeSetMines}
+                                                    width={295}
+                                            />
+                                            <NumberField
+                                                    presetValue={mines}
+                                                    onChange={safeSetMines}
+                                                    minValue={1}
+                                                    maxValue={maxMines}
+                                                    maxDigits={3}
+                                            />
+                                        </div>
+                                    }
+                            />
+                        </Box>
+                    </AutoScale>
+                    <AutoScale
+                            baseWidth={750}
+                            baseHeight={550}
+                            maxScale={1}
+                            minScale={0.5}
+                            center={true}
                     >
-                        <SettingRow
-                                label="Number of Lives:"
-                                inline={true}
-                                control={
-                                    <div style={sliderAndNumberFieldStyle}>
-                                        <Slider min={0}
-                                                max={10}
-                                                value={lives}
-                                                onChange={handleLivesChange}
-                                                width={240}
-                                        />
-                                        <NumberField
-                                                presetValue={lives}
-                                                onChange={handleLivesChange}
-                                                minValue={0}
-                                                maxValue={10}
-                                                maxDigits={3}
-                                                zeroAsInfinity={true}
-                                        />
-                                    </div>
-                                }
-                        />
-                        <SettingRow
-                                label="Enable Timer:"
-                                inline={true}
-                                control={
-                                    <div style={sliderAndNumberFieldStyle}>
-                                        <ToggleSwitch
-                                                checked={showTimer}
-                                                onChange={handleShowTimerChange}
-                                        />
-                                    </div>
-                                }
-                        />
-                        <SettingRow
-                                label="Enable Undo(s):"
-                                inline={true}
-                                control={
-                                    <div style={sliderAndNumberFieldStyle}>
-                                        <ToggleSwitch
-                                                checked={allowUndo}
-                                                onChange={handleAllowUndoChange}
-                                        />
-                                    </div>
-                                }
-                        />
-                        <SettingRow
-                                label="Enable Hints:"
-                                inline={true}
-                                control={
-                                    <div style={sliderAndNumberFieldStyle}>
-                                        <ToggleSwitch
-                                                checked={enableHints}
-                                                onChange={handleEnableHintsChange}
-                                        />
-                                    </div>
-                                }
-                        />
-                    </Box>
+                        <Box width={boxWidth}
+                             height={boxHeight}
+                             title="Gameplay"
+                             style={boxStyle}
+                        >
+                            <SettingRow
+                                    label="Number of Lives:"
+                                    inline={true}
+                                    control={
+                                        <div style={sliderAndNumberFieldStyle}>
+                                            <Slider min={0}
+                                                    max={10}
+                                                    value={lives}
+                                                    onChange={handleLivesChange}
+                                                    width={240}
+                                            />
+                                            <NumberField
+                                                    presetValue={lives}
+                                                    onChange={handleLivesChange}
+                                                    minValue={0}
+                                                    maxValue={10}
+                                                    maxDigits={3}
+                                                    zeroAsInfinity={true}
+                                            />
+                                        </div>
+                                    }
+                            />
+                            <SettingRow
+                                    label="Enable Timer:"
+                                    inline={true}
+                                    control={
+                                        <div style={sliderAndNumberFieldStyle}>
+                                            <ToggleSwitch
+                                                    checked={showTimer}
+                                                    onChange={handleShowTimerChange}
+                                            />
+                                        </div>
+                                    }
+                            />
+                            <SettingRow
+                                    label="Enable Undo(s):"
+                                    inline={true}
+                                    control={
+                                        <div style={sliderAndNumberFieldStyle}>
+                                            <ToggleSwitch
+                                                    checked={allowUndo}
+                                                    onChange={handleAllowUndoChange}
+                                            />
+                                        </div>
+                                    }
+                            />
+                            <SettingRow
+                                    label="Enable Hints:"
+                                    inline={true}
+                                    control={
+                                        <div style={sliderAndNumberFieldStyle}>
+                                            <ToggleSwitch
+                                                    checked={enableHints}
+                                                    onChange={handleEnableHintsChange}
+                                            />
+                                        </div>
+                                    }
+                            />
+                        </Box>
+                    </AutoScale>
                 </div>
+
                 <div style={footer}>
                     <PlayButton
                             onClick={handlePlay}
@@ -463,5 +483,6 @@ function MinesweeperSettingsView({initial = {}}) {
             </div>
     );
 }
+
 
 export default MinesweeperSettingsView;
