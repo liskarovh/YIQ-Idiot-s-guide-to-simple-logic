@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom';
 import colors from '../Colors';
 import Header from '../components/Header';
-import PanelCard from '../components/PanelCard';
+import Box from '../components/Box';
 import Slider from '../components/Slider';
 import NumberField from '../components/NumberField';
 import MineGrid from '../components/minesweeper/MineGrid';
@@ -568,7 +568,7 @@ export function MinesweeperGameView() {
                 <Header showBack={true} onNavigate={() => navigate(-1)} />
 
                 <div style={shell}>
-                    <PanelCard
+                    <Box
                             title={isGameOver ? (view.status === 'won' ? 'Congratulations! 🎉' : 'Game Over 💀') : 'Game Info'}
                             style={{height: 'fit-content'}}
                     >
@@ -642,7 +642,7 @@ export function MinesweeperGameView() {
                                     </div>
                                 </div>
                         )}
-                    </PanelCard>
+                    </Box>
 
                     <div style={boardWrap}>
                         <div style={{opacity: paused ? 0.2 : 1, transition: 'opacity 120ms'}}>
