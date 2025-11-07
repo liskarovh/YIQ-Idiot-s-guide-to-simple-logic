@@ -10,8 +10,8 @@ import About from './About.jsx';
 import Sudoku from './sudoku/Sudoku';
 
 // Minesweeper
-import MinesweeperSettingsView from './minesweeper/MinesweeperSettingsView';
-import { MinesweeperGameView } from './minesweeper/MinesweeperGameView';
+import MinesweeperSettingsView from './minesweeper/views/MinesweeperSettingsView';
+import { MinesweeperGameView } from './minesweeper/views/MinesweeperGameView';
 
 // Tic-Tac-Toe
 import Tic_Tac_Toe from './tic_tac_toe/Tic_Tac_Toe';

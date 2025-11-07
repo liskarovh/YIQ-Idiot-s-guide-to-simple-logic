@@ -1,11 +1,11 @@
 import React, { useCallback, useEffect, useMemo, useState, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import colors from '../Colors';
-import Header from '../components/Header';
-import Box from '../components/Box';
-import Slider from '../components/Slider';
-import NumberField from '../components/NumberField';
-import MineGrid from '../components/minesweeper/MineGrid';
+import colors from '../../Colors';
+import Header from '../../components/Header';
+import Box from '../../components/Box';
+import Slider from '../../components/Slider';
+import NumberField from '../../components/NumberField';
+import MineGrid from '../components/MineGrid';
 
 const formatTime = (sec = 0) => {
     const m = Math.floor(sec / 60);

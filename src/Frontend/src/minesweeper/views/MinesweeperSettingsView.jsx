@@ -1,15 +1,15 @@
 import React, {useCallback, useEffect, useMemo, useState} from "react";
 import {useNavigate} from "react-router-dom";
-import colors from "../Colors";
-import SettingRow from "../components/SettingsRow";
-import Slider from "../components/Slider";
-import NumberField from "../components/NumberField";
-import ToggleSwitch from "../components/ToggleButton";
-import Box from "../components/Box";
-import PlayButton from "../components/PlayButton";
-import ButtonSelect from "../components/ButtonSelect";
-import Header from "../components/Header";
-import AutoScale from "../components/AutoScale";
+import colors from "../../Colors";
+import SettingRow from "../../components/SettingsRow";
+import Slider from "../../components/Slider";
+import NumberField from "../../components/NumberField";
+import ToggleSwitch from "../../components/ToggleButton";
+import Box from "../../components/Box";
+import PlayButton from "../../components/PlayButton";
+import ButtonSelect from "../../components/ButtonSelect";
+import Header from "../../components/Header";
+import AutoScale from "../../components/AutoScale";
 
 const presetMaps = {
     Easy: {rows: 9, cols: 9, mines: 10},

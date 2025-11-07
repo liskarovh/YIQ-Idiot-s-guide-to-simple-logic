@@ -2,7 +2,7 @@ import React, {useMemo, useRef} from "react";
 import colors from "../../Colors";
 import MineCell from "./MineCell";
 import HintOverlay from "./HintOverlay";
-import AutoScale from "../AutoScale";
+import AutoScale from "../../components/AutoScale";
 
 function MineGrid({
                       /* Coordinates */
