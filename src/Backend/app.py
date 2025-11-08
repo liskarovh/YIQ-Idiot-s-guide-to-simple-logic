@@ -2,6 +2,7 @@
 from __future__ import annotations
 import os
 import logging
+from datetime import timedelta
 from flask import Flask, jsonify
 from flask_cors import CORS
 
@@ -19,6 +20,8 @@ def create_app() -> Flask:
     # CORS
     allow_origins = os.getenv("CORS_ORIGINS", "*")
     CORS(app, resources={r"/api/*": {"origins": allow_origins}})
+    app.secret_key = os.getenv("CORS_ORIGINS", "ourITU-super42secretkey64")
+    app.permanent_session_lifetime = timedelta(weeks=1)
 
     # blueprints
     app.register_blueprint(sudoku_bp,      url_prefix="/api/sudoku")
@@ -26,6 +29,9 @@ def create_app() -> Flask:
     app.register_blueprint(minesweeper_bp, url_prefix="/api/minesweeper")
 
     @app.get("/api/health")
+
+
+    @app.route('/api/health', methods=['GET'])
     def health():
         return jsonify({"status": "healthy", "message": "Backend is running"})
 
@@ -46,3 +52,5 @@ app = create_app()
 
 if __name__ == "__main__":
     app.run(debug=True, host="0.0.0.0", port=5000)
+    """Health check endpoint"""
+    return jsonify({'status': 'healthy', 'message': 'Backend is running'})
