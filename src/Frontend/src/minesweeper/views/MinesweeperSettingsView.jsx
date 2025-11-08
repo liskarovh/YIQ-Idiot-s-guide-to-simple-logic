@@ -1,6 +1,5 @@
 import React, {useCallback, useEffect, useMemo, useState} from "react";
 import {useNavigate} from "react-router-dom";
-import colors from "../../Colors";
 import SettingRow from "../../components/SettingsRow";
 import Slider from "../../components/Slider";
 import NumberField from "../../components/NumberField";
@@ -11,13 +10,12 @@ import ButtonSelect from "../../components/ButtonSelect";
 import Header from "../../components/Header";
 import AutoScale from "../../components/AutoScale";
 
-const presetMaps = {
-    Easy: {rows: 9, cols: 9, mines: 10},
-    Medium: {rows: 16, cols: 16, mines: 40},
-    Hard: {rows: 16, cols: 30, mines: 99}
-};
+import {createGame, persistUiPrefs, persistLastCreate} from "../models/MinesweeperSettings/MinesweeperSettingsAPI.jsx";
+import {buildCreatePayload, buildUiPrefs} from "../models/MinesweeperSettings/MinesweeperSettingsBuilders.jsx";
+import {presetMaps, difficultyOptions} from "../models/MinesweeperSettings/MinesweeperSettingsConstants.jsx";
+import {detectPreset, calcMaxMines, clampMines} from "../models/MinesweeperSettings/MinesweeperSettingsLogic.jsx";
+import MinesweeperSettingsStyles from "../styles/MinesweeperSettingsStyles.jsx";
 
-const difficultyOptions = ["Easy", "Medium", "Hard", "Custom"];
 
 function MinesweeperSettingsView({initial = {}}) {
     const navigate = useNavigate();
@@ -65,11 +63,6 @@ function MinesweeperSettingsView({initial = {}}) {
         return true;
     });
 
-    const [captureReplay, setCaptureReplay] = useState(() => {
-        console.log("[SettingsView] captureReplay initialized:", true);
-        return true;
-    });
-
     const [allowUndo, setAllowUndo] = useState(() => {
         console.log("[SettingsView] allowUndo initialized:", true);
         return true;
@@ -79,32 +72,6 @@ function MinesweeperSettingsView({initial = {}}) {
         console.log("[SettingsView] enableHints initialized:", false);
         return false;
     });
-
-    const [holdHighlight, setHoldHighlight] = useState(() => {
-        console.log("[SettingsView] holdHighlight initialized:", true);
-        return true;
-    });
-
-    const [quickFlag, setQuickFlag] = useState(() => {
-        const qf = initial.quickFlagEnabled ?? false;
-        console.log("[SettingsView] quickFlag initialized:", qf);
-        return qf;
-    });
-
-    // Detekce presetu na základě konfigurace
-    const detectPreset = useCallback((r, c, m) => {
-        console.log("[SettingsView] detectPreset called with:", {rows: r, cols: c, mines: m});
-
-        for(const [presetName, config] of Object.entries(presetMaps)) {
-            if(config.rows === r && config.cols === c && config.mines === m) {
-                console.log("[SettingsView] detectPreset found match:", presetName);
-                return presetName;
-            }
-        }
-
-        console.log("[SettingsView] detectPreset no match, using Custom");
-        return "Custom";
-    }, []);
 
     // Přepnutí presetu
     const changePreset = useCallback((p) => {
@@ -122,8 +89,9 @@ function MinesweeperSettingsView({initial = {}}) {
 
     // Konzistence: upper bound/mines
     const maxMines = useMemo(() => {
-        const max = Math.max(1, (rows - 1) * (cols - 1));
+        const max = calcMaxMines(rows, cols);
         console.log("[SettingsView] maxMines calculated:", max, "from", rows, "x", cols);
+
         return max;
     }, [rows, cols]);
 
@@ -142,7 +110,7 @@ function MinesweeperSettingsView({initial = {}}) {
         const detected = detectPreset(newRows, cols, mines);
         console.log("[SettingsView] safeSetRows detected preset:", detected);
         setPreset(detected);
-    }, [cols, mines, detectPreset]);
+    }, [cols, mines]);
 
     const safeSetCols = useCallback((newCols) => {
         console.log("[SettingsView] safeSetCols called:", newCols);
@@ -151,56 +119,34 @@ function MinesweeperSettingsView({initial = {}}) {
         const detected = detectPreset(rows, newCols, mines);
         console.log("[SettingsView] safeSetCols detected preset:", detected);
         setPreset(detected);
-    }, [rows, mines, detectPreset]);
+    }, [rows, mines]);
 
     const safeSetMines = useCallback((m) => {
         console.log("[SettingsView] safeSetMines called:", m);
-        const clamped = Math.min(maxMines, Math.max(1, m));
+
+        const clamped = clampMines(maxMines, Math.max(1, m));
         console.log("[SettingsView] safeSetMines clamped to:", clamped);
+
         setMines(clamped);
 
         const detected = detectPreset(rows, cols, clamped);
         console.log("[SettingsView] safeSetMines detected preset:", detected);
+
         setPreset(detected);
-    }, [maxMines, rows, cols, detectPreset]);
+    }, [maxMines, rows, cols]);
 
     const handlePlay = useCallback(async() => {
-        console.log("[SettingsView] handlePlay called");
-
-        const createPayload = preset === "Custom"
-                              ? {rows, cols, mines, lives, quickFlag, firstClickNoGuess: true}
-                              : {preset, lives, quickFlag, firstClickNoGuess: true};
-
+        const createPayload = buildCreatePayload({ preset, rows, cols, mines, lives });
         console.log("[SettingsView] handlePlay createPayload:", createPayload);
 
-        const uiPrefs = {
-            showTimer,
-            captureReplay,
-            allowUndo,
-            enableHints,
-            holdHighlight
-        };
 
+        const uiPrefs = buildUiPrefs({ showTimer, allowUndo, enableHints });
         console.log("[SettingsView] handlePlay uiPrefs:", uiPrefs);
 
         try {
             console.log("[SettingsView] handlePlay fetching:", `${base}/game`);
 
-            const res = await fetch(`${base}/game`, {
-                method: "POST",
-                headers: {"Content-Type": "application/json"},
-                body: JSON.stringify(createPayload)
-            });
-
-            console.log("[SettingsView] handlePlay response status:", res.status);
-
-            if(!res.ok) {
-                const error = await res.json().catch(() => ({error: `HTTP ${res.status}`}));
-                console.error("[SettingsView] handlePlay error response:", error);
-                throw new Error(error?.error || `HTTP ${res.status}`);
-            }
-
-            const view = await res.json();
+            const view = await createGame(base, createPayload);
             console.log("[SettingsView] handlePlay game created:", view);
             console.log("[SettingsView] handlePlay gameId:", view.gameId);
             console.log("[SettingsView] handlePlay rows:", view.rows);
@@ -210,10 +156,10 @@ function MinesweeperSettingsView({initial = {}}) {
             console.log("[SettingsView] handlePlay opened cells:", view.board?.opened?.length || 0);
             console.log("[SettingsView] handlePlay flagged cells:", view.board?.flagged?.length || 0);
 
-            localStorage.setItem(`ms:uiPrefs:${view.gameId}`, JSON.stringify(uiPrefs));
+            persistUiPrefs(view.gameId, uiPrefs);
             console.log("[SettingsView] handlePlay saved uiPrefs to localStorage");
 
-            localStorage.setItem("ms:lastCreate", JSON.stringify(createPayload));
+            persistLastCreate(createPayload);
             console.log("[SettingsView] handlePlay saved lastCreate to localStorage");
 
             console.log("[SettingsView] handlePlay navigating to:", `/minesweeper/play/${view.gameId}`);
@@ -225,17 +171,12 @@ function MinesweeperSettingsView({initial = {}}) {
             console.error("[SettingsView] handlePlay exception stack:", e.stack);
             alert(`Failed to start game: ${e.message}`);
         }
-    }, [preset, rows, cols, mines, lives, showTimer, captureReplay, allowUndo, enableHints, holdHighlight, quickFlag, navigate]);
+    }, [preset, rows, cols, mines, lives, showTimer, allowUndo, enableHints, navigate]);
 
     // Wrapper funkce pro toggle změny s logováním
     const handleShowTimerChange = useCallback((value) => {
         console.log("[SettingsView] showTimer changed to:", value);
         setShowTimer(value);
-    }, []);
-
-    const handleCaptureReplayChange = useCallback((value) => {
-        console.log("[SettingsView] captureReplay changed to:", value);
-        setCaptureReplay(value);
     }, []);
 
     const handleAllowUndoChange = useCallback((value) => {
@@ -248,85 +189,34 @@ function MinesweeperSettingsView({initial = {}}) {
         setEnableHints(value);
     }, []);
 
-    const handleHoldHighlightChange = useCallback((value) => {
-        console.log("[SettingsView] holdHighlight changed to:", value);
-        setHoldHighlight(value);
-    }, []);
-
     const handleLivesChange = useCallback((value) => {
         console.log("[SettingsView] lives changed to:", value);
         setLives(value);
     }, []);
 
-    // Layouty
-    const boxWidth = "650px";
-    const boxHeight = "450px";
-
-    const boxStyle = {
-        display: "flex",
-        flexDirection: "column",
-        maxWidth: boxWidth,
-        maxHeight: boxHeight,
-        gap: "1.75rem"
-    };
-
-    const boxLayoutStyle = {
-        display: "flex",
-        flexDirection: "row",
-        justifyContent: "center",
-        padding: "0rem 0rem 0rem 2rem",
-        flexWrap: "wrap",
-        textAlign: "center",
-        alignItems: "flex-start"
-    };
-
-    const contentStyle = {
-        padding: "7rem 2rem 2rem 2rem",
-        display: "flex",
-        flexDirection: "column",
-        alignItems: "center"
-    };
-
-    const sliderAndNumberFieldStyle = {
-        display: "flex",
-        alignItems: "center",
-        gap: 12
-    };
-
-    const footer = {
-        display: "flex",
-        justifyContent: "center",
-        marginTop: "2rem",
-        width: "100%"
-    };
-
-    console.log("[SettingsView] Rendering with state:", {
-        preset, rows, cols, mines, lives, maxMines,
-        showTimer, captureReplay, allowUndo, enableHints, holdHighlight, quickFlag
-    });
 
     return (
-            <div style={contentStyle}>
+            <div style={MinesweeperSettingsStyles.contentStyle}>
                 <Header
                         showBack={true}
                         onNavigate={() => navigate(-1)}
                 />
-                <div style={boxLayoutStyle}>
+                <div style={MinesweeperSettingsStyles.boxLayoutStyle}>
                     <AutoScale
-                            baseWidth={750}
-                            baseHeight={550}
-                            maxScale={1}
-                            minScale={0.5}
-                            center={true}
+                            baseWidth={MinesweeperSettingsStyles.boxAutoscaleWidth}
+                            baseHeight={MinesweeperSettingsStyles.boxAutoscaleHeight}
+                            maxScale={MinesweeperSettingsStyles.boxAutoscaleMaxScale}
+                            minScale={MinesweeperSettingsStyles.boxAutoscaleMinScale}
+                            center={MinesweeperSettingsStyles.boxAutoscaleCenter}
                     >
-                        <Box width={boxWidth}
-                             height={boxHeight}
+                        <Box width={MinesweeperSettingsStyles.boxWidth}
+                             height={MinesweeperSettingsStyles.boxHeight}
+                             style={MinesweeperSettingsStyles.boxStyle}
                              title="Game Basics"
-                             style={boxStyle}
                         >
                             <SettingRow
                                     label="Difficulty:"
-                                    inline={true}
+                                    inline={MinesweeperSettingsStyles.settingsRowInline}
                                     control={
                                         <ButtonSelect
                                                 options={difficultyOptions}
@@ -337,64 +227,64 @@ function MinesweeperSettingsView({initial = {}}) {
                             />
                             <SettingRow
                                     label="Rows:"
-                                    inline={true}
+                                    inline={MinesweeperSettingsStyles.settingsRowInline}
                                     control={
-                                        <div style={sliderAndNumberFieldStyle}>
+                                        <div style={MinesweeperSettingsStyles.sliderAndNumberFieldStyle}>
                                             <Slider
                                                     min={3}
                                                     max={30}
                                                     value={rows}
                                                     onChange={safeSetRows}
-                                                    width={295}
+                                                    width={MinesweeperSettingsStyles.sliderGameBasicsPanelWidth}
                                             />
                                             <NumberField
                                                     presetValue={rows}
                                                     onChange={safeSetRows}
                                                     minValue={3}
                                                     maxValue={30}
-                                                    maxDigits={3}
+                                                    maxDigits={MinesweeperSettingsStyles.numberFieldMaxDigits}
                                             />
                                         </div>
                                     }
                             />
                             <SettingRow
                                     label="Columns:"
-                                    inline={true}
+                                    inline={MinesweeperSettingsStyles.settingsRowInline}
                                     control={
-                                        <div style={sliderAndNumberFieldStyle}>
+                                        <div style={MinesweeperSettingsStyles.sliderAndNumberFieldStyle}>
                                             <Slider min={3}
                                                     max={30}
                                                     value={cols}
                                                     onChange={safeSetCols}
-                                                    width={295}
+                                                    width={MinesweeperSettingsStyles.sliderGameBasicsPanelWidth}
                                             />
                                             <NumberField
                                                     presetValue={cols}
                                                     onChange={safeSetCols}
                                                     minValue={3}
                                                     maxValue={30}
-                                                    maxDigits={3}
+                                                    maxDigits={MinesweeperSettingsStyles.numberFieldMaxDigits}
                                             />
                                         </div>
                                     }
                             />
                             <SettingRow
                                     label="Mines:"
-                                    inline={true}
+                                    inline={MinesweeperSettingsStyles.settingsRowInline}
                                     control={
-                                        <div style={sliderAndNumberFieldStyle}>
+                                        <div style={MinesweeperSettingsStyles.sliderAndNumberFieldStyle}>
                                             <Slider min={1}
                                                     max={maxMines}
                                                     value={mines}
                                                     onChange={safeSetMines}
-                                                    width={295}
+                                                    width={MinesweeperSettingsStyles.sliderGameBasicsPanelWidth}
                                             />
                                             <NumberField
                                                     presetValue={mines}
                                                     onChange={safeSetMines}
                                                     minValue={1}
                                                     maxValue={maxMines}
-                                                    maxDigits={3}
+                                                    maxDigits={MinesweeperSettingsStyles.numberFieldMaxDigits}
                                             />
                                         </div>
                                     }
@@ -402,34 +292,34 @@ function MinesweeperSettingsView({initial = {}}) {
                         </Box>
                     </AutoScale>
                     <AutoScale
-                            baseWidth={750}
-                            baseHeight={550}
-                            maxScale={1}
-                            minScale={0.5}
-                            center={true}
+                            baseWidth={MinesweeperSettingsStyles.boxAutoscaleWidth}
+                            baseHeight={MinesweeperSettingsStyles.boxAutoscaleHeight}
+                            maxScale={MinesweeperSettingsStyles.boxAutoscaleMaxScale}
+                            minScale={MinesweeperSettingsStyles.boxAutoscaleMinScale}
+                            center={MinesweeperSettingsStyles.boxAutoscaleCenter}
                     >
-                        <Box width={boxWidth}
-                             height={boxHeight}
+                        <Box width={MinesweeperSettingsStyles.boxWidth}
+                             height={MinesweeperSettingsStyles.boxHeight}
+                             style={MinesweeperSettingsStyles.boxStyle}
                              title="Gameplay"
-                             style={boxStyle}
                         >
                             <SettingRow
                                     label="Number of Lives:"
-                                    inline={true}
+                                    inline={MinesweeperSettingsStyles.settingsRowInline}
                                     control={
-                                        <div style={sliderAndNumberFieldStyle}>
+                                        <div style={MinesweeperSettingsStyles.sliderAndNumberFieldStyle}>
                                             <Slider min={0}
                                                     max={10}
                                                     value={lives}
                                                     onChange={handleLivesChange}
-                                                    width={240}
+                                                    width={MinesweeperSettingsStyles.sliderGameplayPanelWidth}
                                             />
                                             <NumberField
                                                     presetValue={lives}
                                                     onChange={handleLivesChange}
                                                     minValue={0}
                                                     maxValue={10}
-                                                    maxDigits={3}
+                                                    maxDigits={MinesweeperSettingsStyles.numberFieldMaxDigits}
                                                     zeroAsInfinity={true}
                                             />
                                         </div>
@@ -437,9 +327,9 @@ function MinesweeperSettingsView({initial = {}}) {
                             />
                             <SettingRow
                                     label="Enable Timer:"
-                                    inline={true}
+                                    inline={MinesweeperSettingsStyles.settingsRowInline}
                                     control={
-                                        <div style={sliderAndNumberFieldStyle}>
+                                        <div style={MinesweeperSettingsStyles.sliderAndNumberFieldStyle}>
                                             <ToggleSwitch
                                                     checked={showTimer}
                                                     onChange={handleShowTimerChange}
@@ -449,9 +339,9 @@ function MinesweeperSettingsView({initial = {}}) {
                             />
                             <SettingRow
                                     label="Enable Undo(s):"
-                                    inline={true}
+                                    inline={MinesweeperSettingsStyles.settingsRowInline}
                                     control={
-                                        <div style={sliderAndNumberFieldStyle}>
+                                        <div style={MinesweeperSettingsStyles.sliderAndNumberFieldStyle}>
                                             <ToggleSwitch
                                                     checked={allowUndo}
                                                     onChange={handleAllowUndoChange}
@@ -461,9 +351,9 @@ function MinesweeperSettingsView({initial = {}}) {
                             />
                             <SettingRow
                                     label="Enable Hints:"
-                                    inline={true}
+                                    inline={MinesweeperSettingsStyles.settingsRowInline}
                                     control={
-                                        <div style={sliderAndNumberFieldStyle}>
+                                        <div style={MinesweeperSettingsStyles.sliderAndNumberFieldStyle}>
                                             <ToggleSwitch
                                                     checked={enableHints}
                                                     onChange={handleEnableHintsChange}
@@ -475,7 +365,7 @@ function MinesweeperSettingsView({initial = {}}) {
                     </AutoScale>
                 </div>
 
-                <div style={footer}>
+                <div style={MinesweeperSettingsStyles.footer}>
                     <PlayButton
                             onClick={handlePlay}
                     >Play</PlayButton>

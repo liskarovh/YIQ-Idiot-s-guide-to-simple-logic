@@ -1,9 +1,9 @@
 import React, { useRef, useMemo, useState } from "react";
-import colors from "../../Colors";
-import unopenedCellTexture from '../../assets/minesweeper/UnopenedCellTexture.svg';
-import flaggedCellTexture from '../../assets/minesweeper/FlaggedCellTexture.svg';
-import flaggingModeCellTexture from '../../assets/minesweeper/FlaggingModeCellTexture.svg';
-import mineIcon from '../../assets/minesweeper/Mine.svg';
+import colors from "../../../Colors";
+import unopenedCellTexture from '../../../assets/minesweeper/UnopenedCellTexture.svg';
+import flaggedCellTexture from '../../../assets/minesweeper/FlaggedCellTexture.svg';
+import flaggingModeCellTexture from '../../../assets/minesweeper/FlaggingModeCellTexture.svg';
+import mineIcon from '../../../assets/minesweeper/Mine.svg';
 
 const numberColors = {
     1: "#60A5FA",

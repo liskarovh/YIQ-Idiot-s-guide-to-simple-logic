@@ -5,7 +5,7 @@ import Header from '../../components/Header';
 import Box from '../../components/Box';
 import Slider from '../../components/Slider';
 import NumberField from '../../components/NumberField';
-import MineGrid from '../components/MineGrid';
+import MineGrid from '../components/MinesweeperGameComponents/MineGrid';
 
 const formatTime = (sec = 0) => {
     const m = Math.floor(sec / 60);
