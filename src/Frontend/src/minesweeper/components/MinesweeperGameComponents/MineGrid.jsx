@@ -121,8 +121,8 @@ function MineGrid({
                     minScale={0.5}
                     maxScale={1}
                     style={{
-                        alignSelf: 'flex-start',
-                        display: 'inline-block',
+                        alignSelf: "flex-start",
+                        display: "inline-block",
                         border: `3px solid ${colors.text_header}`,
                         boxShadow: "inset 0 0 0 1px rgba(255,255,255,0.25)",
                         borderRadius: 5,
@@ -157,21 +157,25 @@ function MineGrid({
                             const isPermaFlagged = permanentFlags.has(key);
 
                             // Cell interactivity according to spec:
-                            let isFlaggable, isRevealable;
+                            let isFlaggable,
+                                    isRevealable;
 
-                            if (isOpen) {
+                            if(isOpen) {
                                 // Opened cells: cannot flag or reveal again
                                 isFlaggable = false;
                                 isRevealable = false;
-                            } else if (isPaused) {
+                            }
+                            else if(isPaused) {
                                 // During explosion (with lives remaining): all interactions blocked
                                 isFlaggable = false;
                                 isRevealable = false;
-                            } else if (beforeStart) {
+                            }
+                            else if(beforeStart) {
                                 // Before first reveal: can only reveal, cannot flag
                                 isFlaggable = false;
                                 isRevealable = true;
-                            } else {
+                            }
+                            else {
                                 // Normal gameplay: all interactions allowed
                                 isFlaggable = true;
                                 isRevealable = true;

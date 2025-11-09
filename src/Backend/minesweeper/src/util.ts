@@ -1,149 +1,187 @@
-/** @packageDocumentation
- * Utility helpers for the Minesweeper backend.
- * Provides difficulty preset conversion, mine position generation, data masking for client output,
- * and real-time elapsed time calculation.
- */
+import type {CapabilitiesResponse, CreatePayload, GameOptions, GameSession, GameView, Limits, Preset, Snapshot} from "./types";
+import {cPresets, cPresetParameters, cCapabilitiesLimits} from "./constants";
 
-import type {GameOptions, GameSession, Snapshot, Preset, GameView} from "./types";
+export function maskGameViewForClient(gameSession: GameSession, snapshot: Snapshot): GameView {
+    // Determine whether we must reveal all mine coordinates (only when game is over)
+    const revealMines = !!(snapshot.lostOn || snapshot.cleared);
+    console.debug(`[UTILS.ts] maskGameViewForClient for game=${gameSession.id} revealMines=${revealMines}`);
 
-/** Converts a difficulty preset into concrete board parameters.
- * @param p Difficulty preset (`Easy` | `Medium` | `Hard`).
- * @returns Object with `rows`, `cols`, and `mines` for the chosen preset.
- *
- * @remarks
- * Standard presets:
- * - **Easy:** 9x9 with 10 mines (≈ 11.1 % density)
- * - **Medium:** 16x16 with 40 mines (≈ 15.6 %)
- * - **Hard:** 16x30 with 99 mines (≈ 20.6 %) – classic Windows Expert
- */
-export function presetToOpts(p: Preset): Pick<GameOptions, "rows" | "cols" | "mines"> {
-    if(p === "Easy") {
-        return {rows: 9, cols: 9, mines: 10};
+    // When not revealing, keep mines undefined so the client cannot infer positions.
+    const mines = revealMines ? gameSession.minePositions.map(([r, c]) => ({r, c})) : undefined;
+    if (mines) {
+        console.debug(`[UTILS.ts] maskGameViewForClient revealing ${mines.length} mines`);
+    } else {
+        console.debug(`[UTILS.ts] maskGameViewForClient not revealing mines`);
     }
-    if(p === "Medium") {
-        return {rows: 16, cols: 16, mines: 40};
-    }
-    // Hard = Expert layout (wide format)
-    return {rows: 16, cols: 30, mines: 99};
-}
 
-/** Calculates the total in-game elapsed time in seconds.
- * Measures time from the first move and subtracts all paused durations (undo/seek/exploded).
- * @param g Game session with timer data.
- * @returns Elapsed time in whole seconds.
- * @remarks
- * Logic:
- * - If the game hasn't started (`startTime === undefined`), returns `0`.
- * - `totalElapsed = now - startTime`
- * - `pausedTime = pausedDuration + currentPause` (if currently paused)
- * - `elapsed = totalElapsed - pausedTime`
- *
- * Timer is **paused** when:
- * - The player exploded and has lives remaining (reviewing history before revive)
- * - The player is viewing game over state
- * - Explicit pause is active
- *
- * Timer is **running** when:
- * - The player is actively playing (status === "playing" and no explosion)
- */
-export function calculateElapsedTime(g: GameSession): number {
-    if(!g.startTime) {
+    // Compose the public GameView object from fields that are safe / useful for the client.
+    const result: GameView = {
+        gameId: gameSession.id,
+        rows: gameSession.rows,
+        cols: gameSession.cols,
+        mines: gameSession.mines,
+        status: gameSession.status,
+        lives: {left: gameSession.livesLeft, total: gameSession.livesTotal},
+        quickFlag: gameSession.quickFlag,
+        cursor: gameSession.cursor,
+        totalActions: gameSession.actions.length,
+        elapsedTime: calculateElapsedTime(gameSession),
+        board: {
+            opened: snapshot.opened,
+            flagged: snapshot.flagged,
+            permanentFlags: snapshot.permanentFlags || [],
+            lostOn: snapshot.lostOn,
+            cleared: snapshot.cleared,
+            mines
+        }
+    }; // result: GameView
+
+    console.debug(`[UTILS.ts] maskForClient result summary: opened=${snapshot.opened?.length ?? 0} flagged=${snapshot.flagged?.length ?? 0} cleared=${!!snapshot.cleared}`);
+    return result;
+} // maskForClient()
+
+export function calculateElapsedTime(gameSession: GameSession): number {
+    // If the session has not started, elapsed time is zero
+    if(!gameSession.startTime) {
+        console.debug(`[UTILS.ts] calculateElapsedTime - no startTime, returning 0`);
         return 0;
     }
 
     const now = Date.now();
-    const totalElapsed = now - g.startTime;
+    const totalElapsed = now - gameSession.startTime;
 
-    // Accumulated paused time
-    let pausedTime = g.pausedDuration;
+    // Accumulate previously recorded paused duration (may be undefined)
+    let pausedTime = gameSession.pausedDuration || 0;
 
-    // Include current pause if active
-    if(g.lastPauseStart) {
-        pausedTime += now - g.lastPauseStart;
+    // If currently paused, include the ongoing pause interval in pausedTime
+    if(gameSession.lastPauseStart) {
+        pausedTime += now - gameSession.lastPauseStart;
     }
 
-    // Return pure active gameplay time (seconds)
-    return Math.max(0, Math.floor((totalElapsed - pausedTime) / 1000));
-}
+    // Active play time = total elapsed time - paused time (converted to whole seconds and clamped to >= 0)
+    const seconds = Math.max(0, Math.floor((totalElapsed - pausedTime) / 1000));
+    console.debug(`[UTILS.ts] calculateElapsedTime computed: totalElapsed=${totalElapsed}ms pausedTime=${pausedTime}ms seconds=${seconds}`);
 
-/** Produces a client-safe view of the game session.
- * Strips sensitive fields (mine positions) and adds derived metrics like elapsed time.
- * @param g Full server-side {@link GameSession} containing secrets.
- * @param s Visible board {@link Snapshot}.
- * @returns {@link GameView} safe to send to the client.
- * @remarks
- * - **Never** expose `minePositions` to the client during active gameplay.
- * - Mines are only revealed after game over (won/lost).
- * - The client receives only `opened` and `flagged` cells from the snapshot.
- * - `elapsedTime` is recomputed live for each request.
- */
-export function maskForClient(g: GameSession, s: Snapshot): GameView {
-    // Reveal all mine positions only when game is definitively over
-    const revealMines = !!(s.lostOn || s.cleared);
-    const mines = revealMines ? g.minePositions.map(([r, c]) => ({ r, c })) : undefined;
+    return seconds;
+} // calculateElapsedTime()
 
-    return {
-        gameId: g.id,
-        rows: g.rows,
-        cols: g.cols,
-        mines: g.mines,
-        status: g.status,
-        lives: {left: g.livesLeft, total: g.livesTotal},
-        quickFlag: g.quickFlag,
-        cursor: g.cursor,
-        totalActions: g.actions.length,
-        elapsedTime: calculateElapsedTime(g),
-        board: {
-            opened: s.opened,
-            flagged: s.flagged,
-            permanentFlags: s.permanentFlags || [],
-            lostOn: s.lostOn,
-            cleared: s.cleared,
-            mines
+export function detectMapParametersFromPreset(preset: Preset): { rows: number; cols: number; mines: number } {
+    console.debug(`[UTILS.ts] detectMapParametersFromPreset input:`, preset);
+
+    // Convert the public Preset value (e.g. "Easy") to the lowercase key used in the preset maps (e.g. "easy")
+    const key = (preset as string).toLowerCase() as keyof typeof cPresetParameters;
+
+    // Try to read parameters from the central preset parameters map
+    const params = cPresetParameters[key];
+    if(params) {
+        return params;  // Found exact mapping
+    }
+
+    // If preset not recognized fallback to the 'medium' preset
+    console.warn(`[UTILS.ts] detectMapParametersFromPreset - unknown preset ${preset}, falling back to medium`);
+    return cPresetParameters.medium;
+} // detectMapParametersFromPreset()
+
+export function detectPresetFromMapParameters(rows: number, cols: number, mines: number): Preset | "Custom" {
+    console.debug(`[UTILS.ts] detectPresetFromMapParameters input: rows=${rows} cols=${cols} mines=${mines}`);
+
+    // Iterate over the preset parameter entries looking for an exact match on rows/cols/mines
+    for(const [key, params] of Object.entries(cPresetParameters) as [keyof typeof cPresetParameters, { rows: number; cols: number; mines: number }][]) {
+        // If all three values match, return the corresponding Preset string from cPresets
+        if(params.rows === rows && params.cols === cols && params.mines === mines) {
+            const preset = cPresets[key];
+            console.debug(`[UTILS.ts] detectPresetFromMapParameters matched preset:`, preset);
+            return preset;
         }
+    }
+
+    // For no matching preset found return "Custom"
+    console.debug(`[UTILS.ts] detectPresetFromMapParameters result: Custom`);
+    return "Custom";
+} // detectPresetFromMapParameters()
+
+export function normalizeCreatePayload(createPayload: CreatePayload, limits: Limits): GameOptions {
+    console.debug(`[UTILS.ts] normalizeCreatePayload input:`, createPayload);
+
+    // Prepare variables for final normalized values
+    let rows: number;
+    let cols: number;
+    let mines: number;
+    let lives: number;
+
+    // If a named preset is provided, use preset defaults
+    if("preset" in createPayload && createPayload.preset) {
+        const preset = createPayload.preset as Preset;
+        const mapParameters = detectMapParametersFromPreset(preset);
+        rows = mapParameters.rows;
+        cols = mapParameters.cols;
+        mines = mapParameters.mines;
+        console.debug(`[UTILS.ts] normalizeCreatePayload used preset ${preset} ->`, {rows, cols, mines});
+    }
+    // Otherwise clamp custom values
+    else {
+        const customCreatePayload: any = createPayload;
+        rows = clamp(Math.trunc(Number(customCreatePayload.rows) || 0), limits.rows.min, limits.rows.max);
+        cols = clamp(Math.trunc(Number(customCreatePayload.cols) || 0), limits.cols.min, limits.cols.max);
+        const customMaxMines = areaMaxMines(rows, cols);
+        mines = clamp(Math.trunc(Number(customCreatePayload.mines) || 0), limits.mines.min, Math.min(limits.mines.max, customMaxMines));
+        console.debug(`[UTILS.ts] normalizeCreatePayload custom clamped -> rows=${rows} cols=${cols} mines=${mines} (areaMaxMines=${customMaxMines})`);
+    }
+
+    // Lives (clamped)
+    const livesRaw = Math.trunc(Number((createPayload as any).lives ?? 0));
+    lives = clamp(livesRaw, limits.lives.min, limits.lives.max);
+
+    // Final safety clamp for mines based on final area
+    const calculatedMaxMines = areaMaxMines(rows, cols);
+    mines = clamp(mines, limits.mines.min, Math.min(limits.mines.max, calculatedMaxMines));
+
+    // Detect canonical preset for the final rows/cols/mines combination
+    const detectedPreset = detectPresetFromMapParameters(rows, cols, mines);
+
+    // Compose final GameOptions object
+    const gameOptions: GameOptions = {
+        preset: detectedPreset,
+        rows,
+        cols,
+        mines,
+        lives
     };
-}
 
-/** Generates random mine positions on the board using a Fisher–Yates shuffle.
- * @param rows Number of board rows.
- * @param cols Number of board columns.
- * @param mines Number of mines to place.
- * @returns Array of `[row, col]` pairs representing mine coordinates.
- * @remarks
- * Algorithm:
- * 1. Enumerate all possible cell positions.
- * 2. Shuffle them using Fisher–Yates (O(n)).
- * 3. Return the first `mines` positions.
- *
- * Note: The first click may modify these positions:
- * - In **no-guess mode**, mines are reshuffled to ensure first click is safe.
- */
-export function createMinePositions(rows: number, cols: number, mines: number): Array<[number, number]> {
-    // Input validation
-    if(rows <= 0 || cols <= 0) {
-        throw new Error("rows/cols must be positive");
-    }
-    const cells = rows * cols;
-    if(mines < 0 || mines >= cells) {
-        throw new Error("invalid mines count");
-    }
+    console.debug(`[UTILS.ts] normalizeCreatePayload result:`, gameOptions);
+    return gameOptions;
+} // normalizeCreatePayload()
 
-    // Build a list of all cell coordinates
-    const all: Array<[number, number]> = [];
-    for(let r = 0; r < rows; r++) {
-        for(let c = 0; c < cols; c++) {
-            all.push([r, c]);
-        }
-    }
+export function buildCapabilitiesPayload(): CapabilitiesResponse {
+    // Build an array of preset (name + {rows, cols, mines}).
+    const presets: { name: Preset; rows: number; cols: number; mines: number }[] = [
+        { name: "Easy", ...detectMapParametersFromPreset("Easy") },
+        { name: "Medium", ...detectMapParametersFromPreset("Medium") },
+        { name: "Hard", ...detectMapParametersFromPreset("Hard") }
+    ];
 
-    // Fisher–Yates shuffle
-    for(let i = all.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        const tmp = all[i]!;
-        all[i] = all[j]!;
-        all[j] = tmp;
-    }
+    // Declare feature flags supported by the server.
+    const features = {
+        undo: true,
+        hints: true,
+        replay: true
+    };
 
-    // Return the first N coordinates as mine positions
-    return all.slice(0, mines);
-}
+    // Compose final payload
+    const payload = {
+        presets,
+        limits: cCapabilitiesLimits,
+        features
+    };
+
+    console.debug(`[UTILS.ts] getCapabilitiesPayload:`, payload);
+    return payload;
+} // buildCapabilitiesPayload()
+
+function clamp(value: number, min: number, max: number) {
+    return Math.max(min, Math.min(max, value));
+} // clamp()
+
+function areaMaxMines(rows: number, cols: number) {
+    return (rows - 1) * (cols - 1);
+} // areaMaxMines()

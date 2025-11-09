@@ -17,33 +17,70 @@ else:
 
 print(f"[Minesweeper Proxy] Using Node backend at: {NODE_BASE}")
 
+def _build_url(path: str) -> str:
+    """Join NODE_BASE + path (+ query string)."""
+    p = path if path.startswith("/") else f"/{path}"
+    qs = request.query_string.decode("utf-8") if request.query_string else ""
+    return f"{NODE_BASE}{p}" + (f"?{qs}" if qs else "")
 
 def _proxy(method: str, path: str):
     """Generic proxy helper: forwards request from Flask → Node backend."""
-    url = f"{NODE_BASE}{path}"
-    data = request.data if request.data else None
-    headers = {"Content-Type": "application/json"}
+    url = _build_url(path)
 
-    req = urllib.request.Request(url, data = data, headers = headers, method = method)
+    # Pass body only for methods that may carry one
+    data = None
+    if method.upper() in ("POST", "PUT", "PATCH"):
+        data = request.get_data() or None
+
+    # Forward important headers (Content-Type, Accept, Idempotency-Key, Authorization)
+    headers = {}
+    if request.headers.get("Content-Type"):
+        headers["Content-Type"] = request.headers["Content-Type"]
+    else:
+        headers["Content-Type"] = "application/json"
+    if request.headers.get("Accept"):
+        headers["Accept"] = request.headers["Accept"]
+    else:
+        headers["Accept"] = "application/json"
+    if request.headers.get("Idempotency-Key"):
+        headers["Idempotency-Key"] = request.headers["Idempotency-Key"]
+    if request.headers.get("Authorization"):
+        headers["Authorization"] = request.headers["Authorization"]
+
+    # Optional: basic forwarding context
+    if request.remote_addr:
+        headers["X-Forwarded-For"] = request.remote_addr
+
+    req = urllib.request.Request(url, data=data, headers=headers, method=method)
     try:
-        with urllib.request.urlopen(req, timeout = 10) as resp:
+        with urllib.request.urlopen(req, timeout=15) as resp:
             payload = resp.read()
             status = resp.getcode()
             ct = resp.headers.get("Content-Type", "application/json")
-            return Response(payload, status = status, content_type = ct)
+
+            # propagate Location (e.g., 201 Created)
+            flask_resp = Response(payload, status=status, content_type=ct)
+            loc = resp.headers.get("Location")
+            if loc:
+                flask_resp.headers["Location"] = loc
+            return flask_resp
+
     except urllib.error.HTTPError as e:
-        return Response(
-                e.read(),
-                status = e.code,
-                content_type = e.headers.get("Content-Type", "application/json"),
-                )
-    except Exception as e:
-        body = json.dumps({"error": f"proxy_error: {str(e)}"}).encode("utf-8")
-        print(f"[Proxy Error] {e}")
-        return Response(body, status = 502, content_type = "application/json")
+        # pass through backend error payload & content-type; also propagate Location if present
+        body = e.read()
+        ct = (e.headers.get("Content-Type") if e.headers else None) or "application/json"
+        flask_resp = Response(body, status=e.code, content_type=ct)
+        if e.headers and e.headers.get("Location"):
+            flask_resp.headers["Location"] = e.headers.get("Location")
+        return flask_resp
 
 
 # === Routes mapping ===
+@minesweeper_bp.route('/capabilities', methods=['GET'])
+def capabilities():
+    return _proxy('GET', 'capabilities')
+
+
 @minesweeper_bp.route('/game', methods = ['POST'])
 def create_game():
     return _proxy('POST', '/game')

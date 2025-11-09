@@ -1,265 +1,409 @@
-/** @packageDocumentation
- * Minimal Express HTTP API for the Minesweeper backend.
- * Exposes endpoints to create a game, query state, apply actions (reveal/flag),
- * change UI mode, time-travel (undo/seek/preview), consume lives (revive), and request hints.
- * @remarks
- * All responses are JSON. Errors are returned as `{ error: string }` with non-2xx status codes.
+import express, {type Request, type Response, type NextFunction} from "express";
+import {createGame, flag, getGame, hint, preview, revive, reveal, seek, setMode, undo} from "./engine";
+import {normalizeCreatePayload, buildCapabilitiesPayload} from "./util";
+import {CapabilitiesResponseSchema, CreateGameRequestSchema, CreateGameResponseSchema} from "./jsonSchemas";
+import {validate, toUnifiedError} from "./ajvValidation";
+import {Idempotency} from "./idempotency";
+import {cCapabilitiesLimits} from "./constants";
+import type {CreatePayload} from "./types";
+
+/**
+ * In-memory idempotency cache instance used by the create-game endpoint.
  */
+const idempotency = new Idempotency(10 * 60 * 1000);
 
-import express from "express";
-import {createGame, flag, getGame, hint, preview, revive, reveal, seek, setMode, undo} from "./engine.js";
-import {presetToOpts} from "./util.js";
-import type {CreatePayloadCustom, CreatePayloadPreset, GameOptions} from "./types.js";
-
+/**
+ * Express application instance.
+ */
 const app = express();
+
+/**
+ * Middleware to parse JSON request bodies.
+ */
 app.use(express.json());
 
-/** Sends a 200 OK JSON response.
- * @param res Express response.
- * @param data Payload to serialize.
+/**
+ * Request/Response logger middleware.
+ *
+ * - Logs request start, headers (with sensitive values redacted), and body.
+ * - Monkey-patches `res.json`, `res.send` and `res.setHeader` to log outgoing response body and headers.
+ * - Ensures a final log on `finish` to capture responses that didn't use patched send/json.
+ *
+ * @param req Express Request object.
+ * @param res Express Response object.
+ * @param next NextFunction to pass control to the next middleware.
  */
-function ok(res: any, data: any) {
-    return res.status(200).json(data);
-}
+function apiLogger(req: Request, res: Response, next: NextFunction) {
+    const start = Date.now();
+    const method = req.method;
+    const url = req.originalUrl || req.url;
+    const id = `${method} ${url} ${start}`;
 
-/** Sends a 201 Created JSON response.
- * @param res Express response.
- * @param data Payload to serialize.
+    console.log(`[SERVER.ts][REQ start] ${id}`);
+    console.log(`[SERVER.ts][REQ headers] ${id}`, sanitizeHeaders(req.headers));
+    console.log(`[SERVER.ts][REQ body] ${id}`, req.body);  // body may be undefined for GET
+
+    // Keep original implementations
+    const originalJson = res.json.bind(res);
+    const originalSend = res.send.bind(res);
+    const originalSetHeader = res.setHeader.bind(res);
+
+    /**
+     * Logs the response details including status, duration, and body.
+     *
+     * @param body The response body to log.
+     */
+    function logResponse(body: unknown) {
+        const duration = Date.now() - start;
+        const status = res.statusCode;
+        console.log(`[SERVER.ts][RESP] ${id} status=${status} duration=${duration}ms body:`, body);
+    }
+
+    // Monkey-patch 'json' and send to log response body
+    res.json = (body?: any) => {
+        logResponse(body);
+        return originalJson(body);
+    };
+
+    // Monkey-patch 'send' to log response body
+    res.send = (body?: any) => {
+        logResponse(body);
+        return originalSend(body);
+    };
+
+    // Monkey-patch 'setHeader' to log header sets
+    res.setHeader = (name: string, value: number | string | string[]) => {
+        console.log(`[SERVER.ts][RESP header set] ${id} ${name}:`, value);
+        return originalSetHeader(name, value);
+    };
+
+    // Ensure we always log when response finishes (in case send/json not used)
+    res.on("finish", () => {
+        const duration = Date.now() - start;
+        console.log(`[SERVER.ts][FINISH] ${id} status=${res.statusCode} duration=${duration}ms`);
+    });
+
+    // Proceed to next middleware
+    next();
+} // apiLogger()
+
+/**
+ * Sanitize request headers for logging.
+ *
+ * - Redacts sensitive headers such as 'Authorization' and 'Idempotency-Key'.
+ *
+ * @param headers The original request headers.
+ * @returns A sanitized shallow copy of the headers with redactions applied.
  */
-function created(res: any, data: any) {
-    return res.status(201).json(data);
-}
+function sanitizeHeaders(headers: any) {
+    // Shallow copy headers
+    const copy: any = {...headers};
 
-/** Sends an error JSON response with the given status.
- * @param res Express response.
- * @param msg Error message.
- * @param code HTTP status code (defaults to 400).
- */
-function bad(res: any, msg: string, code = 400) {
-    return res.status(code).json({error: msg});
-}
+    // If no headers, return as is
+    if(!copy) {
+        return copy;
+    }
 
-/** Health/echo endpoint.
- * @route GET /echo
- * @returns 200 with `{ msg: "hello from TS" }`.
- */
-app.get("/echo", (_req, res) => res.json({msg: "hello from TS"}));
+    // List of sensitive headers to redact
+    const sensitive = new Set(["authorization", "idempotency-key", "idempotencykey"]);
 
-/** Create a new game.
- * @route POST /game
- * @body `CreatePayloadPreset` **or** `CreatePayloadCustom`
- * @returns 201 with the initial `GameView` on success.
- * @errors 400 if required fields are missing or validation fails.
- * @remarks
- * When `preset` is provided, base options are derived via {@link presetToOpts} and can be overridden.
- */
-app.post("/game", (req, res) => {
-    try {
-        const body = req.body as CreatePayloadCustom | CreatePayloadPreset;
-        let opts: GameOptions;
+    // Iterate and redact sensitive headers
+    for(const key of Object.keys(copy)) {
+        const lower = key.toLowerCase();  // case-insensitive check
 
-        if("preset" in body && body.preset) {
-            const base = presetToOpts(body.preset);
-            opts = {
-                ...base,
-                firstClickNoGuess: !!body.firstClickNoGuess,
-                lives: Math.max(0, body.lives ?? 0),
-                quickFlag: !!body.quickFlag
-            };
+        // Redact sensitive headers
+        if(sensitive.has(lower)) {
+            const val = copy[key];
+            copy[key] = Array.isArray(val) ? val.map(() => "[REDACTED]") : "[REDACTED]";
         }
-        else {
-            const custom = body as CreatePayloadCustom;
-            opts = {
-                rows: custom.rows!,
-                cols: custom.cols!,
-                mines: custom.mines!,
-                firstClickNoGuess: !!custom.firstClickNoGuess,
-                lives: custom.lives ?? 0,
-                quickFlag: !!custom.quickFlag
+    }
+
+    return copy;  // return sanitized copy
+} // sanitizeHeaders()
+
+/**
+ * Set consistent Location header for created games.
+ *
+ * - Uses the canonical API path used for idempotency caching.
+ * - Centralized so both response and cache can rely on the same format.
+ *
+ * @param response Express Response object.
+ * @param gameId The ID of the created game.
+ */
+function setLocation(response: Response, gameId: string) {
+    // Construct location path
+    const locationPath = `/game/${gameId}`;
+
+    // Set Location header
+    response.setHeader("Location", locationPath);
+    console.log("[SERVER.ts][setLocation] setting Location header:", locationPath);
+} // setLocation()
+
+/**
+ * Unified error handler that normalizes thrown errors and sends a consistent payload.
+ *
+ * - Delegates normalization to `toUnifiedError`.
+ *
+ * @param error The error object thrown.
+ * @param response Express Response object.
+ * @param next NextFunction.
+ * @return Response JSON body with normalized error payload and the appropriate status.
+ */
+function errorHandler(error: unknown, response: Response, next: NextFunction): Response | void {
+    // If headers already sent, delegate to default Express handler
+    if(response.headersSent) {
+        return next(error as any);
+    }
+
+    try {
+        const {status, payload} = toUnifiedError(error);
+        return response.status(status).json(payload);
+    }
+    catch(e) {
+
+        console.error("[SERVER.ts][ERROR HANDLER] failed to normalize error:", e);
+        return response.status(500).json({code: "internal_error", message: "Internal server error"});
+    }
+}
+
+/**
+ * API request/response logging middleware.
+ */
+app.use(apiLogger);
+
+app.get("/echo", (_request, response) =>
+    response.json({msg: "Hello from TS!"})
+);
+
+app.get("/capabilities", validate({response: CapabilitiesResponseSchema}), (_request, response) => {
+    const payload = buildCapabilitiesPayload();
+
+    console.log("[SERVER.ts][CAPABILITIES] returning payload:", payload);
+    return response.status(200).json(payload);
+});
+
+app.get("/game/:id", (request, response, next) => {
+    console.log("[SERVER.ts][GET /game/:id] id:", request.params.id);
+
+    try {
+        const result = getGame(request.params.id);
+        console.log("[SERVER.ts][GET /game/:id] found:", {gameId: result.gameId});
+
+        return response.status(200).json(result);
+    }
+    catch(e: any) {
+        console.error("[SERVER.ts][GET /game/:id] error:", e);
+        return next({statusCode: (e.message === "not found") ? 404 : 400, message: e.message});
+    }
+});
+
+app.post(
+    "/game",
+    validate({request: CreateGameRequestSchema, response: CreateGameResponseSchema}),
+    (request: Request, response: Response, next: NextFunction) => {
+        const start = Date.now(); // for duration logging
+
+        try {
+            const key = request.get("Idempotency-Key") || undefined;
+            console.log(`[SERVER.ts][POST /game] start idempotencyKey=${key}`);
+
+            // Check for cached response if idempotency key provided
+            const cached = idempotency.get(key);
+            if(cached) {
+                console.log(`[SERVER.ts][POST /game] found cached response for key=${key} -> location=${cached.location} status=${cached.status}`);
+                response.setHeader("Location", cached.location);
+                return response.status(cached.status).json(cached.body);
+            }
+
+            // Parse and log payload
+            const body = request.body as CreatePayload;
+            console.log("[SERVER.ts][POST /game] payload received:", body);
+
+            // Normalize the create payload
+            const normalizedPayload = normalizeCreatePayload(body, cCapabilitiesLimits);
+            console.log("[SERVER.ts][POST /game] normalized payload:", normalizedPayload);
+
+            // Create game
+            const gameView = createGame(normalizedPayload);
+            console.log("[SERVER.ts][POST /game] game created:", {gameId: gameView.gameId, rows: gameView.rows, cols: gameView.cols, mines: gameView.mines});
+
+            // Build response body including preset info
+            const responseBody = {
+                ...gameView,
+                preset: normalizedPayload.preset
             };
+
+            // Set Location header
+            setLocation(response, gameView.gameId);
+
+            // Cache the response for idempotency
+            const status = 201;
+            const location = `/game/${gameView.gameId}`;
+            idempotency.set(key, status, location, responseBody);
+            console.log(`[SERVER.ts][POST /game] cached idempotency for key=${key} -> ${location}, status=${status}`);
+
+            // Calculate duration
+            const duration = Date.now() - start;
+
+            // Send response
+            console.log(`[SERVER.ts][POST /game] finished duration=${duration}ms sending response`);
+            return response.status(status).json(responseBody);
         }
-        return created(res, createGame(opts));
+        catch(e: any) {
+            console.error("[SERVER.ts][POST /game] exception:", e);
+            return next(e);
+        }
     }
-    catch(e: any) {
-        return bad(res, e.message);
-    }
-});
+);
 
-/** Get current game state.
- * @route GET /game/:id
- * @param id Game UUID (path param).
- * @returns 200 with `GameView`.
- * @errors 404 if game is not found; 400 for other errors.
- */
-app.get("/game/:id", (req, res) => {
+app.post("/game/:id/reveal", (request, response, next) => {
+    console.log("[SERVER.ts][POST /game/:id/reveal] id:", request.params.id, "r:", request.body.r, "c:", request.body.c);
+
     try {
-        return ok(res, getGame(req.params.id));
+        const result = reveal(request.params.id, request.body.r, request.body.c);
+        console.log("[SERVER.ts][POST /game/:id/reveal] result:", result);
+
+        return response.status(200).json(result);
     }
     catch(e: any) {
-        return bad(res, e.message, e.message === "not found" ? 404 : 400);
+        console.error("[SERVER.ts][POST /game/:id/reveal] error:", e);
+        const statusCode = (e.message === "not found") ? 404
+                                                       : (e.message === "game over") ? 409
+                                                                                     : 400;
+        return next({statusCode, message: e.message});
     }
 });
 
-/** Reveal a cell.
- * @route POST /game/:id/reveal
- * @body `{ r: number; c: number }`
- * @returns 200 with updated `GameView`.
- * @errors 404 if not found; 409 if `"game over"`; 400 otherwise.
- * @remarks
- * Starts the timer on the first-ever action; trims future history if cursor is not at the end.
- * Lives are consumed immediately upon mine hit.
- */
-app.post("/game/:id/reveal", (req, res) => {
+app.post("/game/:id/flag", (request, response, next) => {
+    console.log("[SERVER.ts][POST /game/:id/flag] id:", request.params.id, "r:", request.body.r, "c:", request.body.c, "set:", request.body.set);
+
     try {
-        return ok(res, reveal(req.params.id, req.body.r, req.body.c));
+        const result = flag(request.params.id, request.body.r, request.body.c, request.body.set);
+        console.log("[SERVER.ts][POST /game/:id/flag] result:", result);
+
+        return response.status(200).json(result);
     }
     catch(e: any) {
-        return bad(
-            res,
-            e.message,
-            e.message === "not found" ? 404 : e.message === "game over" ? 409 : 400
-        );
+        console.error("[SERVER.ts][POST /game/:id/flag] error:", e);
+        return next({statusCode: (e.message === "not found") ? 404 : 400, message: e.message});
     }
 });
 
-/** Place/remove/toggle a flag.
- * @route POST /game/:id/flag
- * @body `{ r: number; c: number; set?: boolean }`
- * @returns 200 with updated `GameView`.
- * @errors 404 if not found; 400 otherwise.
- * @remarks
- * `set=true` forces flagged; `false` forces unflagged; `undefined` toggles.
- * Permanent flags (after revive) cannot be toggled off.
- */
-app.post("/game/:id/flag", (req, res) => {
+app.post("/game/:id/mode", (request, response, next) => {
+    console.log("[SERVER.ts][POST /game/:id/mode] id:", request.params.id, "quickFlag:", !!request.body.quickFlag);
+
     try {
-        return ok(res, flag(req.params.id, req.body.r, req.body.c, req.body.set));
+        const result = setMode(request.params.id, !!request.body.quickFlag);
+        console.log("[SERVER.ts][POST /game/:id/mode] result:", result);
+
+        return response.status(200).json(result);
     }
     catch(e: any) {
-        return bad(res, e.message, e.message === "not found" ? 404 : 400);
+        console.error("[SERVER.ts][POST /game/:id/mode] error:", e);
+        return next({statusCode: (e.message === "not found") ? 404 : 400, message: e.message});
     }
 });
 
-/** Toggle quick-flag UI mode.
- * @route POST /game/:id/mode
- * @body `{ quickFlag: boolean }`
- * @returns 200 with `{ ok: true, quickFlagEnabled }`.
- * @errors 404 if not found; 400 otherwise.
- * @remarks
- * This is a UI preference; engine rules do not change.
- */
-app.post("/game/:id/mode", (req, res) => {
+app.post("/game/:id/undo", (request, response, next) => {
+    // Default to 1 step if not provided
+    const steps = Number.isFinite(request.body?.steps) ? request.body.steps : 1;
+    console.log("[SERVER.ts][POST /game/:id/undo] id:", request.params.id, "steps:", steps);
+
     try {
-        return ok(res, setMode(req.params.id, !!req.body.quickFlag));
+        const result = undo(request.params.id, steps);
+        console.log("[SERVER.ts][POST /game/:id/undo] result:", result);
+
+        return response.status(200).json(result);
     }
     catch(e: any) {
-        return bad(res, e.message, e.message === "not found" ? 404 : 400);
+        console.error("[SERVER.ts][POST /game/:id/undo] error:", e);
+        return next({statusCode: (e.message === "not found") ? 404 : 400, message: e.message});
     }
 });
 
-/** Step the timeline backward by `steps` (default 1).
- * @route POST /game/:id/undo
- * @body `{ steps?: number }`
- * @returns 200 with updated `GameView`.
- * @errors 404 if not found; 400 otherwise.
- * @remarks
- * Undo moves cursor back but does NOT trim future actions - they remain for potential redo.
- * Undo skips states with revealed mines (to avoid showing explosion state).
- * Lives are NOT restored by undo.
- */
-app.post("/game/:id/undo", (req, res) => {
+app.post("/game/:id/seek", (request, response, next) => {
+    console.log("[SERVER.ts][POST /game/:id/seek] id:", request.params.id, "toIndex:", request.body.toIndex);
+
     try {
-        const steps = Number.isFinite(req.body?.steps) ? req.body.steps : 1;
-        return ok(res, undo(req.params.id, steps));
+        const result = seek(request.params.id, request.body.toIndex);
+        console.log("[SERVER.ts][POST /game/:id/seek] result:", result);
+
+        return response.status(200).json(result);
     }
     catch(e: any) {
-        return bad(res, e.message, e.message === "not found" ? 404 : 400);
+        console.error("[SERVER.ts][POST /game/:id/seek] error:", e);
+        return next({statusCode: (e.message === "not found") ? 404 : 400, message: e.message});
     }
 });
 
-/** Seek to an absolute action index.
- * @route POST /game/:id/seek
- * @body `{ toIndex: number }`
- * @returns 200 with updated `GameView`.
- * @errors 404 if not found; 400 otherwise.
- * @remarks
- * Used in exploded state to browse history before reviving.
- * Changes cursor but does not trim actions.
- */
-app.post("/game/:id/seek", (req, res) => {
+app.post("/game/:id/preview", (request, response, next) => {
+    console.log("[SERVER.ts][POST /game/:id/preview] id:", request.params.id, "toIndex:", request.body.toIndex);
+
     try {
-        return ok(res, seek(req.params.id, req.body.toIndex));
+        const result = preview(request.params.id, request.body.toIndex);
+
+        console.log("[SERVER.ts][POST /game/:id/preview] result:", result);
+        return response.status(200).json(result);
     }
     catch(e: any) {
-        return bad(res, e.message, e.message === "not found" ? 404 : 400);
+        console.error("[SERVER.ts][POST /game/:id/preview] error:", e);
+        return next({statusCode: (e.message === "not found") ? 404 : 400, message: e.message});
     }
 });
 
-/** Preview a snapshot at a specific index without changing game state.
- * @route POST /game/:id/preview
- * @body `{ toIndex: number }`
- * @returns 200 with `GameView` (with `isPreview=true`).
- * @errors 404 if not found; 400 otherwise.
- * @remarks
- * Used for displaying history in game over state without modifying cursor or game state.
- * Response includes `isPreview: true` and `previewIndex` fields.
- */
-app.post("/game/:id/preview", (req, res) => {
+app.post("/game/:id/revive", (request, response, next) => {
+    console.log("[SERVER.ts][POST /game/:id/revive] id:", request.params.id, "toIndex:", request.body?.toIndex);
+
     try {
-        return ok(res, preview(req.params.id, req.body.toIndex));
+        const result = revive(request.params.id, request.body?.toIndex);
+        console.log("[SERVER.ts][POST /game/:id/revive] result:", result);
+
+        return response.status(200).json(result);
     }
     catch(e: any) {
-        return bad(res, e.message, e.message === "not found" ? 404 : 400);
+        console.error("[SERVER.ts][POST /game/:id/revive] error:", e);
+
+        const statusCode = (e.message === "not found") ? 404
+                                                       : (e.message === "no lives left") ? 409
+                                                                                         : 400;
+        return next({statusCode, message: e.message});
     }
 });
 
-/** Consume one life and revive from a checkpoint.
- * @route POST /game/:id/revive
- * @body `{ toIndex?: number }`
- * @returns 200 with updated `GameView` (forced `status = "playing"`).
- * @errors 404 if not found; 409 if `"no lives left"`; 400 otherwise.
- * @remarks
- * If `toIndex` is provided, revive to that specific action.
- * If omitted, revive from one step before the explosion.
- * The exploded mine is automatically permanently flagged after revive.
- */
-app.post("/game/:id/revive", (req, res) => {
+app.get("/game/:id/hint", (request, response, next) => {
+    console.log("[SERVER.ts][POST /game/:id/hint] id:", request.params.id);
+
     try {
-        return ok(res, revive(req.params.id, req.body?.toIndex));
+        const result = hint(request.params.id);
+        console.log("[SERVER.ts][POST /game/:id/hint] result:", result);
+
+        return response.status(200).json(result);
     }
     catch(e: any) {
-        return bad(
-            res,
-            e.message,
-            e.message === "not found" ? 404 : e.message === "no lives left" ? 409 : 400
-        );
+        console.error("[SERVER.ts][POST /game/:id/hint] error:", e);
+        return next({statusCode: (e.message === "not found") ? 404 : 400, message: e.message});
     }
 });
 
-/** Get a coarse hint around a hidden mine.
- * @route GET /game/:id/hint
- * @returns 200 with `{ type: "none" }` or `{ type: "mine-area", rect: { r0, c0, r1, c1 } }`.
- * @errors 404 if not found; 400 otherwise.
- * @remarks
- * Finds the most useful unflagged mine (closest to opened cells) and returns its 3×3 neighborhood.
+/**
+ * Error handling middleware to convert errors to unified format.
  */
-app.get("/game/:id/hint", (req, res) => {
-    try {
-        return ok(res, hint(req.params.id));
-    }
-    catch(e: any) {
-        return bad(res, e.message, e.message === "not found" ? 404 : 400);
-    }
-});
+app.use(errorHandler);
 
+/**
+ * Port to bind the server to.
+ */
 const PORT = Number(process.env.MINESWEEPER_NODE_PORT) || 5051;
+
+/**
+ * Host to bind the server to.
+ */
 const HOST = process.env.MINESWEEPER_NODE_HOST || "0.0.0.0";
 
-/** Starts the HTTP server.
- * @remarks
- * Binds to `${HOST}:${PORT}` by default. Set `MINESWEEPER_NODE_PORT` to change the port.
+/**
+ * Start the Express server.
  */
 app.listen(PORT, HOST, () => {
-    // eslint-disable-next-line no-console
     console.log(`Minesweeper TS backend running on http://${HOST}:${PORT}`);
 });
+

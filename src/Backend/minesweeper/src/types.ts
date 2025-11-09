@@ -14,6 +14,7 @@
  */
 export type Preset = "Easy" | "Medium" | "Hard";
 
+
 /** Game lifecycle status.
  * - `new`: game was created; no moves yet
  * - `playing`: game in progress
@@ -44,6 +45,9 @@ export interface ComputedCell {
  * Defines board dimensions, mine count, and feature toggles.
  */
 export interface GameOptions {
+    /** Selected difficulty preset. */
+    preset: Preset | "Custom";
+
     /** Number of board rows. */
     rows: number;
 
@@ -53,43 +57,15 @@ export interface GameOptions {
     /** Total number of mines on the board. */
     mines: number;
 
-    /** Guarantees a solvable first click (no-guess mode). */
-    firstClickNoGuess?: boolean;
-
     /** Number of lives; `0` means unlimited. */
-    lives?: number;
-
-    /** Quick-flag mode: primary click places flags instead of revealing. */
-    quickFlag?: boolean;
+    lives: number;
 }
 
-/** Payload for creating a game from a predefined {@link Preset}.
- * Allows selectively overriding preset defaults.
- */
-export interface CreatePayloadPreset {
+
+export interface CreatePayload extends Partial<GameOptions> {
     /** Selected difficulty preset. */
-    preset: Preset;
+    preset: Preset | "Custom";
 
-    /** Override: no-guess first click.
-     * @defaultValue preset-specific
-     */
-    firstClickNoGuess?: boolean;
-
-    /** Override: number of lives (0 = unlimited).
-     * @defaultValue preset-specific
-     */
-    lives?: number;
-
-    /** Override: quick-flag mode.
-     * @defaultValue preset-specific
-     */
-    quickFlag?: boolean;
-}
-
-/** Payload for creating a custom game with explicit dimensions.
- * Partially extends {@link GameOptions} but requires the core shape.
- */
-export interface CreatePayloadCustom extends Partial<GameOptions> {
     /** Required: number of rows. */
     rows: number;
 
@@ -98,6 +74,9 @@ export interface CreatePayloadCustom extends Partial<GameOptions> {
 
     /** Required: total mines. */
     mines: number;
+
+    /** Number of lives; `0` means unlimited. */
+    lives: number;
 }
 
 /** Immutable, client-safe snapshot of the visible board state.
@@ -105,15 +84,28 @@ export interface CreatePayloadCustom extends Partial<GameOptions> {
  */
 export interface Snapshot {
     /** Opened cells with adjacent mine counts. */
-    opened: Array<{ r: number; c: number; adj: number }>;
+    opened: Array<{
+        r: number;
+        c: number;
+        adj: number
+    }>;
 
     /** Flagged cells. */
-    flagged: Array<{ r: number; c: number }>;
+    flagged: Array<{
+        r: number;
+        c: number
+    }>;
 
-    permanentFlags?: Array<{ r: number; c: number }>;
+    permanentFlags?: Array<{
+        r: number;
+        c: number
+    }>;
 
     /** Cell that triggered a loss (if any). */
-    lostOn?: { r: number; c: number };
+    lostOn?: {
+        r: number;
+        c: number
+    };
 
     /** True if all safe cells have been revealed (win). */
     cleared?: boolean;
@@ -198,7 +190,10 @@ export interface GameView {
     status: Status;
 
     /** Lives information. */
-    lives: { left: number; total: number };
+    lives: {
+        left: number;
+        total: number
+    };
 
     /** Quick-flag mode enabled? */
     quickFlag: boolean;
@@ -215,21 +210,37 @@ export interface GameView {
     /** Visible board layers. */
     board: {
         /** Opened cells with adjacent mine counts. */
-        opened: Array<{ r: number; c: number; adj: number }>;
+        opened: Array<{
+            r: number;
+            c: number;
+            adj: number
+        }>;
 
         /** Flagged cells. */
-        flagged: Array<{ r: number; c: number }>;
+        flagged: Array<{
+            r: number;
+            c: number
+        }>;
 
-        permanentFlags?: Array<{ r: number; c: number }>;
+        permanentFlags?: Array<{
+            r: number;
+            c: number
+        }>;
 
         /** Cell that caused a loss (if any) */
-        lostOn?: { r: number; c: number };
+        lostOn?: {
+            r: number;
+            c: number
+        };
 
         /** True if all safe cells have been revealed (win). */
         cleared?: boolean;
 
         /** Revealed mine positions (only present when safe to reveal, e.g. after loss/win) */
-        mines?: Array<{ r: number; c: number }>;
+        mines?: Array<{
+            r: number;
+            c: number
+        }>;
     };
 
     /** True if this is a preview view (not actual game state). */
@@ -237,4 +248,44 @@ export interface GameView {
 
     /** Index being previewed (only when isPreview=true). */
     previewIndex?: number;
+}
+
+export type Limits = {
+    rows: { min: number; max: number };
+    cols: { min: number; max: number };
+    mines: { min: number; max: number };
+    lives: { min: number; max: number };
+};
+
+export type Features = {
+    undo: boolean;
+    hints: boolean;
+    replay: boolean;
+};
+
+export type CapabilitiesResponse = {
+    presets: Array<{
+        name: Preset;
+        rows: number;
+        cols: number;
+        mines: number
+    }>;
+    limits: Limits;
+    features: Features;
+};
+
+export type IdempotencyValue = {
+    status: number;
+    location: string;
+    body: any;
+    expiresAt: number
+};
+
+export interface UnifiedError {
+    status: number;
+    payload: {
+        code: string;
+        message: string;
+        details: any | null;
+    };
 }

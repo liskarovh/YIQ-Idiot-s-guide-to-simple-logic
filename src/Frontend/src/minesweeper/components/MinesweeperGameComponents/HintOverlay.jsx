@@ -1,6 +1,6 @@
 import React from "react";
 
-function HintOverlay({rect, cellSize, gap}) {
+function HintOverlay({rect, cellSize = 0, gap = 0}) {
     if(!rect) {
         return null;
     }
@@ -13,14 +13,30 @@ function HintOverlay({rect, cellSize, gap}) {
 
     const style = {
         position: "absolute",
-        top, left, width: w, height: h,
-        border: "2px solid rgba(255,255,255,0.28)",
-        borderRadius: 8,
+        top: `${top}px`,
+        left: `${left}px`,
+        width: `${w}px`,
+        height: `${h}px`,
+        borderRadius: 10,
         pointerEvents: "none",
-        boxShadow: "0 0 0 2px rgba(255,255,255,0.08) inset"
+
+        /* ovcerlay */
+        background: "linear-gradient(180deg, rgba(255,245,180,0.18), rgba(255,200,60,0.22))",
+        border: "3px solid rgba(255,200,30,0.95)",
+        boxShadow:
+                "0 12px 30px rgba(255,170,0,0.34), 0 0 18px rgba(255,200,50,0.12), inset 0 0 6px rgba(255,240,180,0.06)",
+        backdropFilter: "blur(4px) saturate(1.25)",
+        WebkitBackdropFilter: "blur(4px) saturate(1.25)",
+
+        /* animation */
+        transition: "box-shadow 160ms ease, transform 160ms ease, opacity 160ms ease",
+        opacity: 0.98,
+        transform: "translateZ(0)"
     };
 
-    return <div style={style} />;
+    return <div
+            style={style}
+    />;
 }
 
 export default HintOverlay;

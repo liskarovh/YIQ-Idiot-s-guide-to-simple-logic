@@ -1,21 +1,34 @@
-export function detectPreset(r, c, m, presets = {}) {
-    console.log("[SettingsView] detectPreset called with:", {rows: r, cols: c, mines: m});
+export function maxMinesForGrid(rows, cols) {
+    return Math.max(1, (rows - 1) * (cols - 1));
+}
 
-    for(const [presetName, config] of Object.entries(presets)) {
-        if(config.rows === r && config.cols === c && config.mines === m) {
-            console.log("[SettingsView] detectPreset found match:", presetName);
+export function detectPreset(rows, columns, mines, presets) {
+    if(!presets) {
+        return "Custom";
+    }
+
+    const rowsCount = Number(rows);
+    const colsCount = Number(columns);
+    const minesCount = Number(mines);
+
+    if(!Number.isFinite(rowsCount) || !Number.isFinite(colsCount) || !Number.isFinite(minesCount)) {
+        return "Custom";
+    }
+
+    for(const preset of presets) {
+        if(!preset) {
+            continue;
+        }
+
+        const presetRows = Number(preset.rows);
+        const presetCols = Number(preset.cols);
+        const presetMines = Number(preset.mines);
+        const presetName = preset.name;
+        if(presetName && presetRows === rowsCount && presetCols === colsCount && presetMines === minesCount) {
             return presetName;
         }
     }
 
-    console.log("[SettingsView] detectPreset no match, using Custom");
     return "Custom";
 }
 
-export function calcMaxMines(rows, cols) {
-    return Math.max(1, (rows - 1) * (cols - 1));
-}
-
-export function clampMines(mines, maxMines) {
-    return Math.min(maxMines, Math.max(1, mines));
-}

@@ -5,16 +5,16 @@ import useAutoScale from "../hooks/UseAutoScale";
  * Wrapper, který „zvětšuje/zmenšuje“ vnitřek pomocí CSS transform.
  * Vnější box má fyzickou velikost = (base * scale), takže layout kolem funguje správně.
  */
-export default function AutoScale({
-                                      baseWidth = 1920,
-                                      baseHeight = 1080,
-                                      fit = "contain",
-                                      minScale = 0.5,
-                                      maxScale = 1,
-                                      center = true,
-                                      style = {},
-                                      children
-                                  }) {
+function AutoScale({
+                       baseWidth = 1920,
+                       baseHeight = 1080,
+                       fit = "contain",
+                       minScale = 0.5,
+                       maxScale = 1,
+                       center = true,
+                       style = {},
+                       children
+                   }) {
     const scale = useAutoScale(baseWidth, baseHeight, {fit, minScale, maxScale});
 
     const outer = {
@@ -38,3 +38,5 @@ export default function AutoScale({
             </div>
     );
 }
+
+export default AutoScale;
