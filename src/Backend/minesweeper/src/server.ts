@@ -424,7 +424,7 @@ app.use(errorHandler);
 /**
  * Port to bind the server to.
  */
-const PORT = Number(process.env.MINESWEEPER_NODE_PORT) || 5051;
+const PORT = Number(process.env.PORT) || Number(process.env.MINESWEEPER_NODE_PORT) || 5051;
 
 /**
  * Host to bind the server to.
@@ -437,4 +437,3 @@ const HOST = process.env.MINESWEEPER_NODE_HOST || "0.0.0.0";
 app.listen(PORT, HOST, () => {
     console.log(`Minesweeper TS backend running on http://${HOST}:${PORT}`);
 });
-

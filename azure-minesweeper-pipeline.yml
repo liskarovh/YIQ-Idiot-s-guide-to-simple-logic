@@ -27,8 +27,9 @@ stages:
             inputs:
               version: '$(nodeVersion)'
 
-          # === Install dependencies (use npm install instead of npm ci if no lock file) ===
+          # === Install dependencies ===
           - script: |
+              set -eux
               cd src/Backend/minesweeper
               echo "Checking for package-lock.json..."
               if [ -f "package-lock.json" ]; then
@@ -42,24 +43,37 @@ stages:
 
           # === Build TypeScript project ===
           - script: |
+              set -eux
               cd src/Backend/minesweeper
               echo "Building TypeScript..."
               npm run build
+
+              echo "Verifying build output:"
+              test -d dist
+              ls -la dist
+              echo "OK: Build completed successfully"
             displayName: 'Build TypeScript project'
 
-          # === Stage deployment files ===
-          - script: |
+          # === Stage deployment package ===
+          - bash: |
               set -eux
-              mkdir -p src/Backend/out
-              cd src/Backend/minesweeper
+              rm -rf out && mkdir -p out
 
-              # Copy built JS + package.json + node_modules (prod only)
-              cp -r dist ../out/
-              cp package.json ../out/
-              cp package-lock.json ../out/ 2>/dev/null || echo "No package-lock.json to copy"
-              
-              cd ../out
-              
+              # Copy built files from minesweeper
+              if [ -d "src/Backend/minesweeper/dist" ]; then
+                cp -r src/Backend/minesweeper/dist out/
+                echo "Copied dist directory"
+              fi
+
+              # Copy package files
+              cp src/Backend/minesweeper/package.json out/
+              cp src/Backend/minesweeper/package-lock.json out/ 2>/dev/null || echo "No package-lock.json to copy"
+
+              echo "Contents of out directory (before npm install):"
+              ls -la out
+
+              # Install production dependencies
+              cd out
               echo "Installing production dependencies..."
               if [ -f "package-lock.json" ]; then
                 npm ci --omit=dev
@@ -67,22 +81,28 @@ stages:
                 npm install --omit=dev
               fi
 
-              echo "Contents of out directory:"
-              ls -la
-            displayName: 'Prepare deployment package'
+              cd ..
+              echo "Contents of out directory (final):"
+              ls -la out
 
-          # === Archive for deployment ===
+              # Verify critical files
+              test -d out/dist
+              test -f out/package.json
+              echo "OK (package): All critical files present in out/"
+            displayName: 'Stage backend package'
+
+          # === Create deployment archive ===
           - task: ArchiveFiles@2
-            displayName: 'Create deployment ZIP'
+            displayName: 'Create deployment package'
             inputs:
-              rootFolderOrFile: 'src/Backend/out'
+              rootFolderOrFile: 'out'
               includeRootFolder: false
               archiveType: 'zip'
               archiveFile: '$(Build.ArtifactStagingDirectory)/MinesweeperBackend.zip'
 
           # === Configure App Settings ===
           - task: AzureAppServiceSettings@1
-            displayName: 'Configure Azure App Settings (Node backend)'
+            displayName: 'Configure App Settings'
             inputs:
               azureSubscription: '$(AZURE_SUBSCRIPTION)'
               appName: '$(WEBAPP_MINESWEEPER_NAME)'
@@ -91,16 +111,16 @@ stages:
                 [
                   { "name": "SCM_DO_BUILD_DURING_DEPLOYMENT", "value": "false", "slotSetting": false },
                   { "name": "NODE_ENV", "value": "production", "slotSetting": false },
-                  { "name": "PORT", "value": "5051", "slotSetting": false },
                   { "name": "WEBSITES_PORT", "value": "5051", "slotSetting": false },
+                  { "name": "WEBSITE_RUN_FROM_PACKAGE", "value": "0", "slotSetting": false },
                   { "name": "ENABLE_ORYX_BUILD", "value": "false", "slotSetting": false },
                   { "name": "MINESWEEPER_NODE_PORT", "value": "5051", "slotSetting": false },
                   { "name": "MINESWEEPER_NODE_HOST", "value": "0.0.0.0", "slotSetting": false }
                 ]
 
-          # === Startup configuration (Node) ===
+          # === Set startup command ===
           - task: AzureCLI@2
-            displayName: 'Set startup command (Node.js backend)'
+            displayName: 'Set startup command (Node.js)'
             inputs:
               azureSubscription: '$(AZURE_SUBSCRIPTION)'
               scriptType: bash
@@ -111,9 +131,9 @@ stages:
                   -n $(WEBAPP_MINESWEEPER_NAME) \
                   --startup-file "node dist/server.js"
 
-          # === Deploy ===
+          # === Deploy to Azure ===
           - task: AzureWebApp@1
-            displayName: 'Deploy Minesweeper backend to Azure'
+            displayName: 'Deploy to App Service (ZipDeploy)'
             inputs:
               azureSubscription: '$(AZURE_SUBSCRIPTION)'
               appType: 'webAppLinux'
