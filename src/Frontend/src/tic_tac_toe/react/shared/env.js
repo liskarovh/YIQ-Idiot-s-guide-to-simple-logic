@@ -1,24 +1,21 @@
-// Frontend/src/tic_tac_toe/react/shared/env.js
-
-// Cíl: vzít BACKEND origin z REACT_APP_API_URL (stejně jako Sudoku)
-// a zajistit, že výsledkem bude vždy BASE = "<origin>/api/tictactoe".
+// Produkční origin backendu na App Service:
+const PROD_BACKEND_ORIGIN = 'https://itu-backend-e6b3a9ckgsdtekd3.westeurope-01.azurewebsites.net';
 
 export function getApiBaseUrl() {
-  const hasProcEnv = (typeof process !== 'undefined') && process?.env;
+  const hasProcEnv = typeof process !== 'undefined' && process?.env;
+  const fromEnv = hasProcEnv ? process.env.REACT_APP_API_URL : '';
 
-  // 1) vezmeme backend origin ze stejné proměnné jako Sudoku
-  let origin = hasProcEnv && process.env.REACT_APP_API_URL
-    ? String(process.env.REACT_APP_API_URL)
-    : (typeof window !== 'undefined' && window.location?.origin)
-        ? String(window.location.origin)
-        : '';
+  const isBrowser = typeof window !== 'undefined';
+  const host = isBrowser ? window.location.hostname : '';
+  const isSwaHost = /\.azurestaticapps\.net$/i.test(host);
+
+  // 1) Pokud běžíme na SWA, vždy použij App Service backend (žádná env proměnná netřeba)
+  // 2) Jinak zkus env proměnnou (když budeš chtít v budoucnu),
+  // 3) Jinak fallback: local dev origin.
+  let origin = isSwaHost
+    ? PROD_BACKEND_ORIGIN
+    : (fromEnv && String(fromEnv).trim()) || (isBrowser ? window.location.origin : 'http://localhost:5000');
 
   origin = origin.replace(/\/+$/, '');
-
-  // 2) zajistíme, že je tam cesta /api/tictactoe (jednou, ne víckrát)
-  let url = origin;
-  if (!/\/api\/tictactoe\/?$/.test(url)) {
-    url = `${origin}/api/tictactoe`;
-  }
-  return url.replace(/\/+$/, '');
+  return `${origin}/api/tictactoe`;
 }
