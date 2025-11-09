@@ -28,6 +28,8 @@ def create_app() -> Flask:
         }})
     app.secret_key = os.getenv("CORS_KEY", "ourITU-super42secretkey64")
     app.permanent_session_lifetime = timedelta(weeks=1)
+    app.config['SESSION_COOKIE_SAMESITE'] = 'None'
+    app.config['SESSION_COOKIE_SECURE'] = True
 
     # blueprints
     app.register_blueprint(sudoku_bp,      url_prefix="/api/sudoku")
