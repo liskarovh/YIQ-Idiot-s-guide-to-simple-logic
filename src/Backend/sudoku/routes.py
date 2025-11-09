@@ -6,17 +6,8 @@ from sudoku.sudokuEnums import GameModes
 sudoku_bp = Blueprint('sudoku', __name__)
 
 
-@sudoku_bp.route("/state", methods=["GET", "POST", "OPTIONS"])
+@sudoku_bp.route("/state", methods=["GET", "POST"])
 def state():
-    # Handle preflight OPTIONS request
-    if request.method == "OPTIONS":
-        response = jsonify({"status": "ok"})
-        response.headers.add("Access-Control-Allow-Origin", "http://localhost:3000")
-        response.headers.add("Access-Control-Allow-Headers", "Content-Type")
-        response.headers.add("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
-        response.headers.add("Access-Control-Allow-Credentials", "true")
-        return response
-
     sid = flask_session.get("sid")
     ses = get_or_create_session(sid)
     flask_session["sid"] = ses.sid

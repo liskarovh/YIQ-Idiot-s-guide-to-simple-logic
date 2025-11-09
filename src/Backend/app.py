@@ -19,17 +19,20 @@ def create_app() -> Flask:
 
     # CORS
     allow_origins = os.getenv("CORS_ORIGINS", "*")
-    CORS(app, resources={r"/api/*": {"origins": allow_origins}})
-    app.secret_key = os.getenv("CORS_ORIGINS", "ourITU-super42secretkey64")
+    origins_list = [origin.strip() for origin in allow_origins.split(",")] if allow_origins != "*" else "*"
+    CORS(app, resources={r"/api/*": {
+        "origins": allow_origins,
+        "supports_credentials": True,
+        "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+        "allow_headers": ["Content-Type"]
+        }})
+    app.secret_key = os.getenv("CORS_KEY", "ourITU-super42secretkey64")
     app.permanent_session_lifetime = timedelta(weeks=1)
 
     # blueprints
     app.register_blueprint(sudoku_bp,      url_prefix="/api/sudoku")
     app.register_blueprint(tic_tac_toe_bp)  # <<< už má url_prefix="/api/tictactoe"
     app.register_blueprint(minesweeper_bp, url_prefix="/api/minesweeper")
-
-    @app.get("/api/health")
-
 
     @app.route('/api/health', methods=['GET'])
     def health():
@@ -52,5 +55,3 @@ app = create_app()
 
 if __name__ == "__main__":
     app.run(debug=True, host="0.0.0.0", port=5000)
-    """Health check endpoint"""
-    return jsonify({'status': 'healthy', 'message': 'Backend is running'})

@@ -78,8 +78,9 @@ stages:
             [
               { "name": "SCM_DO_BUILD_DURING_DEPLOYMENT", "value": "true", "slotSetting": false },
               { "name": "PYTHON_VERSION", "value": "$(pythonVersion)", "slotSetting": false },
-              { "name": "WEBSITES_PORT", "value": "5000", "slotSetting": false },
+              { "name": "WEBSITE_PORT", "value": "8000", "slotSetting": false },
               { "name": "FRONTEND_ORIGIN", "value": "$(FRONTEND_ORIGIN)", "slotSetting": false },
+              { "name": "CORS_ORIGINS", "value": "$(FRONTEND_ORIGIN)", "slotSetting": false },
               { "name": "WEBSITE_RUN_FROM_PACKAGE", "value": "0", "slotSetting": false },
               { "name": "ENABLE_ORYX_BUILD", "value": "true", "slotSetting": false },
               { "name": "CONNECTK_ROLLOUTS_EASY", "value": "$(CONNECTK_ROLLOUTS_EASY)", "slotSetting": false },
@@ -98,7 +99,7 @@ stages:
             az webapp config set \
               -g $(WEBAPP_RG) \
               -n $(WEBAPP_NAME) \
-              --startup-file "bash -lc \"tar -xzf /home/site/wwwroot/output.tar.gz -C /home/site/wwwroot && export PORT=\\\${PORT:-5000} && exec /home/site/wwwroot/antenv/bin/gunicorn --bind 0.0.0.0:\\\$PORT --chdir /home/site/wwwroot app:app\""
+              --startup-file "gunicorn --bind=0.0.0.0:8000 --timeout 600 app:app"
 
       - task: AzureWebApp@1
         displayName: Deploy to App Service (ZipDeploy)
