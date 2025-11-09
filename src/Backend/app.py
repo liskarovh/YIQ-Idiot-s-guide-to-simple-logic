@@ -24,7 +24,7 @@ def create_app() -> Flask:
         "origins": allow_origins,
         "supports_credentials": True,
         "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-        "allow_headers": ["Content-Type"]
+        "allow_headers": ["Content-Type", "Idempotency-Key"]
         }})
     app.secret_key = os.getenv("CORS_KEY", "ourITU-super42secretkey64")
     app.permanent_session_lifetime = timedelta(weeks=1)

@@ -1,4 +1,6 @@
 import express, {type Request, type Response, type NextFunction} from "express";
+import cors from "cors";
+import session from "express-session";
 import {createGame, flag, getGame, hint, preview, revive, reveal, seek, setMode, undo} from "./engine";
 import {normalizeCreatePayload, buildCapabilitiesPayload} from "./util";
 import {CapabilitiesResponseSchema, CreateGameRequestSchema, CreateGameResponseSchema} from "./jsonSchemas";
@@ -21,6 +23,35 @@ const app = express();
  * Middleware to parse JSON request bodies.
  */
 app.use(express.json());
+
+/**
+ * CORS + session configuration
+ */
+const allowOrigins = process.env.CORS_ORIGINS ?? "*";
+const originsList = allowOrigins !== "*" ? allowOrigins.split(",").map(s => s.trim()) : "*";
+
+const corsOptions = {
+    origin: originsList,
+    credentials: true,
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Idempotency-Key"]
+};
+
+// Handle preflight requests for /api/* with the configured CORS options
+app.options("/api/*", cors(corsOptions));
+
+// Trust reverse proxy (useful when running behind a proxy/load balancer)
+app.set("trust proxy", 1);
+app.use(session({
+                    secret: process.env.CORS_KEY ?? "ourITU-super42secretkey64",
+                    resave: false,
+                    saveUninitialized: false,
+                    cookie: {
+                        maxAge: 7 * 24 * 60 * 60 * 1000, // 1 týden
+                        sameSite: "none" as "none" | "lax" | "strict",
+                        secure: true
+                    }
+                }));
 
 /**
  * Request/Response logger middleware.
