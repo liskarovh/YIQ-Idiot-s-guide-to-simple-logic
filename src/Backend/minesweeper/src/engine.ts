@@ -4,7 +4,7 @@
  */
 
 import {randomUUID} from "crypto";
-import {maskForClient} from "./util";
+import {maskGameViewForClient} from "./util";
 import type {GameOptions, ComputedCell, GameSession, GameView, Snapshot} from "./types";
 
 const mem = new Map<string, GameSession>();
@@ -54,11 +54,7 @@ function logGridInfo(rows: number, cols: number, minePositions: Array<[number, n
     }
 }
 
-function computeSolutionGrid(
-    rows: number,
-    cols: number,
-    minePositions: Array<[number, number]>
-): ComputedCell[][] {
+function computeSolutionGrid(rows: number, cols: number, minePositions: Array<[number, number]>): ComputedCell[][] {
     const start = logStart("computeSolutionGrid", { rows, cols, mines: minePositions.length });
 
     const grid: ComputedCell[][] = Array.from({length: rows}, () =>
@@ -419,7 +415,7 @@ export function createGame(payload: Partial<GameOptions>): GameView {
         solutionGrid: [] as ComputedCell[][],
         livesTotal: livesValue,
         livesLeft: livesValue,
-        quickFlag: !!payload.quickFlag,
+        quickFlag: false,
         status: "new",
         actions: [],
         cursor: 0,
@@ -468,8 +464,13 @@ function summarize(g: GameSession): GameView {
         g.status = "won";
     }
     else if(s.lostOn) {
-        // If there's a mine revealed, check lives
-        g.status = g.livesLeft > 0 ? "playing" : "lost";
+        // Infinite lives mode - never game over from mines
+        if(g.livesTotal === 0) {
+            g.status = "playing";
+        } else {
+            // Finite lives mode - check lives left
+            g.status = g.livesLeft > 0 ? "playing" : "lost";
+        }
     }
     else {
         g.status = g.cursor === 0 ? "new" : "playing";
@@ -483,7 +484,7 @@ function summarize(g: GameSession): GameView {
         console.debug('[engine] summarize - game ended, timer paused', { status: g.status });
     }
 
-    const view = maskForClient(g, s);
+    const view = maskGameViewForClient(g, s);
     logEnd("summarize", start, { gameId: g.id, oldStatus, newStatus: g.status });
     return view;
 }
@@ -534,7 +535,7 @@ export function reveal(id: string, r: number, c: number): GameView {
         console.debug('[engine] reveal - timer started');
     }
 
-    // Ensure first click is safe
+    // Ensure first click is safe (engine keeps behaviour)
     if(g.cursor === 0 && g.minePositions.length === 0) {
         ensureFirstClickSafe(g, r, c);
     }
@@ -550,25 +551,18 @@ export function reveal(id: string, r: number, c: number): GameView {
     if(cell?.isMine) {
         console.debug('[engine] reveal - mine hit!', { r, c, livesLeftBefore: g.livesLeft });
 
-        // Immediately consume one life
+        // Consume life only in finite lives mode
         if(g.livesTotal > 0) {
             g.livesLeft = Math.max(0, g.livesLeft - 1);
-            console.debug('[engine] reveal - life consumed', { livesLeft: g.livesLeft });
+            console.debug("[engine] reveal - life consumed", {livesLeft: g.livesLeft});
+        } else {
+            console.debug("[engine] reveal - infinite lives mode, life not consumed");
         }
 
         // Pause timer (will stay paused until revive or game over)
         if(!g.lastPauseStart) {
             g.lastPauseStart = Date.now();
-            console.debug('[engine] reveal - timer paused after explosion');
-        }
-
-        // Set status based on lives remaining
-        if(g.livesLeft === 0) {
-            g.status = "lost";
-            console.debug('[engine] reveal - game over (no lives left)');
-        } else {
-            g.status = "playing";
-            console.debug('[engine] reveal - still alive', { livesLeft: g.livesLeft });
+            console.debug("[engine] reveal - timer paused after explosion");
         }
     }
 
@@ -668,7 +662,7 @@ export function undo(id: string, steps = 1): GameView {
 
     // Note: Undo does NOT trim actions - they remain for potential redo
     // Note: Undo does NOT change lives
-    // Note: Timer keeps running (according to spec)
+    // Note: Timer keeps running
 
     logEnd("undo", start, { gameId: id, cursor: g.cursor });
     return summarize(g);
@@ -767,9 +761,9 @@ export function revive(id: string, toIndex?: number): GameView {
     // Determine target index (EXCLUSIVE - trim BEFORE this action)
     let targetIndex: number;
     if(toIndex !== undefined) {
-        targetIndex = Math.min(Math.max(0, toIndex), lostIndex); // ← Clamp to lostIndex max
+        targetIndex = Math.min(Math.max(0, toIndex), lostIndex); // Clamp to lostIndex max
     } else {
-        targetIndex = lostIndex; // ← Go back to state BEFORE mine reveal
+        targetIndex = lostIndex; // go back to state BEFORE mine reveal
     }
 
     // Trim to state BEFORE target
