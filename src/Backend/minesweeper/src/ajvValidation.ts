@@ -1,12 +1,16 @@
-import Ajv, {ValidateFunction} from "ajv";
-import addFormats from "ajv-formats";
+import * as AjvModule from "ajv";
+import type {ValidateFunction} from "ajv";
+import * as addFormatsModule from "ajv-formats";
 import type {NextFunction, Request, Response} from "express";
-import type {UnifiedError} from "./types";
+import type {UnifiedError} from "./types.js";
 
 /**
  * Create and configure AJV instance used for request/response validation.
  */
-const ajv = new Ajv({allErrors: true});  // allErrors: collect all validation errors
+const AjvCtor: any = (AjvModule as any).default ?? AjvModule;
+const addFormats: any = (addFormatsModule as any).default ?? addFormatsModule;
+
+const ajv = new AjvCtor({ allErrors: true });
 addFormats(ajv);
 
 function validateRequest(validateRequest: ValidateFunction | null, request: Request, next: NextFunction): boolean {

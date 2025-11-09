@@ -4,8 +4,8 @@
  */
 
 import {randomUUID} from "crypto";
-import {maskGameViewForClient} from "./util";
-import type {GameOptions, ComputedCell, GameSession, GameView, Snapshot} from "./types";
+import {maskGameViewForClient} from "./util.js";
+import type {GameOptions, ComputedCell, GameSession, GameView, Snapshot} from "./types.js";
 
 const mem = new Map<string, GameSession>();
 

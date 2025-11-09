@@ -1,13 +1,13 @@
 import express, {type Request, type Response, type NextFunction} from "express";
 import cors from "cors";
 import session from "express-session";
-import {createGame, flag, getGame, hint, preview, revive, reveal, seek, setMode, undo} from "./engine";
-import {normalizeCreatePayload, buildCapabilitiesPayload} from "./util";
-import {CapabilitiesResponseSchema, CreateGameRequestSchema, CreateGameResponseSchema} from "./jsonSchemas";
-import {validate, toUnifiedError} from "./ajvValidation";
-import {Idempotency} from "./idempotency";
-import {cCapabilitiesLimits} from "./constants";
-import type {CreatePayload} from "./types";
+import {createGame, flag, getGame, hint, preview, revive, reveal, seek, setMode, undo} from "./engine.js";
+import {normalizeCreatePayload, buildCapabilitiesPayload} from "./util.js";
+import {CapabilitiesResponseSchema, CreateGameRequestSchema, CreateGameResponseSchema} from "./jsonSchemas.js";
+import {validate, toUnifiedError} from "./ajvValidation.js";
+import {Idempotency} from "./idempotency.js";
+import {cCapabilitiesLimits} from "./constants.js";
+import type {CreatePayload} from "./types.js";
 
 /**
  * In-memory idempotency cache instance used by the create-game endpoint.

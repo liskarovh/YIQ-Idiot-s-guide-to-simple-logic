@@ -1,4 +1,4 @@
-import type {IdempotencyValue} from "./types";
+import type {IdempotencyValue} from "./types.js";
 
 /**
  * Simple in-memory idempotency store.

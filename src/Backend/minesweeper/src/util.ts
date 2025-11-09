@@ -1,5 +1,5 @@
-import type {CapabilitiesResponse, CreatePayload, GameOptions, GameSession, GameView, Limits, Preset, Snapshot} from "./types";
-import {cPresets, cPresetParameters, cCapabilitiesLimits} from "./constants";
+import type {CapabilitiesResponse, CreatePayload, GameOptions, GameSession, GameView, Limits, Preset, Snapshot} from "./types.js";
+import {cPresets, cPresetParameters, cCapabilitiesLimits} from "./constants.js";
 
 export function maskGameViewForClient(gameSession: GameSession, snapshot: Snapshot): GameView {
     // Determine whether we must reveal all mine coordinates (only when game is over)

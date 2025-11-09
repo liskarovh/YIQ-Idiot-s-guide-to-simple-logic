@@ -1,4 +1,4 @@
-import type {Limits, Preset} from "./types";
+import type {Limits, Preset} from "./types.js";
 
 export const cPresets: Readonly<Record<Lowercase<Preset>, Preset>> = {
     easy: "Easy",

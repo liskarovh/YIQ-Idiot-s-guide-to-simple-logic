@@ -27,9 +27,8 @@ stages:
             inputs:
               version: '$(nodeVersion)'
 
-          # === Install dependencies ===
+          # === Install dependencies (use npm install instead of npm ci if no lock file) ===
           - script: |
-              set -eux
               cd src/Backend/minesweeper
               echo "Checking for package-lock.json..."
               if [ -f "package-lock.json" ]; then
@@ -60,20 +59,13 @@ stages:
               rm -rf out && mkdir -p out
 
               # Copy built files from minesweeper
-              if [ -d "src/Backend/minesweeper/dist" ]; then
-                cp -r src/Backend/minesweeper/dist out/
-                echo "Copied dist directory"
-              fi
+              cp -r dist ../out/
+              cp package.json ../out/
+              cp package-lock.json ../out/ 2>/dev/null || echo "No package-lock.json to copy"
 
-              # Copy package files
-              cp src/Backend/minesweeper/package.json out/
-              cp src/Backend/minesweeper/package-lock.json out/ 2>/dev/null || echo "No package-lock.json to copy"
-
-              echo "Contents of out directory (before npm install):"
-              ls -la out
+              cd ../out
 
               # Install production dependencies
-              cd out
               echo "Installing production dependencies..."
               if [ -f "package-lock.json" ]; then
                 npm ci --omit=dev
@@ -81,15 +73,47 @@ stages:
                 npm install --omit=dev
               fi
 
-              cd ..
-              echo "Contents of out directory (final):"
-              ls -la out
-
-              # Verify critical files
-              test -d out/dist
-              test -f out/package.json
-              echo "OK (package): All critical files present in out/"
+              echo "Contents of out directory:"
+              ls -la
             displayName: 'Stage backend package'
+
+          # === Validate staged artifacts ===
+          - bash: |
+              set -eux
+
+              echo "Running artifact validation for out/"
+
+              # Ensure out exists
+              test -d out || { echo "ERROR: out directory missing"; exit 1; }
+
+              # Ensure dist emitted
+              test -d out/dist || { echo "ERROR: out/dist missing. Build didn't emit JS files."; exit 1; }
+
+              # Check for a key compiled file (engine.js)
+              test -f out/dist/engine.js || { echo "ERROR: out/dist/engine.js missing. Check tsconfig (NodeNext) and rebuild."; exit 1; }
+
+              # Ensure package.json exists and has ESM main
+              node -e '
+                try {
+                  const p = require("./out/package.json");
+                  if (p.type !== "module") { console.error("ERROR: out/package.json.type != module"); process.exit(2); }
+                  if (!p.main || p.main.indexOf("dist") === -1) { console.error("ERROR: out/package.json.main missing or not pointing to dist"); process.exit(3); }
+                  console.log("OK: out/package.json ESM checks passed");
+                } catch(e) {
+                  console.error("ERROR: cannot read ./out/package.json:", e);
+                  process.exit(4);
+                }
+              '
+
+              # Fail if any compiled file contains imports without .js extension (common ESM issue)
+              if grep -RE --line-number "from ['\"]\\.?\\.?/?.*['\"]" out/dist | grep -vE "\\.js['\"]" >/dev/null 2>&1; then
+                echo "ERROR: Some compiled files in out/dist contain import/require specifiers without .js extension. Rebuild with tsconfig module=NodeNext/moduleResolution=NodeNext."
+                grep -RE --line-number "from ['\"]\\.?\\.?/?.*['\"]" out/dist || true
+                exit 1
+              fi
+
+              echo "OK: artifact validation passed"
+            displayName: 'Validate staged artifacts'
 
           # === Create deployment archive ===
           - task: ArchiveFiles@2
