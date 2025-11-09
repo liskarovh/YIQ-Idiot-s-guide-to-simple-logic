@@ -1,23 +1,23 @@
-from sudoku.sudokuEnums import Difficulty, GameModes
+from sudoku.sudokuEnums import GameModes
 from typing import List, Dict, Any, Optional
 class GameInfo:
     def __init__(self):
         self.mode = GameModes.GENERATED
-        self.difficulty = Difficulty.BASIC
+        self.difficulty = 1
         self.time = None
         self.hintsUsed = 0
     
     def to_dict(self):
         return {
             "mode": self.mode.value,
-            "difficulty": self.difficulty.value,
+            "difficulty": self.difficulty,
             "time": self.time,
             "hints": self.hintsUsed
         }
     
     def update_from_dict(self, data):
         self.mode = GameModes(data.get("mode"))
-        self.difficulty = Difficulty(data.get("difficulty"))
+        self.difficulty = data.get("difficulty")
         
         self.time = data.get("time")
         self.hintsUsed = data.get("hints", 0) # Default to 0 if 'hints' is missing
@@ -26,7 +26,7 @@ class GameInfo:
     def from_dict(cls, data: Dict[str, Any]):
         """Create a GameInfo instance from a dictionary."""
         mode = GameModes(data.get("mode"))
-        difficulty = Difficulty(data.get("difficulty"))
+        difficulty = data.get("difficulty")
         
         # Instantiate with required enum values
         info = cls(mode, difficulty)
