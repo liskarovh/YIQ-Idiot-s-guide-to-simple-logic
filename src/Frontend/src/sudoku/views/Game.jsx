@@ -15,7 +15,6 @@ const pageStyle = {
   height: '100vh',
   width: '100vw',
   gap: '2rem',
-  padding: '0 2rem',
 };
 
 
@@ -25,6 +24,7 @@ const topContentStyle = {
     paddingTop: '7rem',
     alignItems: 'stretch',
     gap: '1rem',
+    padding: '7rem 2rem 0rem 2rem',
     flex: 1,
   };
 
@@ -41,7 +41,8 @@ const bottomContentStyle = {
     flexDirection: 'row',
     justifyContent: 'flex-end',
     alignItems: 'stretch',
-    paddingBottom: '3rem'
+    paddingBottom: '3rem',
+    paddingRight: '2rem'
 }
 
 const boxContentStyle = {

@@ -176,6 +176,7 @@ export function useGameController() {
     updatePuzzleCompletion(conflicts)
     updateNumberCompletion(conflicts)
     updateMistakes(conflicts)
+    generalUpdateNumberHighlights()
     updateAreaHighlights()
   }
 
