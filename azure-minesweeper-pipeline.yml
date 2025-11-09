@@ -54,7 +54,6 @@ stages:
               set -eux
               rm -rf out && mkdir -p out
 
-              # Copy built files from minesweeper (explicitní cesta)
               if [ -d "src/Backend/minesweeper/dist" ]; then
                 cp -r src/Backend/minesweeper/dist out/
                 echo "Copied dist directory"
@@ -63,18 +62,21 @@ stages:
                 exit 1
               fi
 
-              # Copy package files
               cp src/Backend/minesweeper/package.json out/
               cp src/Backend/minesweeper/package-lock.json out/ 2>/dev/null || echo "No package-lock.json to copy"
 
               cd out
 
-              # Install production dependencies
-              echo "Installing production dependencies..."
+              echo "Installing production dependencies (skip lifecycle scripts)..."
               if [ -f "package-lock.json" ]; then
-                npm ci --omit=dev
+                npm ci --omit=dev --ignore-scripts --no-audit --no-fund --loglevel=error || {
+                  echo "npm ci failed; dumping npm logs and retrying with npm install (also skip scripts)"
+                  ls -la /home/vsts/.npm/_logs || true
+                  tail -n 200 /home/vsts/.npm/_logs/* || true
+                  npm install --omit=dev --ignore-scripts --no-audit --no-fund --loglevel=error
+                }
               else
-                npm install --omit=dev
+                npm install --omit=dev --ignore-scripts --no-audit --no-fund --loglevel=error
               fi
 
               echo "Contents of out directory:"
@@ -86,16 +88,10 @@ stages:
 
               echo "Running artifact validation for out/"
 
-              # Ensure out exists
               test -d out || { echo "ERROR: out directory missing"; exit 1; }
-
-              # Ensure dist emitted
               test -d out/dist || { echo "ERROR: out/dist missing. Build didn't emit JS files."; exit 1; }
-
-              # Check for a key compiled file (engine.js)
               test -f out/dist/engine.js || { echo "ERROR: out/dist/engine.js missing. Check tsconfig (NodeNext) and rebuild."; exit 1; }
 
-              # Ensure package.json exists and has ESM main
               node -e '
                 try {
                   const p = require("./out/package.json");
@@ -108,10 +104,12 @@ stages:
                 }
               '
 
-              # Fail if any compiled file contains imports without .js extension (common ESM issue)
-              if grep -RE --line-number "from ['\"]\\.?\\.?/?.*['\"]" out/dist | grep -vE "\\.js['\"]" >/dev/null 2>&1; then
-                echo "ERROR: Some compiled files in out/dist contain import/require specifiers without .js extension. Rebuild with tsconfig module=NodeNext/moduleResolution=NodeNext."
-                grep -RE --line-number "from ['\"]\\.?\\.?/?.*['\"]" out/dist || true
+              bad_rel_imports=$(grep -RE --line-number -E "from ['\"][.]{1,2}/[^'\"]+['\"]|require\(['\"][.]{1,2}/[^'\"]+['\"]\)|import\(['\"][.]{1,2}/[^'\"]+['\"]\)" out/dist || true)
+              bad_rel_imports_no_ext=$(printf "%s\n" "$bad_rel_imports" | grep -vE "\.(js|json|node)['\"]" || true)
+
+              if [ -n "$bad_rel_imports_no_ext" ]; then
+                echo "ERROR: Some compiled files in out/dist contain relative import/require/import() specifiers without a file extension (.js/.json/.node). Rebuild with tsconfig module=NodeNext/moduleResolution=NodeNext or ensure source imports use .js extension."
+                printf "%s\n" "$bad_rel_imports_no_ext"
                 exit 1
               fi
 

@@ -21,7 +21,7 @@ def create_app() -> Flask:
     allow_origins = os.getenv("CORS_ORIGINS", "*")
     origins_list = [origin.strip() for origin in allow_origins.split(",")] if allow_origins != "*" else "*"
     CORS(app, resources={r"/api/*": {
-        "origins": allow_origins,
+        "origins":  origins_list,
         "supports_credentials": True,
         "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
         "allow_headers": ["Content-Type", "Idempotency-Key"]
