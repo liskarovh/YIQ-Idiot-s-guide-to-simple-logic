@@ -1,3 +1,4 @@
+import Box from "../../components/Box";
 import Header from "../../components/Header";
 import { useNavigate } from "react-router-dom";
 
@@ -5,7 +6,8 @@ function Loading() {
   const navigate = useNavigate();
 
   return (
-      <Header showBack={true} onNavigate={() => navigate("/")}/>
+     <Box width={200} height={200} title={"Loading..."}
+     ></Box>
   );
 }
 
