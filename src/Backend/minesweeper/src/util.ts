@@ -178,6 +178,12 @@ export function buildCapabilitiesPayload(): CapabilitiesResponse {
     return payload;
 } // buildCapabilitiesPayload()
 
+export function buildMaxMinesPayload(rows: number, cols: number): number {
+    const maxMines = areaMaxMines(rows, cols);
+    console.debug(`[UTILS.ts] buildMaxMinesPayload: maxMines=${maxMines}`);
+    return maxMines;
+} // buildMaxMinesPayload()
+
 function clamp(value: number, min: number, max: number) {
     return Math.max(min, Math.min(max, value));
 } // clamp()

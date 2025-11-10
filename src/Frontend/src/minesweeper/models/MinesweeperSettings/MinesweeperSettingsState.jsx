@@ -6,8 +6,8 @@ export function deriveInitialStateFromCaps(caps) {
         cols: secondPreset?.cols ?? 16,
         mines: secondPreset?.mines ?? 40,
         lives: 3,
-        features: caps?.features || {undo: true, hints: false, replay: true, firstClickNoGuess: true},
-        limits: caps?.limits || null,
+        features: caps?.features || {undo: true, hints: true, replay: true},
+        limits: caps?.limits ?? 225,
         presets: caps?.presets || []
     };
     return defaults;

@@ -2,7 +2,7 @@ import express, {type Request, type Response, type NextFunction} from "express";
 import cors from "cors";
 import session from "express-session";
 import {createGame, flag, getGame, hint, preview, revive, reveal, seek, setMode, undo} from "./engine.js";
-import {normalizeCreatePayload, buildCapabilitiesPayload} from "./util.js";
+import {normalizeCreatePayload, buildCapabilitiesPayload, buildMaxMinesPayload, detectPresetFromMapParameters} from "./util.js";
 import {CapabilitiesResponseSchema, CreateGameRequestSchema, CreateGameResponseSchema} from "./jsonSchemas.js";
 import {validate, toUnifiedError} from "./ajvValidation.js";
 import {Idempotency} from "./idempotency.js";
@@ -224,6 +224,48 @@ app.get("/game/:id", (request, response, next) => {
     }
     catch(e: any) {
         console.error("[SERVER.ts][GET /game/:id] error:", e);
+        return next({statusCode: (e.message === "not found") ? 404 : 400, message: e.message});
+    }
+});
+
+app.post("/max-mines", (request, response, next) => {
+    console.log("[SERVER.ts][POST /max-mins] rows/cols:", {rows: request.body.rows, cols: request.body.cols});
+
+    try {
+        const {rows, cols} = request.body;
+
+        if (!Number.isFinite(rows) || !Number.isFinite(cols)) {
+            return next({statusCode: 400, message: "Invalid rows or cols"});
+        }
+
+        const result = buildMaxMinesPayload(rows, cols);
+        console.log("[SERVER.ts][POST /max-mines] found:", {maxMines: result});
+
+        return response.status(200).json(result);
+    }
+    catch(e: any) {
+        console.error("[SERVER.ts][POST /max-mines] error:", e);
+        return next({statusCode: (e.message === "not found") ? 404 : 400, message: e.message});
+    }
+});
+
+app.post("/preset", (request, response, next) => {
+    console.log("[SERVER.ts][POST /preset] rows/cols/mines:", {rows: request.body.rows, cols: request.body.cols, mines: request.body.mines});
+
+    try {
+        const {rows, cols, mines} = request.body;
+
+        if (!Number.isFinite(rows) || !Number.isFinite(cols) || !Number.isFinite(mines)) {
+            return next({statusCode: 400, message: "Invalid rows, cols mines"});
+        }
+
+        const result = detectPresetFromMapParameters(rows, cols, mines);
+        console.log("[SERVER.ts][POST /preset] found:", {maxMines: result});
+
+        return response.status(200).json(result);
+    }
+    catch(e: any) {
+        console.error("[SERVER.ts][POST /preset] error:", e);
         return next({statusCode: (e.message === "not found") ? 404 : 400, message: e.message});
     }
 });

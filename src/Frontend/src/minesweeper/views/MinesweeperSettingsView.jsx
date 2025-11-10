@@ -5,7 +5,7 @@ import {useMinesweeperSettingsController} from "../controllers/MinesweeperSettin
 
 function SettingsSkeleton() {
     return (
-            <div style={{padding: 24, opacity: 0.6}}>
+            <div style={{padding: 24, opacity: 0.6, color: '#FFFFFF'}}>
                 Loading capabilities...
             </div>
     );

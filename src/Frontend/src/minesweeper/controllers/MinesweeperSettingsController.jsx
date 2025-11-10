@@ -1,9 +1,8 @@
 import {useCallback, useEffect, useMemo, useRef, useState} from "react";
 import {useNavigate} from "react-router-dom";
-import {createGame, getCapabilities, persistLastCreate, persistUiPrefs} from "../models/MinesweeperSettings/MinesweeperSettingsAPI.jsx";
+import {createGame, getCapabilities, getMaxMines, detectPreset, persistLastCreate, persistUiPrefs} from "../models/MinesweeperSettings/MinesweeperSettingsAPI.jsx";
 import {buildCreatePayload, buildUiPrefs} from "../models/MinesweeperSettings/MinesweeperSettingsBuilders.jsx";
 import {deriveInitialStateFromCaps} from "../models/MinesweeperSettings/MinesweeperSettingsState.jsx";
-import {maxMinesForGrid, detectPreset} from "../models/MinesweeperSettings/MinesweeperSettingsLogic.jsx";
 
 function uuid4() {
     return crypto?.randomUUID
@@ -18,7 +17,6 @@ export function useMinesweeperSettingsController() {
 
     // --- Capabilities lifecycle ---
     const [caps, setCaps] = useState(null);
-    const [capsError, setCapsError] = useState(null);
     const [capsLoading, setCapsLoading] = useState(true);
 
     useEffect(() => {
@@ -28,7 +26,6 @@ export function useMinesweeperSettingsController() {
                 setCapsLoading(true);
                 const c = await getCapabilities(base, {signal: ac.signal});
                 setCaps(c);
-                setCapsError(null);
             }
             catch(e) {
                 console.debug("[MinesweeperSettingsController] CapsError", e);
@@ -52,7 +49,7 @@ export function useMinesweeperSettingsController() {
     // UI-only volby (neposílají se do create payloadu kromě quickFlag pokud ho tak máš)
     const [showTimer, setShowTimer] = useState(true);
     const [allowUndo, setAllowUndo] = useState(true);
-    const [enableHints, setEnableHints] = useState(false);
+    const [enableHints, setEnableHints] = useState(true);
 
     // Po načtení capabilities nastavíme výchozí stav (bez FE kanonizace; to dělá server)
     useEffect(() => {
@@ -73,7 +70,48 @@ export function useMinesweeperSettingsController() {
 
     const difficultyOptions = useMemo(() => (caps?.presets || []).map((p) => p.name).concat("Custom"), [caps?.presets]);
     const limits = useMemo(() => caps?.limits, [caps?.limits]);
-    const maxMines = useMemo(() => maxMinesForGrid(rows, cols), [rows, cols]);
+    const [maxMines, setMaxMines] = useState(null);
+    const maxMinesInflightRef = useRef(null);
+    useEffect(() => {
+        if(!caps) {
+            return;
+        }
+
+        const ac = new AbortController();
+
+        // cancel previous request
+        if(maxMinesInflightRef.current) {
+            maxMinesInflightRef.current.abort();
+        }
+        maxMinesInflightRef.current = ac;
+
+        (async() => {
+            try {
+                const idk = uuid4();
+                const payload = {rows: Number(rows), cols: Number(cols)};
+
+                const {view} = await getMaxMines(base, payload, {
+                    signal: ac.signal,
+                    idempotencyKey: idk
+                });
+
+                const value = typeof view === "number" ? view : view?.maxMines;
+                setMaxMines(Number(value));
+            }
+            catch(e) {
+                if(e?.name === "AbortError") {
+                    return;
+                }
+                console.debug("[MinesweeperSettingsController] getMaxMines error", e);
+                setMaxMines(900); // safe fallback
+            }
+            finally {
+                maxMinesInflightRef.current = null;
+            }
+        })();
+
+        return () => ac.abort();
+    }, [rows, cols, base, caps]);
 
     // --- Helpers ---
     const findPresetDims = useCallback(
@@ -105,21 +143,52 @@ export function useMinesweeperSettingsController() {
     );
 
     // Pokud uživatel mění rozměry, je to Custom; pokud se přesně trefí do presetu, detekujeme ho zpět.
+    const detectInflightRef = useRef(null);
     const applyDimsAndDetect = useCallback(
             (nextRows, nextCols, nextMines) => {
                 setRows(nextRows);
                 setCols(nextCols);
                 setMines(nextMines);
 
-                const detected = detectPreset(
-                        Number(nextRows),
-                        Number(nextCols),
-                        Number(nextMines),
-                        caps.presets
-                );
-                setPreset(detected === "Custom" ? "Custom" : detected);
+                // Cancel previous detect request
+                if(detectInflightRef.current) {
+                    detectInflightRef.current.abort();
+                }
+
+                const ac = new AbortController();
+                detectInflightRef.current = ac;
+
+                (async() => {
+                    try {
+                        const idk = uuid4();
+                        const payload = {
+                            rows: Number(nextRows),
+                            cols: Number(nextCols),
+                            mines: Number(nextMines)
+                        };
+
+                        const {view} = await detectPreset(base, payload, {
+                            signal: ac.signal,
+                            idempotencyKey: idk
+                        });
+
+                        const detected = typeof view === "string" ? view : view?.preset;
+                        console.log(detected);
+                        setPreset(detected);
+                    }
+                    catch(e) {
+                        if(e?.name === "AbortError") {
+                            return;
+                        }
+                        console.debug("[MinesweeperSettingsController] detectPreset error", e);
+                        setPreset("Custom"); // fallback
+                    }
+                    finally {
+                        detectInflightRef.current = null;
+                    }
+                })();
             },
-            [caps?.presets]
+            []
     );
 
     const safeSetRows = useCallback(
