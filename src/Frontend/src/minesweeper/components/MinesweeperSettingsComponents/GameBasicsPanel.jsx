@@ -1,6 +1,6 @@
 import Box from "../../../components/Box";
 import SettingRow from "../../../components/SettingsRow";
-import SliderNumberControl from "./SliderWithNumberControl";
+import SliderWithNumberControl from "./SliderWithNumberControl";
 import DifficultyRow from "./DifficultyRow";
 import MinesweeperSettingsStyles from "../../styles/MinesweeperSettingsStyles.jsx";
 
@@ -37,7 +37,7 @@ function GameBasicsPanel({
                         label="Rows:"
                         inline={MinesweeperSettingsStyles.settingsRowInline}
                         control={
-                            <SliderNumberControl
+                            <SliderWithNumberControl
                                     value={rows}
                                     onChange={onRowsChange}
                                     min={rowsL.min}
@@ -51,7 +51,7 @@ function GameBasicsPanel({
                         label="Columns:"
                         inline={MinesweeperSettingsStyles.settingsRowInline}
                         control={
-                            <SliderNumberControl
+                            <SliderWithNumberControl
                                     value={cols}
                                     onChange={onColsChange}
                                     min={colsL.min}
@@ -65,7 +65,7 @@ function GameBasicsPanel({
                         label="Mines:"
                         inline={MinesweeperSettingsStyles.settingsRowInline}
                         control={
-                            <SliderNumberControl
+                            <SliderWithNumberControl
                                     value={mines}
                                     onChange={onMinesChange}
                                     min={minesL.min}
