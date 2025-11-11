@@ -1,6 +1,7 @@
 import React from "react";
 import colors from "../Colors";
 import AutoScale from "./AutoScale";
+import { useRenderImage } from "../hooks/RenderImage";
 
 /**
  * GAME CARD COMPONENT - Displays a game option
@@ -43,8 +44,8 @@ function GameCard({
 
     const topSectionStyle = {
         display: "flex",
-        alignItems: "center",
-        gap: "1rem"
+        alignItems: "flex-start",
+        gap: "2rem"
     };
 
     const imageStyle = {
@@ -62,7 +63,7 @@ function GameCard({
         whiteSpace: "nowrap",
         overflow: "hidden",
         textOverflow: "ellipsis",
-        flex: "1 1 auto",
+        flex: "0 1 auto",
         minWidth: 0
     };
 
@@ -93,25 +94,7 @@ function GameCard({
         overflow: "visible"
     };
 
-    const renderImage = () => {
-        if(typeof image === "string" && image) {
-            return <img
-                    src={image}
-                    alt={title}
-                    style={imageStyle}
-            />;
-        }
-        if(React.isValidElement(image)) {
-            return React.cloneElement(image, {style: {...(image.props?.style || {}), ...imageStyle}});
-        }
-        if(typeof image === "function") {
-            const ImgComp = image;
-            return <ImgComp
-                    style={imageStyle}
-            />;
-        }
-        return null;
-    };
+    const renderedImage = useRenderImage(image, title, imageStyle);
 
     return (
             <AutoScale
@@ -133,7 +116,7 @@ function GameCard({
                         }}
                 >
                     <div style={topSectionStyle}>
-                        {renderImage()}
+                        {renderedImage}
                         <h3 style={titleStyle}>{title}</h3>
                     </div>
 

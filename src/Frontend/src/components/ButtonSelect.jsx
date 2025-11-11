@@ -1,4 +1,4 @@
-import React from "react";
+import React, {useState} from "react";
 import colors from "../Colors";
 
 /**
@@ -14,7 +14,7 @@ function ButtonSelect({
                           selected,
                           onChange
                       }) {
-    const [hoveredOption, setHoveredOption] = React.useState(null);
+    const [hoveredOption, setHoveredOption] = useState(null);
 
     const containerStyle = {
         display: "flex",
