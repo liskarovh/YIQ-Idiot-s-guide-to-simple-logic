@@ -34,7 +34,9 @@ function SettingsLayout({onBack, leftPanel, rightPanel, onPlay, error, disabled}
                 <div style={MinesweeperSettingsStyles.footer}>
                     <BoxButton
                             title={"Play"}
-                    icon={<PlayIcon />}
+                            icon={
+                                <PlayIcon />
+                            }
                             disabled={disabled}
                             onClick={onPlay}
                     />
