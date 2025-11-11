@@ -1,7 +1,7 @@
-import React from "react";
+import React, {useState} from "react";
 import colors from "../Colors";
 import AutoScale from "./AutoScale";
-import { useRenderImage } from "../hooks/RenderImage";
+import {useRenderImage} from "../hooks/RenderImage";
 
 /**
  * GAME CARD COMPONENT - Displays a game option
@@ -10,7 +10,7 @@ import { useRenderImage } from "../hooks/RenderImage";
  * - title: string - Game title
  * - description: string - Game description
  * - image: string - Path to game icon/image
- * - onClick: function - Callback when card is clicked
+ * - onCardClick: function - Callback when card is clicked
  */
 
 function GameCard({
@@ -19,8 +19,15 @@ function GameCard({
                       title,
                       description,
                       image,
-                      onClick
+                      onCardClick,
+                      onPlayNowClick,
+                      onSettingsClick,
+                      onStrategyClick
                   }) {
+    const [playNowHovered, setPlayNowHovered] = useState(false);
+    const [settingsHovered, setSettingsHovered] = useState(false);
+    const [strategyHovered, setStrategyHovered] = useState(false);
+
     const cardStyle = {
         width: `${baseWidth}px`,
         height: `${baseHeight}px`,
@@ -78,12 +85,26 @@ function GameCard({
         minWidth: 0
     };
 
-    const playNowStyle = {
+    const actionsContainerStyle = {
+        display: "flex",
+        gap: "1.5rem",
+        alignItems: "center"
+    };
+
+    const actionStyle = {
         fontSize: "18px",
         fontWeight: "400",
         color: colors.text_faded,
+        background: "transparent",
         margin: 0,
-        alignSelf: "flex-start"
+        alignSelf: "flex-start",
+        transition: "color 0.2s, transform 0.2s",
+        cursor: "pointer"
+    };
+
+    const actionHoverStyle = {
+        color: colors.text_header,
+        transform: "translateY(-2px)"
     };
 
     const autoScaleStyle = {
@@ -107,7 +128,7 @@ function GameCard({
             >
                 <div
                         style={cardStyle}
-                        onClick={onClick}
+                        onClick={onCardClick}
                         onMouseEnter={(e) => {
                             e.currentTarget.style.transform = "translateY(-5px)";
                         }}
@@ -120,13 +141,57 @@ function GameCard({
                         <h3 style={titleStyle}>{title}</h3>
                     </div>
 
-                    <p style={descriptionStyle}>
+                    <div style={descriptionStyle}>
                         {description}
-                    </p>
+                    </div>
 
-                    <p style={playNowStyle}>
-                        Play now
-                    </p>
+                    <div style={actionsContainerStyle}>
+                        <span
+                                style={{
+                                    ...actionStyle,
+                                    ...(playNowHovered ? actionHoverStyle : {})
+                                }}
+                                onClick={(event) => {
+                                    event.stopPropagation();
+                                    onPlayNowClick?.();
+                                }}
+                                onMouseEnter={() => setPlayNowHovered(true)}
+                                onMouseLeave={() => setPlayNowHovered(false)}
+                        >
+                            Play now
+                        </span>
+
+                        <span
+                                style={{
+                                    ...actionStyle,
+                                    ...(settingsHovered ? actionHoverStyle : {})
+                                }}
+                                onClick={(event) => {
+                                    event.stopPropagation();
+                                    onSettingsClick?.();
+                                }}
+                                onMouseEnter={() => setSettingsHovered(true)}
+                                onMouseLeave={() => setSettingsHovered(false)}
+                        >
+                            Settings
+                        </span>
+
+                        <span
+                                style={{
+                                    ...actionStyle,
+                                    ...(strategyHovered ? actionHoverStyle : {})
+                                }}
+                                onClick={(event) => {
+                                    event.stopPropagation();
+                                    onStrategyClick?.();
+                                }}
+                                onMouseEnter={() => setStrategyHovered(true)}
+                                onMouseLeave={() => setStrategyHovered(false)}
+                        >
+                            Strategy
+                        </span>
+
+                    </div>
                 </div>
             </AutoScale>
     );

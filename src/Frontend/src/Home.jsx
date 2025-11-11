@@ -71,19 +71,28 @@ function Home() {
                                 title="Sudoku"
                                 description={sudokuDescription}
                                 image={SudokuIcon}
-                                onClick={() => navigate('/sudoku')}
+                                onCardClick={() => navigate('/sudoku')}
+                                onPlayNowClick={() => navigate('/sudoku')}
+                                onSettingsClick={() => navigate('/')}
+                                onStrategyClick={() => navigate('/')}
                         />
                         <GameCard
                                 title="Tic-Tac-Toe"
                                 description={ticTacToeDescription}
                                 image={TicTacToeIcon}
-                                onClick={() => navigate('/tic-tac-toe/settings')}
+                                onCardClick={() => navigate('/tic-tac-toe/settings')}
+                                onPlayNowClick={() => navigate('/tic-tac-toe/settings')}
+                                onSettingsClick={() => navigate('/')}
+                                onStrategyClick={() => navigate('/')}
                         />
                         <GameCard
                                 title="Minesweeper"
                                 description={minesweeperDescription}
                                 image={MinesweeperIcon}
-                                onClick={() => navigate('/minesweeper')}
+                                onCardClick={() => navigate('/minesweeper')}
+                                onPlayNowClick={() => navigate('/minesweeper')}
+                                onSettingsClick={() => navigate('')}
+                                onStrategyClick={() => navigate('')}
                         />
                     </div>
                 </div>
