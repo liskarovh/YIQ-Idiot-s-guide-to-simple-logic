@@ -1,6 +1,7 @@
 import Header from "../../../components/Header";
 import AutoScale from "../../../components/AutoScale";
-import PlayButton from "../../../components/PlayButton";
+import BoxButton from "../../../components/BoxButton";
+import {PlayIcon} from "../../../assets/icons/PlayIcon.jsx";
 import MinesweeperSettingsStyles from "../../styles/MinesweeperSettingsStyles.jsx";
 import ErrorBanner from "./ErrorBanner";
 
@@ -31,12 +32,12 @@ function SettingsLayout({onBack, leftPanel, rightPanel, onPlay, error, disabled}
                     </AutoScale>
                 </div>
                 <div style={MinesweeperSettingsStyles.footer}>
-                    <PlayButton
-                            onClick={onPlay}
+                    <BoxButton
+                            title={"Play"}
+                    icon={<PlayIcon />}
                             disabled={disabled}
-                    >
-                        Play
-                    </PlayButton>
+                            onClick={onPlay}
+                    />
                 </div>
                 <ErrorBanner
                         error={error}
