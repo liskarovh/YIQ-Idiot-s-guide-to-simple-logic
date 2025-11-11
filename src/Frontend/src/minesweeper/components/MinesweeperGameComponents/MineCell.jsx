@@ -1,9 +1,10 @@
 import React, {useRef, useMemo, useState} from "react";
 import colors from "../../../Colors";
-import unopenedCellTexture from "../../../assets/minesweeper/UnopenedCellTexture.svg";
-import flaggedCellTexture from "../../../assets/minesweeper/FlaggedCellTexture.svg";
-import flaggingModeCellTexture from "../../../assets/minesweeper/FlaggingModeCellTexture.svg";
-import mineIcon from "../../../assets/minesweeper/Mine.svg";
+import { useImageUrl } from "../../../hooks/RenderImage";
+import {UnopenedCellTexture} from "../../../assets/minesweeper/UnopenedCellTexture";
+import {FlaggedCellTexture} from "../../../assets/minesweeper/FlaggedCellTexture";
+import {FlaggingModeCellTexture} from "../../../assets/minesweeper/FlaggingModeCellTexture";
+import {Mine} from "../../../assets/minesweeper/Mine";
 
 const numberColors = {
     1: "#60A5FA",
@@ -41,6 +42,11 @@ function MineCell({
     const hoverTimer = useRef(null);
     const [hovered, setHovered] = useState(false);
 
+    const unopenedUrl = useImageUrl(UnopenedCellTexture);
+    const flaggedUrl = useImageUrl(FlaggedCellTexture);
+    const flaggingModeUrl = useImageUrl(FlaggingModeCellTexture);
+    const mineUrl = useImageUrl(Mine);
+
     const baseCell = {
         position: "relative",
         width: size,
@@ -59,7 +65,7 @@ function MineCell({
 
     const unopenedStyle = {
         ...baseCell,
-        backgroundImage: `url(${unopenedCellTexture})`,
+        backgroundImage: unopenedUrl ? `url(${unopenedUrl})` : "none",
         backgroundSize: "cover",
         backgroundRepeat: "no-repeat",
         backgroundPosition: "center"
@@ -82,7 +88,7 @@ function MineCell({
 
     const flaggedCellStyle = {
         ...baseCell,
-        backgroundImage: `url(${flaggedCellTexture})`,
+        backgroundImage: flaggedUrl ? `url(${flaggedUrl})` : "none",
         backgroundSize: "cover",
         backgroundRepeat: "no-repeat",
         backgroundPosition: "center",
@@ -94,15 +100,15 @@ function MineCell({
 
     const MineCellStyle = useMemo(() => ({
         ...baseCell,
-        backgroundImage: `url(${mineIcon})`,
+        backgroundImage: mineUrl ? `url(${mineUrl})` : "none",
         backgroundSize: "60% 60%",
         backgroundRepeat: "no-repeat",
         backgroundPosition: "center"
-    }), [baseCell]);
+    }), [baseCell, mineUrl]);
 
     const flaggingModeCellStyle = {
         ...baseCell,
-        backgroundImage: `url(${flaggingModeCellTexture})`,
+        backgroundImage: flaggingModeUrl ? `url(${flaggingModeUrl})` : "none",
         backgroundSize: "cover",
         backgroundRepeat: "no-repeat",
         backgroundPosition: "center"
