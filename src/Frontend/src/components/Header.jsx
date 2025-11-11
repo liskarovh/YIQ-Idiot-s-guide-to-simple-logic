@@ -1,4 +1,5 @@
 import React, {useEffect, useState} from "react";
+import { useNavigate } from "react-router-dom";
 import colors from "../Colors";
 
 /**
@@ -25,8 +26,22 @@ function useWindowScale(baseWidth = 1920, {min, max} = {}) {
 }
 
 function Header({showBack = false, onNavigate}) {
+    const navigate = useNavigate();
     const s = useWindowScale(1920, {min: 0.7, max: 1});
     const [linkHover, setLinkHover] = useState(false);
+
+    const handleLogoClick = () => {
+        navigate("/", {replace: true});
+    };
+
+    const handleLinkClick = () => {
+        if(showBack) {
+            navigate(-1);
+        }
+        else {
+            navigate("/about");
+        }
+    };
 
     const headerStyle = {
         width: "100%",
@@ -80,15 +95,14 @@ function Header({showBack = false, onNavigate}) {
     return (
             <header style={headerStyle}>
                 <div style={leftSectionStyle}>
-                    <span style={logoStyle}
-                          onClick={() => onNavigate && onNavigate("/")}
+                    <span style={logoStyle} onClick={handleLogoClick}
                     >yIQ</span>
                     <span style={titleStyle}>Ydea impaired's quide to basic logic</span>
                 </div>
 
                 <span
                         style={linkStyle}
-                        onClick={() => onNavigate && onNavigate(showBack ? "back" : "/about")}
+                        onClick={handleLinkClick}
                         onMouseEnter={() => setLinkHover(true)}
                         onMouseLeave={() => setLinkHover(false)}
                         role="button"
