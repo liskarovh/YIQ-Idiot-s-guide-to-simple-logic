@@ -1,0 +1,69 @@
+import React, {useState} from "react";
+import colors from "../Colors";
+
+/**
+ * BoxButton — configurable button with optional icon.
+ *
+ * Props:
+ * - style: custom styles to merge with default button style
+ * - icon: React element to display as icon (defaults to play icon)
+ * - width: button width (auto by default)
+ * - height: button height (auto by default)
+ * - title: button text content
+ * - disabled: disables interaction and reduces opacity
+ * - onClick: click handler
+ */
+function BoxButton({
+                       title,
+                       icon = undefined,
+                       width = 170,
+                       height = 70,
+                       background = colors.secondary,
+                       color = colors.text_header,
+                       disabled = false,
+                       onClick,
+                       style = {}
+                   }) {
+    const [isHovered, setIsHovered] = useState(false);
+
+    const defaultStyle = {
+        display: "inline-flex",
+        width: width || "auto",
+        height: height || "auto",
+        justifyContent: "center",
+        alignItems: "center",
+        gap: 14,
+        borderRadius: "25px",
+        padding: "15px 25px",
+        background: background,
+        border: "1px solid rgba(255,255,255,0.25)",
+        boxShadow: "-4px 3px 4px rgba(255, 255, 255, 0.25)",
+        color: color,
+        fontWeight: 800,
+        fontSize: 32,
+        cursor: disabled ? "not-allowed" : "pointer",
+        opacity: disabled ? 0.5 : (isHovered ? 0.8 : 1),
+        transform: isHovered && !disabled ? "translateY(-2px)" : "translateY(0)",
+        transition: "all 0.2s",
+        ...style,
+    };
+
+    const iconElement = icon
+                        ? (typeof icon === 'function' ? React.createElement(icon) : icon)
+                        : null;
+
+    return (
+            <button
+                    style={defaultStyle}
+                    onClick={disabled ? undefined : onClick}
+                    onMouseEnter={() => !disabled && setIsHovered(true)}
+                    onMouseLeave={() => setIsHovered(false)}
+                    disabled={disabled}
+            >
+                {iconElement}
+                {title}
+            </button>
+    );
+}
+
+export default BoxButton;
