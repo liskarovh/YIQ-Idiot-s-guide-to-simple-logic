@@ -1,28 +1,23 @@
+import {useNavigate} from "react-router-dom";
 import GameBasicsPanel from "../components/MinesweeperSettingsComponents/GameBasicsPanel";
 import GameplayPanel from "../components/MinesweeperSettingsComponents/GameplayPanel";
 import SettingsLayout from "../components/MinesweeperSettingsComponents/SettingsLayout";
-import {useMinesweeperSettingsController} from "../controllers/MinesweeperSettingsController.jsx";
-
-function SettingsSkeleton() {
-    return (
-            <div style={{padding: 24, opacity: 0.6, color: '#FFFFFF'}}>
-                Loading capabilities...
-            </div>
-    );
-}
+import SettingsLoader from "../components/MinesweeperSettingsComponents/SettingsLoader";
+import {useMinesweeperSettingsController} from "../controllers/MinesweeperSettingsController";
 
 export default function MinesweeperSettingsView() {
     const ctrl = useMinesweeperSettingsController();
+    const navigate = useNavigate();
 
-    if(!ctrl.loaded) {
+    if(ctrl.loaded) {
         return (
                 <SettingsLayout
-                        onBack={() => window.history.back()}
+                        onBack={() => navigate(-1)}
                         leftPanel={
-                            <SettingsSkeleton />
+                            <SettingsLoader />
                         }
                         rightPanel={
-                            <SettingsSkeleton />
+                            <SettingsLoader />
                         }
                         onPlay={() => {}}
                         error={ctrl.error}

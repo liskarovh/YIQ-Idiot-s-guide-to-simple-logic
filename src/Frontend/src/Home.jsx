@@ -91,8 +91,8 @@ function Home() {
                                 image={MinesweeperIcon}
                                 onCardClick={() => navigate('/minesweeper')}
                                 onPlayNowClick={() => navigate('/minesweeper')}
-                                onSettingsClick={() => navigate('')}
-                                onStrategyClick={() => navigate('')}
+                                onSettingsClick={() => navigate('/minesweeper/settings')}
+                                onStrategyClick={() => navigate('/minesweeper/strategy')}
                         />
                     </div>
                 </div>
