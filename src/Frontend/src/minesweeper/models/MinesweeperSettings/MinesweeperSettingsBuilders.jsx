@@ -5,6 +5,6 @@ export function buildCreatePayload({preset, rows, cols, mines, lives}) {
     return {rows, cols, mines, lives};
 }
 
-export function buildUiPrefs({showTimer, allowUndo, enableHints}) {
-    return {showTimer, allowUndo, enableHints};
+export function buildGameplayPrefs({showTimer, allowUndo, enableHints, captureReplay}) {
+    return {showTimer, allowUndo, enableHints, captureReplay};
 }

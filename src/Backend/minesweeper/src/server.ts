@@ -34,7 +34,7 @@ const corsOptions = {
     origin: originsList,
     credentials: true,
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-    allowedHeaders: ["Content-Type", "Idempotency-Key"]
+    allowedHeaders: ["Content-Type", "Idempotency-Key"] // allow Idempotency-Key header to prevent duplicate game creation
 };
 
 // Handle preflight requests for /api/* with the configured CORS options
@@ -228,45 +228,41 @@ app.get("/game/:id", (request, response, next) => {
     }
 });
 
-app.post("/max-mines", (request, response, next) => {
-    console.log("[SERVER.ts][POST /max-mins] rows/cols:", {rows: request.body.rows, cols: request.body.cols});
+app.get("/max-mines", (request, response, next) => {
+    const rows = Number(request.query.rows);
+    const cols = Number(request.query.cols);
+    console.log("[SERVER.ts][GET /max-mins] rows: ", rows, ", cols: ", cols);
+
+    if(!Number.isFinite(rows) || !Number.isFinite(cols)) {
+        return next({statusCode: 400, message: "Invalid rows or cols"});
+    }
 
     try {
-        const {rows, cols} = request.body;
-
-        if (!Number.isFinite(rows) || !Number.isFinite(cols)) {
-            return next({statusCode: 400, message: "Invalid rows or cols"});
-        }
-
         const result = buildMaxMinesPayload(rows, cols);
-        console.log("[SERVER.ts][POST /max-mines] found:", {maxMines: result});
-
         return response.status(200).json(result);
     }
     catch(e: any) {
-        console.error("[SERVER.ts][POST /max-mines] error:", e);
-        return next({statusCode: (e.message === "not found") ? 404 : 400, message: e.message});
+        return next({statusCode: 400, message: e.message});
     }
 });
 
-app.post("/preset", (request, response, next) => {
-    console.log("[SERVER.ts][POST /preset] rows/cols/mines:", {rows: request.body.rows, cols: request.body.cols, mines: request.body.mines});
+app.get("/preset", (request, response, next) => {
+    const rows = Number(request.query.rows);
+    const cols = Number(request.query.cols);
+    const mines = Number(request.query.mines);
+    console.log("[SERVER.ts][GET /preset] rows: ", rows, ", cols: ", cols, ", mines: ", mines);
+
+
+    if(!Number.isFinite(rows) || !Number.isFinite(cols) || !Number.isFinite(mines)) {
+        return next({statusCode: 400, message: "Invalid rows, cols or mines"});
+    }
 
     try {
-        const {rows, cols, mines} = request.body;
-
-        if (!Number.isFinite(rows) || !Number.isFinite(cols) || !Number.isFinite(mines)) {
-            return next({statusCode: 400, message: "Invalid rows, cols mines"});
-        }
-
         const result = detectPresetFromMapParameters(rows, cols, mines);
-        console.log("[SERVER.ts][POST /preset] found:", {maxMines: result});
-
         return response.status(200).json(result);
     }
     catch(e: any) {
-        console.error("[SERVER.ts][POST /preset] error:", e);
-        return next({statusCode: (e.message === "not found") ? 404 : 400, message: e.message});
+        return next({statusCode: 400, message: e.message});
     }
 });
 
@@ -330,10 +326,10 @@ app.post(
 );
 
 app.post("/game/:id/reveal", (request, response, next) => {
-    console.log("[SERVER.ts][POST /game/:id/reveal] id:", request.params.id, "r:", request.body.r, "c:", request.body.c);
+    console.log("[SERVER.ts][POST /game/:id/reveal] id:", request.params.id, "rows:", request.body.rows, "cols:", request.body.cols);
 
     try {
-        const result = reveal(request.params.id, request.body.r, request.body.c);
+        const result = reveal(request.params.id, request.body.rows, request.body.cols);
         console.log("[SERVER.ts][POST /game/:id/reveal] result:", result);
 
         return response.status(200).json(result);
@@ -348,10 +344,10 @@ app.post("/game/:id/reveal", (request, response, next) => {
 });
 
 app.post("/game/:id/flag", (request, response, next) => {
-    console.log("[SERVER.ts][POST /game/:id/flag] id:", request.params.id, "r:", request.body.r, "c:", request.body.c, "set:", request.body.set);
+    console.log("[SERVER.ts][POST /game/:id/flag] id:", request.params.id, "rows:", request.body.rows, "cols:", request.body.cols, "set:", request.body.set);
 
     try {
-        const result = flag(request.params.id, request.body.r, request.body.c, request.body.set);
+        const result = flag(request.params.id, request.body.rows, request.body.cols, request.body.set);
         console.log("[SERVER.ts][POST /game/:id/flag] result:", result);
 
         return response.status(200).json(result);

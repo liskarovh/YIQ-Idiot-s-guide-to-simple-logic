@@ -3,13 +3,13 @@ import GameBasicsPanel from "../components/MinesweeperSettingsComponents/GameBas
 import GameplayPanel from "../components/MinesweeperSettingsComponents/GameplayPanel";
 import SettingsLayout from "../components/MinesweeperSettingsComponents/SettingsLayout";
 import SettingsLoader from "../components/MinesweeperSettingsComponents/SettingsLoader";
-import {useMinesweeperSettingsController} from "../controllers/MinesweeperSettingsController";
+import {MinesweeperSettingsController} from "../controllers/MinesweeperSettingsController";
 
 export default function MinesweeperSettingsView() {
-    const ctrl = useMinesweeperSettingsController();
+    const ctrl = MinesweeperSettingsController();
     const navigate = useNavigate();
 
-    if(ctrl.loaded) {
+    if(ctrl.capsLoading) {
         return (
                 <SettingsLayout
                         onBack={() => navigate(-1)}
@@ -20,7 +20,7 @@ export default function MinesweeperSettingsView() {
                             <SettingsLoader />
                         }
                         onPlay={() => {}}
-                        error={ctrl.error}
+                        error={ctrl.submitError}
                         disabled={true}
                 />
         );
@@ -35,10 +35,10 @@ export default function MinesweeperSettingsView() {
                     mines={ctrl.mines}
                     maxMines={ctrl.maxMines}
                     limits={ctrl.limits}
-                    onPresetChange={ctrl.changePreset}
-                    onRowsChange={ctrl.safeSetRows}
-                    onColsChange={ctrl.safeSetCols}
-                    onMinesChange={ctrl.safeSetMines}
+                    onPresetChange={ctrl.handleChangePreset}
+                    onRowsChange={ctrl.handleSetRows}
+                    onColsChange={ctrl.handleSetCols}
+                    onMinesChange={ctrl.handleSetMines}
             />
     );
 
@@ -62,7 +62,7 @@ export default function MinesweeperSettingsView() {
                     leftPanel={leftPanel}
                     rightPanel={rightPanel}
                     onPlay={ctrl.handlePlay}
-                    error={ctrl.error}
+                    error={ctrl.submitError}
                     disabled={ctrl.submitting}
             />
     );

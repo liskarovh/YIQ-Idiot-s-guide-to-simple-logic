@@ -1,4 +1,3 @@
-// minesweeper/views/MinesweeperGameView.jsx
 import React from "react";
 import { useNavigate } from "react-router-dom";
 import Header from "../../components/Header";
@@ -18,13 +17,13 @@ function LoadingScreen() {
             <div style={styles.page}>
                 <Header showBack={true} onNavigate={() => navigate(-1)} />
                 <div style={{ ...styles.shell, placeItems: "center" }}>
-                    <div style={{ color: colors.text_header }}>Loading game…</div>
+                    <div style={{ color: colors.text_header }}>Loading game...</div>
                 </div>
             </div>
     );
 }
 
-export default function MinesweeperGameView() {
+function MinesweeperGameView() {
     const navigate = useNavigate();
     const ctrl = useMinesweeperGameController();
 
@@ -122,4 +121,4 @@ export default function MinesweeperGameView() {
     );
 }
 
-export { MinesweeperGameView };
+export default MinesweeperGameView;

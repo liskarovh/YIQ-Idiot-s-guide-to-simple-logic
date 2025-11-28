@@ -162,6 +162,7 @@ export function buildCapabilitiesPayload(): CapabilitiesResponse {
 
     // Declare feature flags supported by the server.
     const features = {
+        timer: true,
         undo: true,
         hints: true,
         replay: true
@@ -171,6 +172,7 @@ export function buildCapabilitiesPayload(): CapabilitiesResponse {
     const payload = {
         presets,
         limits: cCapabilitiesLimits,
+        lives: 3,
         features
     };
 

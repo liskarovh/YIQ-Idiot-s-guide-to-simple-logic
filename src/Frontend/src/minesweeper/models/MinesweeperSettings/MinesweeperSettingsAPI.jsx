@@ -1,22 +1,26 @@
-import {getJson, postJson} from "../MinesweeperAPI";
+import {MinesweeperApiController} from "../../controllers/MinesweeperApiController";
 
-export async function getCapabilities(base, {signal} = {}) {
-    return getJson(base, "capabilities", {signal});
+const ctrl = MinesweeperApiController();
+
+export const isAbortLikeError = ctrl.isAbortLikeError;
+
+export async function getCapabilities({signal} = {}) {
+    return ctrl.getJson("capabilities", {signal});
 }
 
-export async function createGame(base, payload, {signal, idempotencyKey} = {}) {
-    return postJson(base, "game", payload, {signal, idempotencyKey});
+export async function getMaxMines(rows, cols, {signal} = {}) {
+    return ctrl.postJson("max-mines", {rows, cols}, {signal});
 }
 
-export async function getMaxMines(base, payload, {signal, idempotencyKey} = {}) {
-    return postJson(base, "max-mines", payload, {signal, idempotencyKey});
+export async function getDetectPreset(rows, cols, mines, {signal} = {}) {
+    return ctrl.postJson("preset", {rows, cols, mines}, {signal});
 }
 
-export async function detectPreset(base, payload, {signal, idempotencyKey} = {}) {
-    return postJson(base, "preset", payload, {signal, idempotencyKey});
+export async function postCreateGame(createPayload, {signal} = {}) {
+    return ctrl.postJson("game", createPayload, {signal});
 }
 
-export function persistUiPrefs(gameId, uiPrefs) {
+export function persistGameplayPrefs(gameId, uiPrefs) {
     localStorage.setItem(`ms:uiPrefs:${gameId}`, JSON.stringify(uiPrefs));
 }
 
