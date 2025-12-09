@@ -108,3 +108,6 @@ def validate_move():
 
     ok = rules.is_legal_move(board, row, col)
     return jsonify({"ok": ok}), 200
+
+# Alias pro kompatibilitu s app.py
+tic_tac_toe_bp = bp_stateless

@@ -1,56 +1,69 @@
-import React from 'react';
-import colors from '../Colors';
+import React, {useState} from "react";
+import colors from "../Colors";
 
 /**
  * BUTTON SELECT COMPONENT - Custom select that looks like buttons
- * 
+ *
  * Props:
  * - options: array of strings - Available options
  * - selected: string - Currently selected option
  * - onChange: function - Called with selected option value
  */
+function ButtonSelect({
+                          options,
+                          selected,
+                          onChange
+                      }) {
+    const [hoveredOption, setHoveredOption] = useState(null);
 
-function ButtonSelect({ options, selected, onChange }) {
-  const containerStyle = {
-    display: 'flex',
-    gap: '0.5rem',
-    flexWrap: 'wrap',
-    justifyContent: 'flex-end',
-  };
+    const containerStyle = {
+        display: "flex",
+        gap: "0.5rem",
+        flexWrap: "wrap",
+        justifyContent: "flex-end"
+    };
 
-  const getButtonStyle = (option) => ({
-    padding: '0.5rem 0.75rem',
-    borderRadius: '20px',
-    fontSize: '28px',
-    fontWeight: '700',
-    border: 'none',
-    cursor: 'pointer',
-    transition: 'all 0.2s',
-    backgroundColor: option === selected ? '#FFFFFF' : colors.text_faded,
-    color: option === selected ? colors.primary : colors.text,
-  });
+    const getButtonStyle = (option, isDisabled, isHovered) => ({
+        padding: "0.5rem 0.75rem",
+        borderRadius: "20px",
+        fontSize: "24px",
+        fontWeight: "700",
+        border: "none",
+        cursor: isDisabled ? "not-allowed" : "pointer",
+        transition: "all 0.2s",
+        backgroundColor: option === selected ? colors.white : colors.text_faded,
+        color: option === selected ? colors.primary : colors.text,
+        opacity: option === selected ? 1 : (isDisabled ? 0.5 : (isHovered ? 0.8 : 1))
+    });
 
-  return (
-    <div style={containerStyle}>
-      {options.map((option) => (
-        <button
-          key={option}
-          style={getButtonStyle(option)}
-          onClick={() => onChange(option)}
-          onMouseEnter={(e) => {
-            if (option !== selected) {
-              e.currentTarget.style.opacity = '0.8';
-            }
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.opacity = '1';
-          }}
-        >
-          {option}
-        </button>
-      ))}
-    </div>
-  );
+    return (
+            <div style={containerStyle}>
+                {options.map((opt) => {
+                    const option = typeof opt === "string" ? opt : opt.value;
+                    const isDisabled = typeof opt === "object" && opt.disabled;
+                    const isHovered = hoveredOption === option;
+
+                    return (
+                            <button
+                                    key={option}
+                                    style={getButtonStyle(option, isDisabled, isHovered)}
+                                    disabled={isDisabled}
+                                    onClick={() => !isDisabled && onChange(option)}
+                                    onMouseEnter={() => {
+                                        if(option !== selected && !isDisabled) {
+                                            setHoveredOption(option);
+                                        }
+                                    }}
+                                    onMouseLeave={() => {
+                                        setHoveredOption(null);
+                                    }}
+                            >
+                                {option}
+                            </button>
+                    );
+                })}
+            </div>
+    );
 }
 
 export default ButtonSelect;

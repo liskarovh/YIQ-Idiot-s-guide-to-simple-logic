@@ -6,7 +6,7 @@ import Box from './components/Box';
 
 /**
  * HOME COMPONENT - Landing page
- *
+ * 
  * Clean page with gradient background using colors from Styles
  */
 
@@ -27,8 +27,8 @@ function About() {
 
   return (
     <div>
-      <Header
-        showBack={true}
+      <Header 
+        showBack={true} 
         onNavigate={() => navigate('/')}
       />
       <div style={contentStyle}>

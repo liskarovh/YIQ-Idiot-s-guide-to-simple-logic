@@ -1,0 +1,163 @@
+trigger:
+  branches:
+    include:
+      - main
+  paths:
+    include:
+      - src/Backend/minesweeper/**
+
+variables:
+  nodeVersion: '22.x'
+
+stages:
+  - stage: Minesweeper_Backend
+    displayName: Minesweeper Backend (Node/TypeScript)
+    jobs:
+      - job: build_and_deploy_minesweeper
+        displayName: Build & Deploy Minesweeper TS Backend
+        pool:
+          vmImage: 'ubuntu-latest'
+
+        steps:
+          - checkout: self
+
+          - task: UseNode@1
+            displayName: 'Use Node.js $(nodeVersion)'
+            inputs:
+              version: '$(nodeVersion)'
+
+          - script: |
+              cd src/Backend/minesweeper
+              echo "Checking for package-lock.json..."
+              if [ -f "package-lock.json" ]; then
+                echo "Found package-lock.json, using npm ci..."
+                npm ci
+              else
+                echo "No package-lock.json found, using npm install..."
+                npm install
+              fi
+            displayName: 'Install npm dependencies'
+
+          - script: |
+              set -eux
+              cd src/Backend/minesweeper
+              echo "Building TypeScript..."
+              npm run build
+
+              echo "Verifying build output:"
+              test -d dist
+              ls -la dist
+              echo "OK: Build completed successfully"
+            displayName: 'Build TypeScript project'
+
+          - bash: |
+              set -eux
+              rm -rf out && mkdir -p out
+
+              if [ -d "src/Backend/minesweeper/dist" ]; then
+                cp -r src/Backend/minesweeper/dist out/
+                echo "Copied dist directory"
+              else
+                echo "ERROR: src/Backend/minesweeper/dist missing. Build step didn't emit JS files."
+                exit 1
+              fi
+
+              cp src/Backend/minesweeper/package.json out/
+              cp src/Backend/minesweeper/package-lock.json out/ 2>/dev/null || echo "No package-lock.json to copy"
+
+              cd out
+
+              echo "Installing production dependencies (skip lifecycle scripts)..."
+              if [ -f "package-lock.json" ]; then
+                npm ci --omit=dev --ignore-scripts --no-audit --no-fund --loglevel=error || {
+                  echo "npm ci failed; dumping npm logs and retrying with npm install (also skip scripts)"
+                  ls -la /home/vsts/.npm/_logs || true
+                  tail -n 200 /home/vsts/.npm/_logs/* || true
+                  npm install --omit=dev --ignore-scripts --no-audit --no-fund --loglevel=error
+                }
+              else
+                npm install --omit=dev --ignore-scripts --no-audit --no-fund --loglevel=error
+              fi
+
+              echo "Contents of out directory:"
+              ls -la
+            displayName: 'Stage backend package'
+
+          - bash: |
+              set -eux
+
+              echo "Running artifact validation for out/"
+
+              test -d out || { echo "ERROR: out directory missing"; exit 1; }
+              test -d out/dist || { echo "ERROR: out/dist missing. Build didn't emit JS files."; exit 1; }
+              test -f out/dist/engine.js || { echo "ERROR: out/dist/engine.js missing. Check tsconfig (NodeNext) and rebuild."; exit 1; }
+
+              node -e '
+                try {
+                  const p = require("./out/package.json");
+                  if (p.type !== "module") { console.error("ERROR: out/package.json.type != module"); process.exit(2); }
+                  if (!p.main || p.main.indexOf("dist") === -1) { console.error("ERROR: out/package.json.main missing or not pointing to dist"); process.exit(3); }
+                  console.log("OK: out/package.json ESM checks passed");
+                } catch(e) {
+                  console.error("ERROR: cannot read ./out/package.json:", e);
+                  process.exit(4);
+                }
+              '
+
+              bad_rel_imports=$(grep -RE --line-number -E "from ['\"][.]{1,2}/[^'\"]+['\"]|require\(['\"][.]{1,2}/[^'\"]+['\"]\)|import\(['\"][.]{1,2}/[^'\"]+['\"]\)" out/dist || true)
+              bad_rel_imports_no_ext=$(printf "%s\n" "$bad_rel_imports" | grep -vE "\.(js|json|node)['\"]" || true)
+
+              if [ -n "$bad_rel_imports_no_ext" ]; then
+                echo "ERROR: Some compiled files in out/dist contain relative import/require/import() specifiers without a file extension (.js/.json/.node). Rebuild with tsconfig module=NodeNext/moduleResolution=NodeNext or ensure source imports use .js extension."
+                printf "%s\n" "$bad_rel_imports_no_ext"
+                exit 1
+              fi
+
+              echo "OK: artifact validation passed"
+            displayName: 'Validate staged artifacts'
+
+          - task: ArchiveFiles@2
+            displayName: 'Create deployment package'
+            inputs:
+              rootFolderOrFile: 'out'
+              includeRootFolder: false
+              archiveType: 'zip'
+              archiveFile: '$(Build.ArtifactStagingDirectory)/MinesweeperBackend.zip'
+
+          - task: AzureAppServiceSettings@1
+            displayName: 'Configure App Settings'
+            inputs:
+              azureSubscription: '$(AZURE_SUBSCRIPTION)'
+              appName: '$(WEBAPP_MINESWEEPER_NAME)'
+              resourceGroupName: '$(WEBAPP_RG)'
+              appSettings: |
+                [
+                  { "name": "SCM_DO_BUILD_DURING_DEPLOYMENT", "value": "false", "slotSetting": false },
+                  { "name": "NODE_ENV", "value": "production", "slotSetting": false },
+                  { "name": "WEBSITES_PORT", "value": "5051", "slotSetting": false },
+                  { "name": "WEBSITE_RUN_FROM_PACKAGE", "value": "0", "slotSetting": false },
+                  { "name": "ENABLE_ORYX_BUILD", "value": "false", "slotSetting": false },
+                  { "name": "MINESWEEPER_NODE_PORT", "value": "5051", "slotSetting": false },
+                  { "name": "MINESWEEPER_NODE_HOST", "value": "0.0.0.0", "slotSetting": false }
+                ]
+
+          - task: AzureCLI@2
+            displayName: 'Set startup command (Node.js)'
+            inputs:
+              azureSubscription: '$(AZURE_SUBSCRIPTION)'
+              scriptType: bash
+              scriptLocation: inlineScript
+              inlineScript: |
+                az webapp config set \
+                  -g $(WEBAPP_RG) \
+                  -n $(WEBAPP_MINESWEEPER_NAME) \
+                  --startup-file "node dist/server.js"
+
+          - task: AzureWebApp@1
+            displayName: 'Deploy to App Service (ZipDeploy)'
+            inputs:
+              azureSubscription: '$(AZURE_SUBSCRIPTION)'
+              appType: 'webAppLinux'
+              appName: '$(WEBAPP_MINESWEEPER_NAME)'
+              package: '$(Build.ArtifactStagingDirectory)/MinesweeperBackend.zip'
+              runtimeStack: 'NODE|22-lts'
