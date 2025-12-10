@@ -6,78 +6,109 @@ function SudokuCell({ value, type, row, col, isSelected, isHint, isHighlightedAr
   const boxRow = Math.floor(row / 3);
   const boxCol = Math.floor(col / 3);
   const boxIndex = boxRow * 3 + boxCol;
+
+  const COLORS = {
+    white: '255, 255, 255',
+    red: '255, 85, 85',     // Softer, readable red
+    blue: '80, 150, 255',   // Bright UI blue
+    gold: '255, 207, 76',   // Match your border
+    purple: '160, 140, 255' // Distinct from the blue
+  };
   
   // Alternating box opacity pattern
-  const boxOpacities = [0.2, 0.3, 0.2, 0.3, 0.2, 0.3, 0.2, 0.3, 0.2];
+  const isDarkBox = boxIndex % 2 === 0; 
+  const baseAlpha = isDarkBox ? 0.08 : 0.16;
 
-    const highlightedAreaStyle = {
-        backgroundColor: 'rgba(255, 255, 255, ' + (boxOpacities[boxIndex] + 0.15) + ')',
-        textColor: '#FFFFFF',
-    }
-
-    const highlightedNumberStyle = {
-        backgroundColor: 'rgba(175, 175, 255, ' + (boxOpacities[boxIndex]/2 + 0.3) + ')',
-        textColor: '#FFFFFF',
-    }
-
-    const mistakeStyle = {
-        backgroundColor: 'rgba(255, 200, 200, ' + boxOpacities[boxIndex] + ')',
-        textColor: '#FF0000',
-    }
-
-    const hintStyle = {
-        backgroundColor: 'rgba(230, 230, 255, ' + boxOpacities[boxIndex] + ')',
-        textColor: '#029affff',
-    }
-
-    const defaultStyle = {
-        backgroundColor: 'rgba(255, 255, 255,' + boxOpacities[boxIndex] + ')',
-        textColor: '#FFFFFF'
-    }
-
-    let styleUsed
+    // -- STYLE LOGIC --
+  const getCellAppearance = () => {
+    const textColor = type == "Given" ? '#d8e0ebff' : '#FFFFFF'
+    // 1. MISTAKE (Critical - Highest Priority)
     if (isMistake) {
-        styleUsed = mistakeStyle
-    } else if (isHint) {
-        styleUsed = hintStyle
-      } else if (isHighlightedNumber) {
-      styleUsed = highlightedNumberStyle
-    } else if (isHighlightedArea) {
-        styleUsed = highlightedAreaStyle
-    } else {
-        styleUsed = defaultStyle
+        return {
+            backgroundColor: `rgba(${COLORS.red}, 0.6)`,
+            textColor,
+            fontWeight: '700'
+        };
     }
-    
-    const borderColor = isSelected ? 'rgba(255, 207, 76, 1)' : 'rgba(255,255,255,0.9)'
-    const outline = isSelected ? '0.08cqh solid rgba(255, 207, 76, 1)' : 'none'
 
+    // 2. SELECTED CELL (Focus)
+    // We give it a distinct background to make the cursor position obvious
+    if (isSelected) {
+        return {
+            backgroundColor: `rgba(${COLORS.blue}, 0.5)`,
+            textColor,
+            fontWeight: '600'
+        };
+    }
+
+    // 3. SAME NUMBER (Context)
+    if (isHighlightedNumber) {
+        return {
+            backgroundColor: `rgba(${COLORS.blue}, 0.3)`, // Same hue as selection, but lighter
+            textColor,
+            fontWeight: '600'
+        };
+    }
+
+    // 4. HIGHLIGHTED AREA (Row/Col/Box context)
+    if (isHighlightedArea) {
+        return {
+            // We just boost the white base slightly. 
+            // Adding 0.1 to alpha makes it a visible "crosshair" without distracting colors.
+            backgroundColor: `rgba(${COLORS.white}, ${(baseAlpha) + 0.25})`,
+            textColor,
+            fontWeight: '400'
+        };
+    }
+
+    // 5. DEFAULT (Checkerboard)
+    return {
+        backgroundColor: `rgba(${COLORS.white}, ${baseAlpha})`,
+        textColor,
+        fontWeight: '400'
+    };
+  };
+
+  const appearance = getCellAppearance();
+    
+  const borderColor = isSelected ? 'rgba(255, 207, 76, 1)' : 'rgba(255, 255, 255, 0.6)'
+  const outline = isSelected ? '0.15cqh solid rgba(255, 207, 76, 1)' : 'none'
+
+  const zIndex = isSelected ? 10 : 1;
   const thinBorder = '0.08cqh solid ' + borderColor;
   const thickBorder = '0.6cqh solid ' + borderColor;
+  const borderTop = row % 3 === 0 || isSelected ? thickBorder : thinBorder;
+  const borderLeft = col % 3 === 0 || isSelected ? thickBorder : thinBorder;
+  const borderRight = (col + 1) % 3 === 0 || isSelected ? thickBorder : thinBorder;
+  const borderBottom = (row + 1) % 3 === 0 || isSelected ? thickBorder : thinBorder;
   
   const cellStyle = {
     width: '100%',
     height: '100%',
     aspectRatio: '1',
-    backgroundColor: styleUsed.backgroundColor,
+    backgroundColor: appearance.backgroundColor,
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
     cursor: 'pointer',
-    transition: 'background-color 0.2s',
+    transition: 'background-color 0.2s ease-out',
     boxSizing: 'border-box',
     containerType: 'size',
+    position: 'relative', // Needed for z-index
+    zIndex: zIndex,
     outline,
+    outlineOffset: '-0.3cqh',
 
-    borderTop: row % 3 === 0 ? thickBorder : thinBorder,
-    borderLeft: col % 3 === 0 ? thickBorder : thinBorder,
-    borderRight: (col + 1) % 3 === 0 ? thickBorder : thinBorder,
-    borderBottom: (row + 1) % 3 === 0 ? thickBorder : thinBorder,
+    borderTop,
+    borderLeft,
+    borderRight,
+    borderBottom,
   };
   
   const textStyle = {
-    fontSize: '75cqmin',
+    fontSize: '70cqmin',
     fontWeight: type == "Given" ? '700' : '500',
-    color: styleUsed.textColor,
+    color: appearance.textColor,
     WebkitTextStroke: type == "Given" ? '3cqmin black' : 'none',
     userSelect: 'none',
   };
@@ -85,7 +116,7 @@ function SudokuCell({ value, type, row, col, isSelected, isHint, isHighlightedAr
   const pencilTextStyle = {
     fontSize: '100%',
     fontWeight: '500',
-    color: styleUsed.textColor,
+    color: appearance.textColor,
   };
 
   const pencilGridStyle = {
