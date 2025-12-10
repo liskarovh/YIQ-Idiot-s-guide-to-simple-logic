@@ -1,6 +1,6 @@
 import {useCallback, useEffect, useMemo, useRef, useState} from "react";
 import {useNavigate} from "react-router-dom";
-import {postCreateGame, getCapabilities, getMaxMines, getDetectPreset, persistLastCreate, persistGameplayPrefs, isAbortLikeError} from "../models/MinesweeperSettings/MinesweeperSettingsAPI.jsx";
+import {postCreateGame, getCapabilities, getMaxMines, getDetectPreset, persistLastCreatePayload, persistGameplayPrefs, isAbortLikeError} from "../models/MinesweeperSettings/MinesweeperSettingsAPI.jsx";
 import {buildCreatePayload, buildGameplayPrefs} from "../models/MinesweeperSettings/MinesweeperSettingsBuilders.jsx";
 import {deriveInitialStateFromCaps} from "../models/MinesweeperSettings/MinesweeperSettingsState.jsx";
 
@@ -77,12 +77,12 @@ export function MinesweeperSettingsController() {
 
         (async() => {
             try {
-                const {view} = await getMaxMines(Number(rows),
-                                                 Number(cols),
-                                                 {signal: abortCtrl.signal});
+                const response = await getMaxMines(Number(rows),
+                                                   Number(cols),
+                                                   {signal: abortCtrl.signal});
 
-                const value = typeof view === "number" ? view : view?.maxMines;
-                setMaxMines(Number(value));
+                const maxMines = typeof response === "number" ? response : Number(response);
+                setMaxMines(Number(maxMines));
             }
             catch(e) {
                 if(isAbortLikeError(e)) {
@@ -141,13 +141,13 @@ export function MinesweeperSettingsController() {
 
                 (async() => {
                     try {
-                        const {view} = await getDetectPreset(Number(nextRows),
-                                                             Number(nextCols),
-                                                             Number(nextMines),
-                                                             {signal: abortCtrl.signal});
+                        const response = await getDetectPreset(Number(nextRows),
+                                                               Number(nextCols),
+                                                               Number(nextMines),
+                                                               {signal: abortCtrl.signal});
 
-                        const detected = typeof view === "string" ? view : view?.preset;
-                        setPreset(detected);
+                        const detectedPreset = typeof response === "string" ? response : String(response);
+                        setPreset(detectedPreset);
                     }
                     catch(e) {
                         if(isAbortLikeError(e)) {
@@ -222,7 +222,7 @@ export function MinesweeperSettingsController() {
             if(view?.gameId) {
                 persistGameplayPrefs(view.gameId, gameplayPrefs);
             }
-            persistLastCreate(createPayload);
+            persistLastCreatePayload(createPayload);
 
             // We try to use "location" header if present to navigate to the game
             if(location) {

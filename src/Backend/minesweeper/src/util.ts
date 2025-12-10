@@ -7,7 +7,7 @@ export function maskGameViewForClient(gameSession: GameSession, snapshot: Snapsh
     console.debug(`[UTILS.ts] maskGameViewForClient for game=${gameSession.id} revealMines=${revealMines}`);
 
     // When not revealing, keep mines undefined so the client cannot infer positions.
-    const mines = revealMines ? gameSession.minePositions.map(([r, c]) => ({r, c})) : undefined;
+    const mines = revealMines ? gameSession.minePositions.map(([row, col]) => ({row, col})) : undefined;
     if (mines) {
         console.debug(`[UTILS.ts] maskGameViewForClient revealing ${mines.length} mines`);
     } else {

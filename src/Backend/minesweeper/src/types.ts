@@ -26,7 +26,7 @@ export type Status = "new" | "playing" | "lost" | "won";
 /** Player actions recorded into history (for undo/replay). */
 export type Action =
 /** Reveal a single cell at coordinates `[r,c]`. */
-    | { type: "reveal"; row: number; column: number }
+    | { type: "reveal"; row: number; col: number }
 
     /** Place/remove/toggle a flag at `[r,c]`.
      * If `set` is:
@@ -34,7 +34,7 @@ export type Action =
      * - `false` -> ensure unflagged
      * - `undefined` -> toggle
      */
-    | { type: "flag"; row: number; column: number; set?: boolean };
+    | { type: "flag"; row: number; col: number; set?: boolean };
 
 export interface ComputedCell {
     isMine: boolean;
@@ -85,26 +85,26 @@ export interface CreatePayload extends Partial<GameOptions> {
 export interface Snapshot {
     /** Opened cells with adjacent mine counts. */
     opened: Array<{
-        r: number;
-        c: number;
-        adj: number
+        row: number;
+        col: number;
+        adjacent: number
     }>;
 
     /** Flagged cells. */
     flagged: Array<{
-        r: number;
-        c: number
+        row: number;
+        col: number
     }>;
 
     permanentFlags?: Array<{
-        r: number;
-        c: number
+        row: number;
+        col: number
     }>;
 
     /** Cell that triggered a loss (if any). */
     lostOn?: {
-        r: number;
-        c: number
+        row: number;
+        col: number
     };
 
     /** True if all safe cells have been revealed (win). */
@@ -211,26 +211,26 @@ export interface GameView {
     board: {
         /** Opened cells with adjacent mine counts. */
         opened: Array<{
-            r: number;
-            c: number;
-            adj: number
+            row: number;
+            col: number;
+            adjacent: number
         }>;
 
         /** Flagged cells. */
         flagged: Array<{
-            r: number;
-            c: number
+            row: number;
+            col: number
         }>;
 
         permanentFlags?: Array<{
-            r: number;
-            c: number
+            row: number;
+            col: number
         }>;
 
         /** Cell that caused a loss (if any) */
         lostOn?: {
-            r: number;
-            c: number
+            row: number;
+            col: number
         };
 
         /** True if all safe cells have been revealed (win). */
@@ -238,8 +238,8 @@ export interface GameView {
 
         /** Revealed mine positions (only present when safe to reveal, e.g. after loss/win) */
         mines?: Array<{
-            r: number;
-            c: number
+            row: number;
+            col: number
         }>;
     };
 

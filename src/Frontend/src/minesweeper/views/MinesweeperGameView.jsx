@@ -1,35 +1,32 @@
 import React from "react";
-import { useNavigate } from "react-router-dom";
-import Header from "../../components/Header";
-import colors from "../../Colors";
+import {useNavigate} from "react-router-dom";
 import MineGrid from "../components/MinesweeperGameComponents/MineGrid";
-
-import { useMinesweeperGameController } from "../controllers/MinesweeperGameController.jsx";
-import { GameInfoPanel } from "../components/MinesweeperGameComponents/GameInfoPanel.jsx";
-import { GameplayControls } from "../components/MinesweeperGameComponents/GameplayControls.jsx";
-import { ReviewControls } from "../components/MinesweeperGameComponents/ReviewControls.jsx";
-import { GameOverControls } from "../components/MinesweeperGameComponents/GameOverControls.jsx";
+import {useMinesweeperGameController} from "../controllers/MinesweeperGameController.jsx";
+import {GameInfoPanel} from "../components/MinesweeperGameComponents/GameInfoPanel.jsx";
+import {GameplayControls} from "../components/MinesweeperGameComponents/GameplayControls.jsx";
+import {ReviewControls} from "../components/MinesweeperGameComponents/ReviewControls.jsx";
+import {GameOverControls} from "../components/MinesweeperGameComponents/GameOverControls.jsx";
+import GameLayout from "../components/MinesweeperGameComponents/GameLayout.jsx";
+import SettingsLoader from "../components/MinesweeperSettingsComponents/SettingsLoader";
 import styles from "../styles/MinesweeperGameStyles.jsx";
-
-function LoadingScreen() {
-    const navigate = useNavigate();
-    return (
-            <div style={styles.page}>
-                <Header showBack={true} onNavigate={() => navigate(-1)} />
-                <div style={{ ...styles.shell, placeItems: "center" }}>
-                    <div style={{ color: colors.text_header }}>Loading game...</div>
-                </div>
-            </div>
-    );
-}
 
 function MinesweeperGameView() {
     const navigate = useNavigate();
     const ctrl = useMinesweeperGameController();
 
-    if (!ctrl.view) return <LoadingScreen />;
+    // Loading state mirrors SettingsView: show two loader panels in the same layout
+    if(!ctrl.view) {
+        return (
+                <GameLayout
+                        onBack={() => navigate(-1)}
+                        leftPanel={<SettingsLoader />}
+                        rightPanel={<SettingsLoader />}
+                        error={ctrl.error}
+                />
+        );
+    }
 
-    const left = (
+    const leftPanel = (
             <GameInfoPanel
                     view={ctrl.view}
                     difficulty={ctrl.difficulty}
@@ -42,9 +39,9 @@ function MinesweeperGameView() {
             />
     );
 
-    const board = (
+    const rightPanel = (
             <div style={styles.boardWrap}>
-                <div style={{ opacity: ctrl.paused ? 0.2 : 1, transition: "opacity 120ms" }}>
+                <div style={{opacity: ctrl.paused ? 0.2 : 1, transition: "opacity 120ms"}}>
                     <MineGrid
                             rows={ctrl.view.rows}
                             cols={ctrl.view.cols}
@@ -52,14 +49,14 @@ function MinesweeperGameView() {
                             flagged={ctrl.view.board.flagged}
                             permanentFlags={ctrl.permanentFlagsSet}
                             lostOn={ctrl.view.board?.lostOn}
-                            hintRect={ctrl.hintRect}
+                            hintRectangle={ctrl.hintRectangle}
                             highlightCell={ctrl.highlightCell}
                             quickFlag={ctrl.quickFlag}
                             isPaused={ctrl.isExploded}
                             beforeStart={ctrl.beforeStart}
-                            onReveal={(r, c) => ctrl.canReveal && ctrl.doReveal(r, c)}
-                            onFlag={(r, c, set) => ctrl.canFlag && ctrl.doFlag(r, c, set)}
-                            onMoveFlag={(fr, fc, tr, tc) => ctrl.canFlag && ctrl.doMoveFlag(fr, fc, tr, tc)}
+                            onReveal={(row, col) => ctrl.canReveal && ctrl.doReveal(row, col)}
+                            onFlag={(row, col, set) => ctrl.canFlag && ctrl.doFlag(row, col, set)}
+                            onMoveFlag={(fromRow, fromCol, toRow, toCol) => ctrl.canFlag && ctrl.doMoveFlag(fromRow, fromCol, toRow, toCol)}
                             onBeginHold={ctrl.handleBeginHold}
                             onEndHold={ctrl.handleEndHold}
                             holdHighlight={ctrl.holdHighlight}
@@ -101,23 +98,16 @@ function MinesweeperGameView() {
                                     onExit={() => navigate("/")}
                             />
                     )}
-
-                {ctrl.error && (
-                        <div style={{ color: "#ff6b6b", fontWeight: 700, textAlign: "center" }}>
-                            ⚠️ {ctrl.error}
-                        </div>
-                )}
             </div>
     );
 
     return (
-            <div style={styles.page}>
-                <Header showBack={true} onNavigate={() => navigate(-1)} />
-                <div style={styles.shell}>
-                    {left}
-                    {board}
-                </div>
-            </div>
+            <GameLayout
+                    onBack={() => navigate(-1)}
+                    leftPanel={leftPanel}
+                    rightPanel={rightPanel}
+                    error={ctrl.error}
+            />
     );
 }
 

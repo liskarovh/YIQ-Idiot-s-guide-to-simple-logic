@@ -197,16 +197,16 @@ def get_game(game_id):
     return _proxy('GET', f'/game/{game_id}')
 
 
-@minesweeper_bp.route('/max-mines', methods = ['POST'])
+@minesweeper_bp.route('/max-mines', methods = ['GET'])
 def max_mines():
     """Fetch maximum number of mines based on rows and cols."""
-    return _proxy('POST', '/max-mines')
+    return _proxy('GET', '/max-mines')
 
 
-@minesweeper_bp.route('/preset', methods = ['POST'])
+@minesweeper_bp.route('/preset', methods = ['GET'])
 def preset():
     """Fetch preset name."""
-    return _proxy('POST', '/preset')
+    return _proxy('GET', '/preset')
 
 
 @minesweeper_bp.route('/game/<game_id>/reveal', methods = ['POST'])

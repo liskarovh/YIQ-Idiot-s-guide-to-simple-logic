@@ -58,7 +58,7 @@ export default function MinesweeperSettingsView() {
 
     return (
             <SettingsLayout
-                    onBack={() => window.history.back()}
+                    onBack={() => navigate(-1)}
                     leftPanel={leftPanel}
                     rightPanel={rightPanel}
                     onPlay={ctrl.handlePlay}
