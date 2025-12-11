@@ -1,6 +1,6 @@
 import React from "react";
 
-const IconButton = ({ icon: Icon, description, onClick }) => {
+const IconButton = ({ icon: Icon, description, onClick, size=32 }) => {
   const buttonStyle = {
     display: 'flex',
     flexDirection: 'column',
@@ -11,10 +11,11 @@ const IconButton = ({ icon: Icon, description, onClick }) => {
     background: 'none',
     border: 'none',
     cursor: 'pointer',
+    width: 'fit-content'
   };
 
   const iconStyle = {
-    fontSize: '2.25rem',
+    fontSize: `${size}px`,
     color: 'white',
   };
 
@@ -32,7 +33,7 @@ const IconButton = ({ icon: Icon, description, onClick }) => {
       {typeof Icon === 'string' ? (
         <span style={iconStyle}>{Icon}</span>
       ) : (
-        <Icon size={32} color="white" />
+        <Icon size={size} color="white" />
       )}
       <span style={descriptionStyle}>{description}</span>
     </button>
