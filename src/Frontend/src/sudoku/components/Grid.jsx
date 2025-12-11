@@ -72,11 +72,11 @@ function SudokuCell({ value, type, row, col, isSelected, isHint, isHighlightedAr
   const appearance = getCellAppearance();
     
   const borderColor = isSelected ? 'rgba(255, 207, 76, 1)' : 'rgba(255, 255, 255, 0.6)'
-  const outline = isSelected ? '0.15cqh solid rgba(255, 207, 76, 1)' : 'none'
+  const outline = isSelected ? '0.15cqmin solid rgba(255, 207, 76, 1)' : 'none'
 
   const zIndex = isSelected ? 10 : 1;
-  const thinBorder = '0.08cqh solid ' + borderColor;
-  const thickBorder = '0.6cqh solid ' + borderColor;
+  const thinBorder = '0.08cqmin solid ' + borderColor;
+  const thickBorder = '0.6cqmin solid ' + borderColor;
   const borderTop = row % 3 === 0 || isSelected ? thickBorder : thinBorder;
   const borderLeft = col % 3 === 0 || isSelected ? thickBorder : thinBorder;
   const borderRight = (col + 1) % 3 === 0 || isSelected ? thickBorder : thinBorder;
@@ -97,7 +97,7 @@ function SudokuCell({ value, type, row, col, isSelected, isHint, isHighlightedAr
     position: 'relative', // Needed for z-index
     zIndex: zIndex,
     outline,
-    outlineOffset: '-0.3cqh',
+    outlineOffset: '-0.2cqmin',
 
     borderTop,
     borderLeft,
@@ -114,7 +114,7 @@ function SudokuCell({ value, type, row, col, isSelected, isHint, isHighlightedAr
   };
 
   const pencilTextStyle = {
-    fontSize: '100%',
+    fontSize: '25cqmin',
     fontWeight: '500',
     color: appearance.textColor,
   };
@@ -125,7 +125,7 @@ function SudokuCell({ value, type, row, col, isSelected, isHint, isHighlightedAr
       gridTemplateRows: 'repeat(3, 1fr)',
       width: '100%',
       height: '100%',
-      padding: '4px',
+      padding: '3cqmin',
     };
     
     const pencilCellStyle = {
@@ -169,6 +169,8 @@ function SudokuGrid({
   const gridWrapperStyle = {
     width: '100%',
     height: '100%',
+    minWidth: 0,
+    minHeight: 0,
     aspectRatio: '1 / 1',
     display: 'flex',
     boxSizing: 'border-box',
@@ -183,7 +185,7 @@ function SudokuGrid({
     height: 'auto',
     boxSizing: 'border-box',
     border: '0.4cqh solid rgba(255,255,255,0.9)',
-    borderRadius: '1cqh',
+    borderRadius: '1cqmin',
   };
 
   return (

@@ -8,6 +8,7 @@ import IconButton from "../../components/IconButton";
 import { Lightbulb, Undo, Eraser, StickyNote, BookOpen, Settings, Pointer } from "lucide-react";
 import useMeasure from "react-use-measure";
 import colors from "../../Colors";
+import { useMemo } from "react";
 
 const pageStyle = {
   display: 'flex',
@@ -19,14 +20,15 @@ const pageStyle = {
 
 
 const topContentStyle = {
-    display: 'flex',
-    flexDirection: 'row',
-    paddingTop: '7rem',
-    alignItems: 'stretch',
-    gap: '1rem',
-    padding: '7rem 2rem 0rem 2rem',
-    flex: 1,
-  };
+  display: 'flex',
+  flexDirection: 'row',
+  paddingTop: '7rem',
+  alignItems: 'stretch',
+  gap: '1rem',
+  padding: '7rem 2rem 0rem 2rem',
+  flex: 1,
+  minHeight: 0
+};
 
 const rightItemsStyle = {
   marginLeft: 'auto',
@@ -34,46 +36,49 @@ const rightItemsStyle = {
   alignItems: 'flex-start',
   height: '100%',
   gap: '1rem',
+  minWidth: 0,
+
+  border: '4px solid RED',
 }
 
 const bottomContentStyle = {
   display: 'flex',
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
-    alignItems: 'stretch',
-    paddingBottom: '3rem',
-    paddingRight: '2rem'
+  flexDirection: 'row',
+  justifyContent: 'flex-end',
+  alignItems: 'stretch',
+  paddingBottom: '3rem',
+  paddingRight: '2rem'
 }
 
 const boxContentStyle = {
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-    padding: '2rem 0', // Add some vertical padding
-    containerType: 'size',
+  display: 'flex',
+  flexDirection: 'column',
+  alignItems: 'center',
+  padding: '2rem 0', // Add some vertical padding
+  containerType: 'size',
 };
 
 // **STYLES FOR TEXT ELEMENTS**
 const gameInfoStyle = {
-    color: colors.text,
-    fontSize: '15cqmin',
-    fontWeight: 'bold',
-    marginBottom: '10cqh',
+  color: colors.text,
+  fontSize: '15cqmin',
+  fontWeight: 'bold',
+  marginBottom: '10cqh',
 };
 
 const whiteTextStyle = {
-    color: "#FFFFFF",
-    fontSize: '8cqmin',
-    fontWeight: 'bold',
-    margin: '4cqmin',
+  color: "#FFFFFF",
+  fontSize: '8cqmin',
+  fontWeight: 'bold',
+  margin: '4cqmin',
 };
 
 const timeStyle = {
-    color: "#FFFFFF",
-    fontSize: '20cqmin',
-    fontWeight: 'bold',
-    marginTop: '15cqh',
-    marginBottom: '10cqh',
+  color: "#FFFFFF",
+  fontSize: '20cqmin',
+  fontWeight: 'bold',
+  marginTop: '15cqh',
+  marginBottom: '10cqh',
 };
 
 
@@ -88,12 +93,17 @@ function Game() {
     cellClicked, numberClicked, hintClicked, undoClicked, eraseClicked, notesClicked, inputClicked,
   } = useGameController()
 
+  const iconSize = useMemo(() => {
+    if (!bounds.width) return 24;
+    return Math.max(16, Math.min(28, bounds.width / 13));
+  }, [bounds.width]);
+
   const iconRowStyle = {
     width: bounds.width,
     display: 'flex',
     flexDirection: 'row',
     justifyContent: 'space-between',
-    gap: '0.5rem',
+    gap: '1%',
   };
 
   function getDescriptions() {
@@ -156,13 +166,13 @@ function Game() {
       </div>
       <div style={bottomContentStyle}>
         <div style={iconRowStyle}>
-          <IconButton icon={Lightbulb} description="Hint" onClick={hintClicked}/>
-          <IconButton icon={Undo} description="Undo" onClick={undoClicked}/>
-          <IconButton icon={Eraser} description={getDescriptions().erase} onClick={eraseClicked}/>
-          <IconButton icon={StickyNote} description={getDescriptions().notes} onClick={notesClicked}/>
-          <IconButton icon={BookOpen} description="Strategy" onClick={() => setRelativeView("Strategy")}/>
-          <IconButton icon={Settings} description="Settings" onClick={() => setRelativeView("Settings")}/>
-          <IconButton icon={Pointer} description={getDescriptions().inputMethod} onClick={inputClicked}/>
+          {/* <IconButton size={iconSize} icon={Lightbulb} description="Hint" onClick={hintClicked}/>
+          <IconButton size={iconSize} icon={Undo} description="Undo" onClick={undoClicked}/>
+          <IconButton size={iconSize} icon={Eraser} description={getDescriptions().erase} onClick={eraseClicked}/>
+          <IconButton size={iconSize} icon={StickyNote} description={getDescriptions().notes} onClick={notesClicked}/>
+          <IconButton size={iconSize} icon={BookOpen} description="Strategy" onClick={() => setRelativeView("Strategy")}/>
+          <IconButton size={iconSize} icon={Settings} description="Settings" onClick={() => setRelativeView("Settings")}/>
+          <IconButton size={iconSize} icon={Pointer} description={getDescriptions().inputMethod} onClick={inputClicked}/> */}
         </div>
       </div>
       

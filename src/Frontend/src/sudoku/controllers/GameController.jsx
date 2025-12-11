@@ -55,7 +55,7 @@ export function useGameController() {
 
   useEffect(() => {
     generalUpdateNumberHighlights()
-    updateAreaHighlights()
+    generalUpdateAreaHighlights()
   }, [gameOptions.selectedCell, gameOptions.selectedNumber, gameOptions.selectMethod, gameOptions.highlightNumbers, gameOptions.highlightAreas]);
   
   
@@ -78,7 +78,7 @@ export function useGameController() {
     updateNumberHighlights: () => {
       updateNumberHighlights(gameOptions.selectedNumber)
     },
-    getAreaHighlights: () => {
+    updateAreaHighlights: () => {
       setHighlightAreas(Array(9).fill(null).map(() => Array(9).fill(false)))
     }
   }
@@ -105,8 +105,9 @@ export function useGameController() {
         updateNumberHighlights(val)
       }
     },
-    getAreaHighlights: () => {
-      // TODO
+    updateAreaHighlights: () => {
+      const cell = gameOptions.selectedCell;
+      updateAreaHighlights(cell.row, cell.col)
     }
   }
 
@@ -177,7 +178,7 @@ export function useGameController() {
     updateNumberCompletion(conflicts)
     updateMistakes(conflicts)
     generalUpdateNumberHighlights()
-    updateAreaHighlights()
+    generalUpdateAreaHighlights()
   }
 
   function updatePuzzleCompletion(conflicts) {
@@ -234,12 +235,16 @@ export function useGameController() {
     }
   }
 
-  function updateAreaHighlights() {
-    if (!gameOptions.highlightAreas) return;
+  function generalUpdateAreaHighlights() {
+    if (!gameOptions.highlightAreas) {
+      // Clear
+      setHighlightAreas(Array(9).fill(null).map(() => Array(9).fill(false)));
+      return;
+    }
     if (gameOptions.selectMethod === "Number") {
-      NumberFirstStrategy.getAreaHighlights()
+      NumberFirstStrategy.updateAreaHighlights()
     } else {
-      CellFirstStrategy.getAreaHighlights()
+      CellFirstStrategy.updateAreaHighlights()
     }
   }
 
@@ -259,6 +264,26 @@ export function useGameController() {
       highlights[cell[0]][cell[1]] = true
     }
     setHighlightNumbers(highlights)
+  }
+
+  function updateAreaHighlights(row, col) {
+    const highlights = Array(9).fill(null).map(() => Array(9).fill(false));
+
+      for (let i = 0; i < 9; i++) {
+        highlights[row][i] = true;
+        highlights[i][col] = true;
+      }
+
+      const startRow = Math.floor(row / 3) * 3;
+      const startCol = Math.floor(col / 3) * 3;
+
+      for (let r = 0; r < 3; r++) {
+        for (let c = 0; c < 3; c++) {
+          highlights[startRow + r][startCol + c] = true;
+        }
+      }
+
+      setHighlightAreas(highlights);
   }
 
   
