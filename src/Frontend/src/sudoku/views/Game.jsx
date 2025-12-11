@@ -15,7 +15,7 @@ const pageStyle = {
   flexDirection: 'column',
   height: '100vh',
   width: '100vw',
-  overflow: 'hidden', // Fixes entire screen overlay issues
+  overflow: 'hidden',
 };
 
 // Grid layout for desktop (wide screens)
@@ -33,9 +33,9 @@ const desktopGridStyle = {
 const mobileGridStyle = {
   display: 'grid',
   gridTemplateColumns: '1fr',
-  gridTemplateRows: 'auto 1fr auto auto', // Row 2 (1fr) takes available space
-  gap: '1rem',
-  padding: '7rem 1rem 2rem 1rem', // Reduced side padding slightly for mobile
+  gridTemplateRows: 'auto 1fr auto auto', 
+  gap: '2rem', // Increased gap for separation between Info and Game
+  padding: '7rem 2rem 2rem 2rem', // Increased side padding
   flex: 1,
   minHeight: 0,
 };
@@ -45,7 +45,8 @@ const boxContentStyle = {
   flexDirection: 'column',
   alignItems: 'center',
   height: '100%',
-  justifyContent: 'center',
+  width: '100%',
+  justifyContent: 'space-between',
   containerType: 'size',
 };
 
@@ -53,21 +54,21 @@ const gameInfoStyle = {
   color: colors.text,
   fontSize: '15cqmin',
   fontWeight: 'bold',
-  marginBottom: '10cqh',
+  marginBottom: '5cqh',
 };
 
 const whiteTextStyle = {
   color: "#FFFFFF",
   fontSize: '8cqmin',
   fontWeight: 'bold',
-  margin: '4cqmin',
+  margin: '2cqmin', 
 };
 
 const timeStyle = {
   color: "#FFFFFF",
   fontSize: '20cqmin',
   fontWeight: 'bold',
-  marginTop: '15cqh',
+  marginTop: '5cqh', 
   marginBottom: '10cqh',
 };
 
@@ -103,9 +104,9 @@ const buttonsCellStyle = {
 
 const mobileGameAreaStyle = {
   display: 'flex',
-  gap: '0.5rem', // Reduced gap for mobile
+  gap: '0.5rem', 
   justifyContent: 'center',
-  alignItems: 'center',
+  alignItems: 'stretch', 
   width: '100%',
   height: '100%',
   minHeight: 0,
@@ -134,10 +135,12 @@ function Game() {
 
   // Calculate responsive sizes based on grid actual size
   const { infoWidth, infoHeight, numberSelectorWidth, gridSize } = useMemo(() => {
+    // If we haven't measured yet, return safe defaults
     if (!gridBounds.width || !gridBounds.height) {
-      return { infoWidth: 400, infoHeight: 600, numberSelectorWidth: 150, gridSize: 600 };
+      return { infoWidth: 400, infoHeight: 600, numberSelectorWidth: 150, gridSize: 0 };
     }
     
+    // logic to keep the grid square and fit within the measured container
     const gridSize = Math.min(gridBounds.width, gridBounds.height);
     const infoHeight = gridSize;
     const infoWidth = Math.min(400, Math.max(200, gridSize * 0.9));
@@ -160,35 +163,94 @@ function Game() {
     }
   }
 
-  function Info() {
-    const boxOverrideStyle = {
-      padding: '1rem',
-      boxSizing: 'border-box',
-      height: isMobile ? 'auto' : gridSize,
-      width: isMobile ? '100%' : infoWidth,
-      flexShrink: 0,
-    };
-    
-    return (
-      <Box width={isMobile ? '100%' : infoWidth} height={isMobile ? 'auto' : gridSize} style={boxOverrideStyle}>
-        <div style={boxContentStyle}>
-          <span style={gameInfoStyle}>Game Info</span>
-          <span style={whiteTextStyle}>Mode: {mode}</span>
-          <span style={whiteTextStyle}>Difficulty: {difficulty}</span>
-          <Timer timer={timer}/>
-        </div>
-      </Box>
-    )
-  }
-
-  function Timer() {
+  function Timer({ customStyle }) {
     if (timer === null) return <></>;
 
     const minutes = Math.floor(timer / 60);
     const seconds = timer % 60;
     const timeStr = `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
 
-    return <span style={timeStyle}>{timeStr}</span>;
+    return <span style={customStyle || timeStyle}>{timeStr}</span>;
+  }
+
+  function Info() {
+    // MOBILE LAYOUT
+    if (isMobile) {
+      const mobileBoxStyle = {
+        padding: '0.75rem 1.5rem',
+        display: 'flex',
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        width: '100%',
+        margin: 0, 
+        boxSizing: 'border-box', 
+        height: 'auto', 
+        minHeight: '60px',
+        borderRadius: '15px',
+      };
+      
+      const mobileLabelStyle = {
+        color: colors.text,
+        fontSize: '0.8rem',
+        fontWeight: 'bold',
+        opacity: 0.8,
+        marginRight: '0.5rem'
+      };
+
+      const mobileValueStyle = {
+        color: "#FFFFFF",
+        fontSize: '1rem',
+        fontWeight: 'bold',
+      };
+
+      const mobileTimerStyle = {
+        color: "#FFFFFF",
+        fontSize: '1.8rem',
+        fontWeight: 'bold',
+        fontVariantNumeric: 'tabular-nums',
+      };
+
+      return (
+        <Box width="100%" height="auto" style={mobileBoxStyle}>
+          <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: '2px' }}>
+             <div style={{ display: 'flex', alignItems: 'baseline' }}>
+                <span style={mobileLabelStyle}>Mode:</span>
+                <span style={mobileValueStyle}>{mode}</span>
+             </div>
+             <div style={{ display: 'flex', alignItems: 'baseline' }}>
+                <span style={mobileLabelStyle}>Difficulty:</span>
+                <span style={mobileValueStyle}>{difficulty}</span>
+             </div>
+          </div>
+          <Timer customStyle={mobileTimerStyle}/>
+        </Box>
+      )
+    }
+
+    // DESKTOP LAYOUT
+    const desktopBoxStyle = {
+      padding: '2rem',
+      boxSizing: 'border-box',
+      height: gridSize,
+      width: infoWidth,
+      flexShrink: 0,
+    };
+    
+    return (
+      <Box width={infoWidth} height={gridSize} style={desktopBoxStyle}>
+        <div style={boxContentStyle}>
+          <span style={gameInfoStyle}>Game Info</span>
+          
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center' }}>
+            <span style={whiteTextStyle}>Mode: {mode}</span>
+            <span style={whiteTextStyle}>Difficulty: {difficulty}</span>
+          </div>
+          
+          <Timer customStyle={timeStyle}/>
+        </div>
+      </Box>
+    )
   }
 
   if (isMobile) {
@@ -201,37 +263,38 @@ function Game() {
           </div>
           
           <div style={{ gridRow: '2', ...mobileGameAreaStyle }}>
-            {/* We add maxHeight: '100%' to prevent the aspect-ratio 
-                from forcing the grid taller than the available row space.
-            */}
-            <div style={{ 
+            {/* Added ref={gridRef} here to measure available space */}
+            <div ref={gridRef} style={{ 
               flex: '1 1 0', 
               minWidth: 0, 
               minHeight: 0, 
-              aspectRatio: '1', 
-              maxHeight: '100%', 
               display: 'flex', 
-              justifyContent: 'center' 
+              justifyContent: 'center',
+              alignItems: 'center'
             }}>
-              <SudokuGrid 
-                gridData={gridData}
-                selectedCell={selectedCell}
-                onCellClick={cellClicked}
-                highlightedNumbers={highlightNumbers}
-                highlightedAreas={highlightAreas}
-                mistakes={mistakes}
-              />
+              {/* Constrain Grid size explicitly like Desktop to fix resizing issue */}
+              <div style={{ width: gridSize || '100%', height: gridSize || '100%' }}>
+                <SudokuGrid 
+                  gridData={gridData}
+                  selectedCell={selectedCell}
+                  onCellClick={cellClicked}
+                  highlightedNumbers={highlightNumbers}
+                  highlightedAreas={highlightAreas}
+                  mistakes={mistakes}
+                />
+              </div>
             </div>
+            
             <NumberSelector
               selectedNumber={selectedNumber}
               onNumberSelect={numberClicked}
               isColumn={true}
               completedNumbers={completedNumbers}
-              style={{ height: '100%', width: 'auto', maxHeight: '100%' }}
+              style={{ height: '100%', width: '16vw', maxHeight: '100%' }}
             />
           </div>
           
-          <div style={{ gridRow: '3', display: 'flex', justifyContent: 'center', gap: '1%' }}>
+          <div style={{ gridRow: '3', display: 'flex', justifyContent: 'space-between', width: '100%' }}>
             <IconButton size={iconSize} icon={Lightbulb} description="Hint" onClick={hintClicked}/>
             <IconButton size={iconSize} icon={Undo} description="Undo" onClick={undoClicked}/>
             <IconButton size={iconSize} icon={Eraser} description={getDescriptions().erase} onClick={eraseClicked}/>
