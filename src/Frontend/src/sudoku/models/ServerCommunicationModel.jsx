@@ -9,19 +9,19 @@ export async function fetchState() {
             method: 'GET',
             credentials: 'include',
         });
-        
+
         if (!response.ok) {
             console.error("Got error for GET request to /state")
             return { err: response.status, message: `HTTP error ${response.status}` };
         }
-        
+
         const data = await response.json();
         console.log("Got response for GET request to /state")
-        return { ...data, err: 0 }; 
+        return { ...data, err: 0 };
     } catch (err) {
         return { err: -1, message: err.message || 'Network error' };
     }
-};
+}
 
 export async function sendState(sudokuState) {
     try {
@@ -39,7 +39,7 @@ export async function sendState(sudokuState) {
             console.error("Got error for POST request to /state")
             return { err: response.status, message: `HTTP error ${response.status}` };
         }
-        
+
         const data = await response.json();
         console.log("Got response for POST request to /state")
         return { ...data, err: 0 };
@@ -61,7 +61,7 @@ export async function fetchNewGrid() {
             console.error("Got error for GET request to /new_grid")
             return { err: response.status, message: `HTTP error ${response.status}` };
         }
-        
+
         const data = await response.json();
         console.log("Got response for GET request to /new_grid")
         return { ...data, err: 0 };

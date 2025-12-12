@@ -80,10 +80,10 @@ function Home() {
                                 title="Tic-Tac-Toe"
                                 description={ticTacToeDescription}
                                 image={TicTacToeIcon}
-                                onCardClick={() => navigate('/tic-tac-toe/settings')}
-                                onPlayNowClick={() => navigate('/tic-tac-toe/settings')}
-                                onSettingsClick={() => navigate('/')}
-                                onStrategyClick={() => navigate('/')}
+                                onCardClick={() => navigate('/tic-tac-toe?fresh=1')}
+                                onPlayNowClick={() => navigate('/tic-tac-toe?fresh=1')}
+                                onSettingsClick={() => navigate('/tic-tac-toe/settings')}
+                                onStrategyClick={() => navigate('/tic-tac-toe/strategy')}
                         />
                         <GameCard
                                 title="Minesweeper"

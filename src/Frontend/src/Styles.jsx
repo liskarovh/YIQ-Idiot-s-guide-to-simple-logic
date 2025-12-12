@@ -27,7 +27,7 @@ const styles = {
         padding: '1rem'
     },
     mainTitleStyle: {
-        fontSize: '80px',
+        fontSize: 'clamp(40px, 4.5vw, 80px)',
         fontWeight: '700',
         color: colors.text_header,
         margin: 0,
@@ -35,7 +35,7 @@ const styles = {
         lineHeight: '1.1',
     },
     subtitleStyle: {
-        fontSize: '40px',
+        fontSize: 'clamp(20px, 3vw, 40px)',
         fontWeight: '400',
         color: colors.text,
         margin: 0,

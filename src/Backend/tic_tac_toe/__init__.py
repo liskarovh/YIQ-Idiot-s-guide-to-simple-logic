@@ -1,8 +1,11 @@
 from __future__ import annotations
-from flask import Blueprint, request, jsonify, send_from_directory
+from flask import Blueprint, request, jsonify, send_from_directory, Response, stream_with_context
 import logging
 import time
 import os
+import json
+import threading
+import queue
 
 from . import rules
 from . import service as svc
@@ -40,6 +43,180 @@ def _mk_explain(bm_stats: dict, player: str, size: int, k: int, difficulty: str)
     if isinstance(bm_stats, dict):
         rolls = int(bm_stats.get("rollouts", 0) or 0)
     return f"MCTS rollouts={rolls}; size={size}; k={k}; player={player}; difficulty={difficulty}"
+
+
+# ───────────────────────── Spectator driver (AI vs AI) ─────────────────────────
+
+class _SpectatorGame:
+    __slots__ = ("game_id", "thread", "stop", "subs", "lock", "delay_ms", "difficulty")
+
+    def __init__(self, game_id: str, delay_ms: int, difficulty: str):
+        self.game_id = game_id
+        self.stop = threading.Event()
+        self.thread: threading.Thread | None = None
+        self.subs: set[queue.Queue] = set()
+        self.lock = threading.Lock()
+        self.delay_ms = int(max(0, delay_ms))
+        self.difficulty = difficulty
+
+
+_SPECTATOR_REG: dict[str, _SpectatorGame] = {}
+_SPECTATOR_REG_LOCK = threading.Lock()
+
+
+def _notify(game_id: str, event_type: str, data: dict):
+    with _SPECTATOR_REG_LOCK:
+        sg = _SPECTATOR_REG.get(game_id)
+        if not sg:
+            log.debug("SSE notify dropped: game %s not registered", game_id)
+            return
+        targets = list(sg.subs)
+
+    payload = {"type": event_type, "data": data}
+
+    log.info(
+        "SSE notify → game=%s type=%s subs=%d payload=%s",
+        game_id, event_type, len(targets), data,
+    )
+
+    for q in targets:
+        try:
+            q.put_nowait(payload)
+        except Exception:
+            log.exception("SSE notify: failed to enqueue for game %s", game_id)
+            # drop silently
+            pass
+
+
+def _start_driver(game_id: str, delay_ms: int, difficulty: str):
+    sg = _SpectatorGame(game_id, delay_ms, difficulty)
+    with _SPECTATOR_REG_LOCK:
+        _SPECTATOR_REG[game_id] = sg
+
+    def _run():
+        try:
+            while not sg.stop.is_set():
+                g = svc.get_game(game_id)
+                if not g:
+                    break
+                term = rules.check_winner(g.board, g.k_to_win)
+                if term is not None or getattr(g, "status", "running") != "running":
+                    status = "win" if term in ("X", "O") else ("draw" if term == "draw" else getattr(g, "status", "running"))
+
+                    try:
+                        g.status = status
+                        if status == "win":
+                            setattr(g, "winner", term)
+                        svc.save_game(g)
+                    except Exception:
+                        log.exception("Failed to persist spectator end-state for game %s", game_id)
+
+                    end_payload = {
+                        "status": status,
+                        "winner": term if status == "win" else None,
+                        "winningSequence": svc._winning_sequence_for(g),
+                    }
+                    _notify(game_id, "end", end_payload)
+                    break
+
+                # compute move for current player (AI vs AI)
+                ai_mark = g.player
+                human_mark = "O" if ai_mark == "X" else "X"
+                try:
+                    r, c = svc._pick_ai_move_safe(  # type: ignore[attr-defined]
+                        g.board, ai_mark, human_mark, g.size, g.k_to_win, sg.difficulty
+                    )
+                except Exception:
+                    # fallback: pick first legal
+                    found = False
+                    for rr in range(g.size):
+                        for cc in range(g.size):
+                            if g.board[rr][cc] == ".":
+                                r, c = rr, cc
+                                found = True
+                                break
+                        if found: break
+                    if not found:
+                        # no legal move → draw
+                        g.status = "draw"
+                        svc.save_game(g)
+                        continue
+
+                try:
+                    rich = build_explanation(
+                        g.board,
+                        (int(r), int(c)),
+                        ai_mark,
+                        g.size,
+                        g.k_to_win,
+                    )
+                except Exception:
+                    rich = {
+                        "summary": "",
+                        "reasons": [],
+                        "winningSequence": [],
+                        "hints": {},
+                    }
+
+                try:
+                    g2 = svc.apply_move(g, int(r), int(c))
+                except Exception:
+                    break
+
+                move_payload = {
+                    "player": ai_mark,
+                    "row": int(r),
+                    "col": int(c),
+                    "board": g2.board,
+                    "moves": len(g2.history),
+                    "explain": rich.get("summary"),
+                    "explainRich": rich,
+                    "stats": {
+                        "origin": "spectator",
+                        **(rich.get("hints") or {}),
+                    },
+                }
+                _notify(game_id, "move", move_payload)
+
+                # small sleep between moves
+                delay = max(0, int(sg.delay_ms))
+                time.sleep(delay / 1000.0 if delay > 0 else 0)
+
+            # ensure end event once when loop exits due to status
+            g = svc.get_game(game_id)
+            if g:
+                term = rules.check_winner(g.board, g.k_to_win)
+                if term is not None or getattr(g, "status", "running") != "running":
+                    status = "win" if term in ("X", "O") else (
+                        "draw" if term == "draw" else getattr(g, "status", "running")
+                    )
+
+                    try:
+                        g.status = status
+                        if status == "win":
+                            setattr(g, "winner", term)
+                        svc.save_game(g)
+                    except Exception:
+                        log.exception(
+                            "Failed to persist spectator end-state (post-loop) for game %s",
+                            game_id,
+                        )
+
+                    end_payload = {
+                        "status": status,
+                        "winner": term if status == "win" else None,
+                        "winningSequence": svc._winning_sequence_for(g),  # type: ignore[attr-defined]
+                    }
+                    _notify(game_id, "end", end_payload)
+        finally:
+            # cleanup registry entry
+            with _SPECTATOR_REG_LOCK:
+                _SPECTATOR_REG.pop(game_id, None)
+
+    t = threading.Thread(target=_run, name=f"ttt-spectator-{game_id}", daemon=True)
+    sg.thread = t
+    t.start()
+    return sg
 
 
 @bp.get("/meta")
@@ -348,7 +525,174 @@ def api_restart():
         return json_error("Internal", str(e), 500)
 
 
+@bp.post("/timeout-lose")
+def api_timeout_lose():
+    data = request.get_json(silent=True) or {}
+    gid = data.get("gameId")
+
+    if not isinstance(gid, str):
+        return json_error("BadRequest", "gameId required", 400)
+
+    g = svc.get_game(gid)
+    if not g:
+        return json_error("NotFound", "Game not found", 404)
+
+    if getattr(g, "status", "running") != "running":
+        return json_error("GameOver", "Game already finished", 409)
+
+    cur = (getattr(g, "player", "X") or "X").strip().upper()
+    if cur not in ("X", "O"):
+        cur = "X"
+    winner = "O" if cur == "X" else "X"
+
+    g.status = "timeout"
+    setattr(g, "winner", winner)
+
+    try:
+        svc.save_game(g)
+    except Exception as e:
+        log.exception("Failed to persist timeout-lose for game %s", gid)
+        return json_error("Internal", str(e), 500)
+
+    return jsonify(svc.to_response(g)), 200
+
+
 @bp.get("/static/<path:filename>")
 def ttt_static(filename: str):
     base = os.path.join(os.path.dirname(__file__))
     return send_from_directory(base, filename)
+
+
+# ───────────────────────── Spectator API ─────────────────────────
+
+@bp.post("/spectator/new")
+def api_spectator_new():
+    data = request.get_json(silent=True) or {}
+    try:
+        size = int(data.get("size", 3))
+        k = int(data.get("kToWin", 3))
+    except Exception:
+        return json_error("InvalidInput", "size/kToWin must be integers", 400)
+
+    if not (SIZE_MIN <= size <= SIZE_MAX):
+        return json_error("InvalidInput", f"size must be between {SIZE_MIN} and {SIZE_MAX}", 400)
+    if not (K_MIN <= k <= K_MAX) or k > size:
+        return json_error("InvalidInput", "kToWin out of range or larger than size", 400)
+
+    difficulty = _norm_difficulty(data.get("difficulty"))
+
+    # Delay (default 30 s)
+    md = data.get("moveDelayMs")
+    if md is None:
+        delay_ms = 3000  # 3 sekund
+    else:
+        try:
+            delay_ms = max(0, int(md))
+        except Exception:
+            delay_ms = 3000
+    # Create AI vs AI game (PvP mode but mark players as AI for UI)
+    try:
+        g = svc.new_game(
+            size=size,
+            k_to_win=k,
+            start_mark=data.get("startMark") or "X",
+            mode="pvp",  # no autoplay, both sides manual → our driver will play
+            difficulty=difficulty,
+            players={
+                "X": {"nickname": "Alpha", "kind": "ai"},
+                "O": {"nickname": "Beta",  "kind": "ai"},
+            },
+        )
+    except Exception as e:
+        log.exception("Failed to create spectator game")
+        return json_error("Internal", str(e), 500)
+
+    _start_driver(g.id, delay_ms=delay_ms, difficulty=difficulty)
+
+    return jsonify({
+        "gameId": g.id,
+        "state": svc.to_response(g),
+    }), 200
+
+
+@bp.get("/spectator/state")
+def api_spectator_state():
+    game_id = request.args.get("gameId")
+    if not game_id:
+        return json_error("BadRequest", "gameId required", 400)
+    g = svc.get_game(game_id)
+    if not g:
+        return json_error("NotFound", "Game not found", 404)
+    return jsonify(svc.to_response(g)), 200
+
+
+@bp.get("/spectator/events")
+def api_spectator_events():
+    game_id = request.args.get("gameId")
+    if not game_id:
+        return json_error("BadRequest", "gameId required", 400)
+    g = svc.get_game(game_id)
+    if not g:
+        return json_error("NotFound", "Game not found", 404)
+
+    # ensure driver exists (could be re-attached)
+    with _SPECTATOR_REG_LOCK:
+        if game_id not in _SPECTATOR_REG:
+            # start a gentle driver with default parameters if missing
+            _start_driver(game_id, delay_ms=3000, difficulty=getattr(g, "difficulty", "easy") or "easy")
+
+    client_q: queue.Queue = queue.Queue(maxsize=128)
+    with _SPECTATOR_REG_LOCK:
+        sg = _SPECTATOR_REG.get(game_id)
+        if sg:
+            sg.subs.add(client_q)
+
+    def _format_event(event: str, data_obj: dict) -> str:
+        return f"event: {event}\n" + "data: " + json.dumps(data_obj, ensure_ascii=False) + "\n\n"
+
+    @stream_with_context
+    def _stream():
+        try:
+            # initial full snapshot
+            yield _format_event("state", svc.to_response(g))
+            last_ping = time.time()
+            while True:
+                try:
+                    item = client_q.get(timeout=15.0)
+                    if not isinstance(item, dict):
+                        continue
+                    t = item.get("type")
+                    d = item.get("data")
+                    if t == "move":
+                        yield _format_event("move", d)
+                    elif t == "end":
+                        yield _format_event("end", d)
+                        break
+                    elif t == "state":
+                        yield _format_event("state", d)
+                except queue.Empty:
+                    # heartbeat
+                    yield ": ping\n\n"
+                    # also re-ping every ~15s
+                    now = time.time()
+                    if now - last_ping > 30:
+                        last_ping = now
+                        # recheck game status and send state if ended silently
+                        gg = svc.get_game(game_id)
+                        if not gg:
+                            yield _format_event("end", {"status": "timeout"})
+                            break
+        finally:
+            # cleanup subscriber
+            with _SPECTATOR_REG_LOCK:
+                sg2 = _SPECTATOR_REG.get(game_id)
+                if sg2 and client_q in sg2.subs:
+                    sg2.subs.discard(client_q)
+
+    headers = {
+        "Content-Type": "text/event-stream",
+        "Cache-Control": "no-cache",
+        "Connection": "keep-alive",
+        # CORS is managed globally by app CORS config
+    }
+    return Response(_stream(), status=200, headers=headers)
