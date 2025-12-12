@@ -10,7 +10,7 @@ import type {UnifiedError} from "./types.js";
 const AjvCtor: any = (AjvModule as any).default ?? AjvModule;
 const addFormats: any = (addFormatsModule as any).default ?? addFormatsModule;
 
-const ajv = new AjvCtor({ allErrors: true });
+const ajv = new AjvCtor({allErrors: true});
 addFormats(ajv);
 
 function validateRequest(validateRequest: ValidateFunction | null, request: Request, next: NextFunction): boolean {

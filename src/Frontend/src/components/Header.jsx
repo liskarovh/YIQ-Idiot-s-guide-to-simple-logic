@@ -1,12 +1,13 @@
 import React, {useEffect, useState} from "react";
-import { useNavigate } from "react-router-dom";
+import {useNavigate} from "react-router-dom";
 import colors from "../Colors";
 
 /**
- * HEADER COMPONENT - Navigation header
+ * Navigation header
  *
  * Props:
- * - showBack: boolean - if true shows "Back", if false shows "About"
+ * - rightLinkTitle: string - title for the right link (default: null -> "About" or "Back" based on showBack)
+ * - showBack: boolean - if true shows "Back", if false or null shows "About", if string navigates to that path
  * - onNavigate: function - callback when navigation link is clicked
  */
 
@@ -25,22 +26,13 @@ function useWindowScale(baseWidth = 1920, {min, max} = {}) {
     return s;
 }
 
-function Header({showBack = false, onNavigate}) {
+function Header({rightLinkTitle = null, showBack = null, onNavigate}) {
     const navigate = useNavigate();
     const s = useWindowScale(1920, {min: 0.7, max: 1});
     const [linkHover, setLinkHover] = useState(false);
 
     const handleLogoClick = () => {
         navigate("/", {replace: true});
-    };
-
-    const handleLinkClick = () => {
-        if(showBack) {
-            navigate(-1);
-        }
-        else {
-            navigate("/about");
-        }
     };
 
     const headerStyle = {
@@ -92,29 +84,32 @@ function Header({showBack = false, onNavigate}) {
         transition: "color 0.18s"
     };
 
+    const rightLinkText = (typeof rightLinkTitle === "string") ? rightLinkTitle
+                                                               : showBack ? "Back"
+                                                                          : "About";
+
     return (
             <header style={headerStyle}>
                 <div style={leftSectionStyle}>
-                    <span style={logoStyle} onClick={handleLogoClick}
-                    >yIQ</span>
-                    <span style={titleStyle}>Ydea impaired's quide to basic logic</span>
+                    <span style={logoStyle}
+                          onClick={handleLogoClick}
+                    >
+                        yIQ
+                    </span>
+                    <span style={titleStyle}>
+                        Ydea impaired's quide to basic logic
+                    </span>
                 </div>
 
-                <span
-                        style={linkStyle}
-                        onClick={handleLinkClick}
-                        onMouseEnter={() => setLinkHover(true)}
-                        onMouseLeave={() => setLinkHover(false)}
-                        role="button"
-                        tabIndex={0}
-                        onKeyDown={(e) => {
-                            if(e.key === "Enter") {
-                                onNavigate && onNavigate(showBack ? "back" : "/about");
-                            }
-                        }}
+                <span style={linkStyle}
+                      onClick={() => onNavigate && onNavigate(showBack ? "back" : "/about")}
+                      onMouseEnter={() => setLinkHover(true)}
+                      onMouseLeave={() => setLinkHover(false)}
+                      role="button"
+                      tabIndex={0}
                 >
-        {showBack ? 'Back' : 'About'}
-      </span>
+                    {rightLinkText}
+              </span>
             </header>
     );
 }

@@ -7,7 +7,7 @@ export function maskGameViewForClient(gameSession: GameSession, snapshot: Snapsh
     console.debug(`[UTILS.ts] maskGameViewForClient for game=${gameSession.id} revealMines=${revealMines}`);
 
     // When not revealing, keep mines undefined so the client cannot infer positions.
-    const mines = revealMines ? gameSession.minePositions.map(([r, c]) => ({r, c})) : undefined;
+    const mines = revealMines ? gameSession.minePositions.map(([row, col]) => ({row, col})) : undefined;
     if (mines) {
         console.debug(`[UTILS.ts] maskGameViewForClient revealing ${mines.length} mines`);
     } else {
@@ -162,6 +162,7 @@ export function buildCapabilitiesPayload(): CapabilitiesResponse {
 
     // Declare feature flags supported by the server.
     const features = {
+        timer: true,
         undo: true,
         hints: true,
         replay: true
@@ -171,12 +172,19 @@ export function buildCapabilitiesPayload(): CapabilitiesResponse {
     const payload = {
         presets,
         limits: cCapabilitiesLimits,
+        lives: 3,
         features
     };
 
     console.debug(`[UTILS.ts] getCapabilitiesPayload:`, payload);
     return payload;
 } // buildCapabilitiesPayload()
+
+export function buildMaxMinesPayload(rows: number, cols: number): number {
+    const maxMines = areaMaxMines(rows, cols);
+    console.debug(`[UTILS.ts] buildMaxMinesPayload: maxMines=${maxMines}`);
+    return maxMines;
+} // buildMaxMinesPayload()
 
 function clamp(value: number, min: number, max: number) {
     return Math.max(min, Math.min(max, value));

@@ -2,7 +2,7 @@ import Slider from "../../../components/Slider";
 import NumberField from "../../../components/NumberField";
 import MinesweeperSettingsStyles from "../../styles/MinesweeperSettingsStyles.jsx";
 
-function SliderNumberControl({
+function SliderWithNumberControl({
                                  value,
                                  onChange,
                                  min,
@@ -20,7 +20,7 @@ function SliderNumberControl({
                         width={sliderWidth}
                 />
                 <NumberField
-                        presetValue={value}
+                        value={value}
                         onChange={onChange}
                         minValue={min}
                         maxValue={max}
@@ -31,4 +31,4 @@ function SliderNumberControl({
     );
 }
 
-export default SliderNumberControl;
+export default SliderWithNumberControl;

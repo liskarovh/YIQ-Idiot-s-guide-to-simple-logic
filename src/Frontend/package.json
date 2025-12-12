@@ -8,7 +8,9 @@
     "react-router-dom": "^6.30.1",
     "react-scripts": "5.0.1",
     "lucide-react": "^0.263.1",
-    "react-use-measure": "^2.1.1"
+    "react-use-measure": "^2.1.1",
+    "axios": "^1.13.2",
+    "@heroicons/react": "^2.2.0"
   },
   "scripts": {
     "start": "react-scripts start",

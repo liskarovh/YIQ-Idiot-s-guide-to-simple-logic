@@ -1,7 +1,7 @@
 import Box from "../../../components/Box";
 import SettingRow from "../../../components/SettingsRow";
 import MinesweeperSettingsStyles from "../../styles/MinesweeperSettingsStyles.jsx";
-import SliderNumberControl from "./SliderWithNumberControl";
+import SliderWithNumberControl from "./SliderWithNumberControl";
 import ToggleRow from "./ToggleRow";
 
 function GameplayPanel({
@@ -27,7 +27,7 @@ function GameplayPanel({
                         label="Number of Lives:"
                         inline={MinesweeperSettingsStyles.settingsRowInline}
                         control={
-                            <SliderNumberControl
+                            <SliderWithNumberControl
                                     value={lives}
                                     onChange={onLivesChange}
                                     min={livesL.min}

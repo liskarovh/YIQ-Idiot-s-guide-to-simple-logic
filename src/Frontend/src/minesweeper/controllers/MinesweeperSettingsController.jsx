@@ -1,81 +1,101 @@
 import {useCallback, useEffect, useMemo, useRef, useState} from "react";
 import {useNavigate} from "react-router-dom";
-import {createGame, getCapabilities, persistLastCreate, persistUiPrefs} from "../models/MinesweeperSettings/MinesweeperSettingsAPI.jsx";
-import {buildCreatePayload, buildUiPrefs} from "../models/MinesweeperSettings/MinesweeperSettingsBuilders.jsx";
+import {postCreateGame, getCapabilities, getMaxMines, getDetectPreset, persistLastCreatePayload, persistGameplayPrefs, isAbortLikeError} from "../models/MinesweeperSettings/MinesweeperSettingsAPI.jsx";
+import {buildCreatePayload, buildGameplayPrefs} from "../models/MinesweeperSettings/MinesweeperSettingsBuilders.jsx";
 import {deriveInitialStateFromCaps} from "../models/MinesweeperSettings/MinesweeperSettingsState.jsx";
-import {maxMinesForGrid, detectPreset} from "../models/MinesweeperSettings/MinesweeperSettingsLogic.jsx";
 
-function uuid4() {
-    return crypto?.randomUUID
-           ? crypto.randomUUID()
-           : `${Date.now()}-${Math.random().toString(16).slice(2)}`;
-}
-
-export function useMinesweeperSettingsController() {
+export function MinesweeperSettingsController() {
     const navigate = useNavigate();
-    const apiUrl = process.env.REACT_APP_API_URL || "http://localhost:5000";
-    const base = `${apiUrl}/api/minesweeper`;
 
-    // --- Capabilities lifecycle ---
+    // Lifecycle of Capabilities
     const [caps, setCaps] = useState(null);
-    const [capsError, setCapsError] = useState(null);
     const [capsLoading, setCapsLoading] = useState(true);
 
     useEffect(() => {
-        const ac = new AbortController();
+        const abortCtrl = new AbortController();
         (async() => {
             try {
                 setCapsLoading(true);
-                const c = await getCapabilities(base, {signal: ac.signal});
-                setCaps(c);
-                setCapsError(null);
+                const caps = await getCapabilities({signal: abortCtrl.signal});
+                setCaps(caps);
             }
             catch(e) {
-                console.debug("[MinesweeperSettingsController] CapsError", e);
+                if(isAbortLikeError(e)) {
+                    return;
+                }
+                setCaps(null);
             }
             finally {
                 setCapsLoading(false);
             }
         })();
-        return () => ac.abort();
-    }, [base]);
+        return () => abortCtrl.abort();
+    }, []);
 
-    // --- Inputs, initialized from capabilities ---
-    const init = useMemo(() => (caps ? deriveInitialStateFromCaps(caps) : null), [caps]);
-
+    // Prepare states for capabilities with default values (before caps are loaded from BE)
     const [preset, setPreset] = useState("Medium");
     const [rows, setRows] = useState(16);
     const [cols, setCols] = useState(16);
     const [mines, setMines] = useState(40);
+    const [maxMines, setMaxMines] = useState(null);
     const [lives, setLives] = useState(3);
 
-    // UI-only volby (neposílají se do create payloadu kromě quickFlag pokud ho tak máš)
     const [showTimer, setShowTimer] = useState(true);
     const [allowUndo, setAllowUndo] = useState(true);
-    const [enableHints, setEnableHints] = useState(false);
+    const [enableHints, setEnableHints] = useState(true);
+    const [captureReplay, setCaptureReplay] = useState(true);
 
-    // Po načtení capabilities nastavíme výchozí stav (bez FE kanonizace; to dělá server)
+    // After default caps are loaded, we set the default settings state
+    const initialCaps = useMemo(() => (caps ? deriveInitialStateFromCaps(caps) : null), [caps]);
+
     useEffect(() => {
-        if(!init || !caps) {
+        if(!initialCaps || !caps) {
             return;
         }
 
-        setPreset(init.preset);
-        setRows(init.rows);
-        setCols(init.cols);
-        setMines(init.mines);
-        setLives(3);
+        setPreset(initialCaps.preset);
+        setRows(initialCaps.rows);
+        setCols(initialCaps.cols);
+        setMines(initialCaps.mines);
+        setLives(initialCaps.lives);
 
-        // features z capabilities
+        setShowTimer(!!caps.features?.timer);
         setAllowUndo(!!caps.features?.undo);
         setEnableHints(!!caps.features?.hints);
-    }, [init, caps]);
+        setCaptureReplay(!!caps.features?.replay);
+    }, [initialCaps, caps]);
 
     const difficultyOptions = useMemo(() => (caps?.presets || []).map((p) => p.name).concat("Custom"), [caps?.presets]);
     const limits = useMemo(() => caps?.limits, [caps?.limits]);
-    const maxMines = useMemo(() => maxMinesForGrid(rows, cols), [rows, cols]);
 
-    // --- Helpers ---
+    useEffect(() => {
+        if(!caps) {
+            return;
+        }
+
+        const abortCtrl = new AbortController();
+
+        (async() => {
+            try {
+                const response = await getMaxMines(Number(rows),
+                                                   Number(cols),
+                                                   {signal: abortCtrl.signal});
+
+                const maxMines = typeof response === "number" ? response : Number(response);
+                setMaxMines(Number(maxMines));
+            }
+            catch(e) {
+                if(isAbortLikeError(e)) {
+                    return;
+                }
+                setMaxMines(900); // safe fallback
+            }
+        })();
+
+        return () => abortCtrl.abort();
+    }, [rows, cols, caps]);
+
+    // Detects preset definition by name
     const findPresetDims = useCallback(
             (name) => {
                 if(!caps?.presets) {
@@ -86,13 +106,12 @@ export function useMinesweeperSettingsController() {
             [caps?.presets]
     );
 
-    // --- Handlery ---
-    const changePreset = useCallback(
+    // Changes preset and updates dimensions accordingly
+    const handleChangePreset = useCallback(
             (p) => {
                 setPreset(p);
                 if(p === "Custom") {
-                    // necháme aktuální rows/cols/mines beze změny
-                    return;
+                    return; // do not change anything for "custom"
                 }
                 const presetDef = findPresetDims(p);
                 if(presetDef) {
@@ -104,123 +123,147 @@ export function useMinesweeperSettingsController() {
             [findPresetDims]
     );
 
-    // Pokud uživatel mění rozměry, je to Custom; pokud se přesně trefí do presetu, detekujeme ho zpět.
+    // If the user changes dimensions manually, we try to detect the preset
+    const detectPreviousDimsAndDetect = useRef(null); // to abort previous detect request and save network bandwidth
     const applyDimsAndDetect = useCallback(
             (nextRows, nextCols, nextMines) => {
                 setRows(nextRows);
                 setCols(nextCols);
                 setMines(nextMines);
 
-                const detected = detectPreset(
-                        Number(nextRows),
-                        Number(nextCols),
-                        Number(nextMines),
-                        caps.presets
-                );
-                setPreset(detected === "Custom" ? "Custom" : detected);
+                // Cancel previous detected request
+                if(detectPreviousDimsAndDetect.current) {
+                    detectPreviousDimsAndDetect.current.abort();
+                }
+
+                const abortCtrl = new AbortController();
+                detectPreviousDimsAndDetect.current = abortCtrl;
+
+                (async() => {
+                    try {
+                        const response = await getDetectPreset(Number(nextRows),
+                                                               Number(nextCols),
+                                                               Number(nextMines),
+                                                               {signal: abortCtrl.signal});
+
+                        const detectedPreset = typeof response === "string" ? response : String(response);
+                        setPreset(detectedPreset);
+                    }
+                    catch(e) {
+                        if(isAbortLikeError(e)) {
+                            return;
+                        }
+                        setPreset("Custom"); // fallback
+                    }
+                    finally {
+                        detectPreviousDimsAndDetect.current = null;
+                    }
+                })();
             },
-            [caps?.presets]
+            []
     );
 
-    const safeSetRows = useCallback(
+    // Handlers for safe state dimension changes
+    const handleSetRows = useCallback(
             (v) => applyDimsAndDetect(Number(v), cols, mines),
             [applyDimsAndDetect, cols, mines]
     );
-    const safeSetCols = useCallback(
+    const handleSetCols = useCallback(
             (v) => applyDimsAndDetect(rows, Number(v), mines),
             [applyDimsAndDetect, rows, mines]
     );
-    const safeSetMines = useCallback(
+    const handleSetMines = useCallback(
             (v) => applyDimsAndDetect(rows, cols, Number(v)),
             [applyDimsAndDetect, rows, cols]
     );
+    const handleLivesChange = useCallback(
+            (v) => setLives(Number(v)),
+            []
+    );
+    const handleShowTimerChange = useCallback(
+            (v) => setShowTimer(!!v),
+            []
+    );
+    const handleAllowUndoChange = useCallback(
+            (v) => setAllowUndo(!!v),
+            []
+    );
+    const handleEnableHintsChange = useCallback(
+            (v) => setEnableHints(!!v),
+            []
+    );
 
-    const handleLivesChange = useCallback((v) => setLives(Number(v)), []);
-    const handleShowTimerChange = useCallback((v) => setShowTimer(!!v), []);
-    const handleAllowUndoChange = useCallback((v) => setAllowUndo(!!v), []);
-    const handleEnableHintsChange = useCallback((v) => setEnableHints(!!v), []);
-
-    // --- Idempotent create + abort previous inflight ---
-    const inflightRef = useRef(null);
+    // Create game (after pressing play button)
+    const detectPreviousCreateGame = useRef(null);
     const [submitError, setSubmitError] = useState(null);
     const [submitting, setSubmitting] = useState(false);
 
     const handlePlay = useCallback(async() => {
         setSubmitError(null);
-        const ac = new AbortController();
+        const abortCtrl = new AbortController();
 
-        // cancel previous request
-        if(inflightRef.current) {
-            inflightRef.current.abort();
+        // Cancel previous request
+        if(detectPreviousCreateGame.current) {
+            detectPreviousCreateGame.current.abort();
         }
 
-        inflightRef.current = ac;
+        detectPreviousCreateGame.current = abortCtrl;
         setSubmitting(true);
+
         try {
-            const idk = uuid4();
+            const createPayload = buildCreatePayload({preset, rows, cols, mines, lives});
 
-            const createPayload = buildCreatePayload({
-                                                         preset,
-                                                         rows,
-                                                         cols,
-                                                         mines,
-                                                         lives
-                                                     });
+            const gameplayPrefs = buildGameplayPrefs({showTimer, allowUndo, enableHints, captureReplay});
 
-            const uiPrefs = buildUiPrefs({
-                                             showTimer,
-                                             allowUndo,
-                                             enableHints
-                                         });
+            const {view, location} = await postCreateGame(createPayload,
+                                                          {signal: abortCtrl.signal});
 
-            const {view, location} = await createGame(base, createPayload, {
-                signal: ac.signal,
-                idempotencyKey: idk
-            });
-
-            // uložit UI prefs a „poslední vytvoření“
+            // We save gameplay preferences and last create game payload
             if(view?.gameId) {
-                persistUiPrefs(view.gameId, uiPrefs);
+                persistGameplayPrefs(view.gameId, gameplayPrefs);
             }
-            persistLastCreate(createPayload);
+            persistLastCreatePayload(createPayload);
 
-            // Prefer Location header, pokud je k dispozici
+            // We try to use "location" header if present to navigate to the game
             if(location) {
                 try {
                     const url = new URL(location, window.location.origin);
-                    const id = view?.gameId || url.pathname.split("/").pop();
-                    if(id) {
-                        navigate(`/minesweeper/play/${id}`);
+                    const gameId = view?.gameId || url.pathname.split("/").pop();
+                    if(gameId) {
+                        navigate("/minesweeper", {state: {id: gameId}});
                         return;
                     }
                 }
                 catch {
-                    // padající/relativní Location – ignorujeme a použijeme body
+                    // ignore
                 }
             }
 
-            // fallback – použij ID z těla
-            navigate(`/minesweeper/play/${view.gameId}`);
+            // Fallback navigation
+            navigate("/minesweeper", {state: {id: view.gameId}});
         }
         catch(e) {
-            if(e?.name === "AbortError") {
+            // Ignore aborted
+            if(isAbortLikeError(e)) {
                 return;
-            } // ignore aborted
+            }
+
+            // Else, set error
             setSubmitError(e);
         }
         finally {
             setSubmitting(false);
-            inflightRef.current = null;
+            detectPreviousCreateGame.current = null;
         }
-    }, [preset, rows, cols, mines, lives, showTimer, allowUndo, enableHints, navigate]);
+    }, [navigate, preset, rows, cols, mines, lives, showTimer, allowUndo, enableHints, captureReplay]);
 
     return {
-        // data
-        loaded: !!init && !!caps && !capsLoading,
-        loading: capsLoading,
-        error: submitError,
+        // General states
+        capsLoading,
+        submitError,
         submitting,
 
+        // Game Basics settings
         preset,
         rows,
         cols,
@@ -228,18 +271,21 @@ export function useMinesweeperSettingsController() {
         maxMines,
         lives,
 
+        // Gameplay settings
         showTimer,
         allowUndo,
         enableHints,
+        captureReplay,
 
+        // Capabilities
         limits,
         difficultyOptions,
 
-        // actions
-        changePreset,
-        safeSetRows,
-        safeSetCols,
-        safeSetMines,
+        // Actions
+        handleChangePreset,
+        handleSetRows,
+        handleSetCols,
+        handleSetMines,
         handleLivesChange,
         handleShowTimerChange,
         handleAllowUndoChange,

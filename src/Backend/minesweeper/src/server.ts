@@ -2,7 +2,7 @@ import express, {type Request, type Response, type NextFunction} from "express";
 import cors from "cors";
 import session from "express-session";
 import {createGame, flag, getGame, hint, preview, revive, reveal, seek, setMode, undo} from "./engine.js";
-import {normalizeCreatePayload, buildCapabilitiesPayload} from "./util.js";
+import {normalizeCreatePayload, buildCapabilitiesPayload, buildMaxMinesPayload, detectPresetFromMapParameters} from "./util.js";
 import {CapabilitiesResponseSchema, CreateGameRequestSchema, CreateGameResponseSchema} from "./jsonSchemas.js";
 import {validate, toUnifiedError} from "./ajvValidation.js";
 import {Idempotency} from "./idempotency.js";
@@ -34,10 +34,11 @@ const corsOptions = {
     origin: originsList,
     credentials: true,
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-    allowedHeaders: ["Content-Type", "Idempotency-Key"]
+    allowedHeaders: ["Content-Type", "Idempotency-Key"] // allow Idempotency-Key header to prevent duplicate game creation
 };
 
-// Handle preflight requests for /api/* with the configured CORS options
+// Apply CORS globally and ensure preflight for any path
+app.use(cors(corsOptions));
 app.options("/api/*", cors(corsOptions));
 
 // Trust reverse proxy (useful when running behind a proxy/load balancer)
@@ -207,6 +208,7 @@ app.get("/echo", (_request, response) =>
 );
 
 app.get("/capabilities", validate({response: CapabilitiesResponseSchema}), (_request, response) => {
+    // Response: CapabilitiesResponse
     const payload = buildCapabilitiesPayload();
 
     console.log("[SERVER.ts][CAPABILITIES] returning payload:", payload);
@@ -217,6 +219,7 @@ app.get("/game/:id", (request, response, next) => {
     console.log("[SERVER.ts][GET /game/:id] id:", request.params.id);
 
     try {
+        // Response: GameView
         const result = getGame(request.params.id);
         console.log("[SERVER.ts][GET /game/:id] found:", {gameId: result.gameId});
 
@@ -225,6 +228,46 @@ app.get("/game/:id", (request, response, next) => {
     catch(e: any) {
         console.error("[SERVER.ts][GET /game/:id] error:", e);
         return next({statusCode: (e.message === "not found") ? 404 : 400, message: e.message});
+    }
+});
+
+app.get("/max-mines", (request, response, next) => {
+    const rows = Number(request.query.rows);
+    const cols = Number(request.query.cols);
+    console.log("[SERVER.ts][GET /max-mins] rows: ", rows, ", cols: ", cols);
+
+    if(!Number.isFinite(rows) || !Number.isFinite(cols)) {
+        return next({statusCode: 400, message: "Invalid rows or cols"});
+    }
+
+    try {
+        // Response: number
+        const result = buildMaxMinesPayload(rows, cols);
+        return response.status(200).json(result);
+    }
+    catch(e: any) {
+        return next({statusCode: 400, message: e.message});
+    }
+});
+
+app.get("/preset", (request, response, next) => {
+    const rows = Number(request.query.rows);
+    const cols = Number(request.query.cols);
+    const mines = Number(request.query.mines);
+    console.log("[SERVER.ts][GET /preset] rows: ", rows, ", cols: ", cols, ", mines: ", mines);
+
+
+    if(!Number.isFinite(rows) || !Number.isFinite(cols) || !Number.isFinite(mines)) {
+        return next({statusCode: 400, message: "Invalid rows, cols or mines"});
+    }
+
+    try {
+        // Response: string
+        const result = detectPresetFromMapParameters(rows, cols, mines);
+        return response.status(200).json(result);
+    }
+    catch(e: any) {
+        return next({statusCode: 400, message: e.message});
     }
 });
 
@@ -255,6 +298,7 @@ app.post(
             console.log("[SERVER.ts][POST /game] normalized payload:", normalizedPayload);
 
             // Create game
+            // Response: GameView
             const gameView = createGame(normalizedPayload);
             console.log("[SERVER.ts][POST /game] game created:", {gameId: gameView.gameId, rows: gameView.rows, cols: gameView.cols, mines: gameView.mines});
 
@@ -288,10 +332,11 @@ app.post(
 );
 
 app.post("/game/:id/reveal", (request, response, next) => {
-    console.log("[SERVER.ts][POST /game/:id/reveal] id:", request.params.id, "r:", request.body.r, "c:", request.body.c);
+    console.log("[SERVER.ts][POST /game/:id/reveal] id:", request.params.id, "row:", request.body.row, "cols", request.body.col);
 
     try {
-        const result = reveal(request.params.id, request.body.r, request.body.c);
+        // Response: GameView
+        const result = reveal(request.params.id, request.body.row, request.body.col);
         console.log("[SERVER.ts][POST /game/:id/reveal] result:", result);
 
         return response.status(200).json(result);
@@ -306,10 +351,11 @@ app.post("/game/:id/reveal", (request, response, next) => {
 });
 
 app.post("/game/:id/flag", (request, response, next) => {
-    console.log("[SERVER.ts][POST /game/:id/flag] id:", request.params.id, "r:", request.body.r, "c:", request.body.c, "set:", request.body.set);
+    console.log("[SERVER.ts][POST /game/:id/flag] id:", request.params.id, "row:", request.body.row, "col:", request.body.col, "set:", request.body.set);
 
     try {
-        const result = flag(request.params.id, request.body.r, request.body.c, request.body.set);
+        // Response: GameView
+        const result = flag(request.params.id, request.body.row, request.body.col, request.body.set);
         console.log("[SERVER.ts][POST /game/:id/flag] result:", result);
 
         return response.status(200).json(result);
@@ -324,6 +370,7 @@ app.post("/game/:id/mode", (request, response, next) => {
     console.log("[SERVER.ts][POST /game/:id/mode] id:", request.params.id, "quickFlag:", !!request.body.quickFlag);
 
     try {
+        // Response: {ok: boolean, quickFlag: boolean}
         const result = setMode(request.params.id, !!request.body.quickFlag);
         console.log("[SERVER.ts][POST /game/:id/mode] result:", result);
 
@@ -341,6 +388,7 @@ app.post("/game/:id/undo", (request, response, next) => {
     console.log("[SERVER.ts][POST /game/:id/undo] id:", request.params.id, "steps:", steps);
 
     try {
+        // Response: GameView
         const result = undo(request.params.id, steps);
         console.log("[SERVER.ts][POST /game/:id/undo] result:", result);
 
@@ -356,6 +404,7 @@ app.post("/game/:id/seek", (request, response, next) => {
     console.log("[SERVER.ts][POST /game/:id/seek] id:", request.params.id, "toIndex:", request.body.toIndex);
 
     try {
+        // Response: GameView
         const result = seek(request.params.id, request.body.toIndex);
         console.log("[SERVER.ts][POST /game/:id/seek] result:", result);
 
@@ -371,6 +420,7 @@ app.post("/game/:id/preview", (request, response, next) => {
     console.log("[SERVER.ts][POST /game/:id/preview] id:", request.params.id, "toIndex:", request.body.toIndex);
 
     try {
+        // Response: GameView
         const result = preview(request.params.id, request.body.toIndex);
 
         console.log("[SERVER.ts][POST /game/:id/preview] result:", result);
@@ -386,6 +436,7 @@ app.post("/game/:id/revive", (request, response, next) => {
     console.log("[SERVER.ts][POST /game/:id/revive] id:", request.params.id, "toIndex:", request.body?.toIndex);
 
     try {
+        // Response: GameView
         const result = revive(request.params.id, request.body?.toIndex);
         console.log("[SERVER.ts][POST /game/:id/revive] result:", result);
 
@@ -405,6 +456,8 @@ app.get("/game/:id/hint", (request, response, next) => {
     console.log("[SERVER.ts][POST /game/:id/hint] id:", request.params.id);
 
     try {
+        // Response: {readonly type: "none", readonly hintRectangle?: undefined} |
+        //           {readonly type: "mine-area", readonly hintRectangle: {rowStart: number, colStart: number, rowEnd: number, colEnd: number}}
         const result = hint(request.params.id);
         console.log("[SERVER.ts][POST /game/:id/hint] result:", result);
 

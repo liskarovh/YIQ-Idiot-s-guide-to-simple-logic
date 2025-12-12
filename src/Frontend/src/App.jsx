@@ -11,7 +11,7 @@ import Sudoku from './sudoku/Sudoku';
 
 // Minesweeper
 import MinesweeperSettingsView from './minesweeper/views/MinesweeperSettingsView';
-import { MinesweeperGameView } from './minesweeper/views/MinesweeperGameView';
+import MinesweeperGameView from './minesweeper/views/MinesweeperGameView';
 
 // Tic-Tac-Toe
 import Tic_Tac_Toe from './tic_tac_toe/Tic_Tac_Toe';
@@ -40,10 +40,10 @@ function App() {
                         {/* Main game pages routing */}
                         <Route path="/sudoku" element={<Sudoku />} />
                         <Route path="/tic_tac_toe" element={<Tic_Tac_Toe />} />
-                        <Route path="/minesweeper">
-                            <Route index element={<MinesweeperSettingsView />} />
-                            <Route path="play/:gameId" element={<MinesweeperGameView />} />
-                        </Route>
+
+                        <Route path="/minesweeper/settings" element={<MinesweeperSettingsView />} />
+                        <Route path="/minesweeper/strategy" element={<MinesweeperGameView />} />
+                        <Route path="/minesweeper" element={<MinesweeperGameView />} />
 
                         {/* TODO: Clean this generated mess, please */}
                         {/* New Tic-Tac-Toe (ponecháváme aliasy se _ i - pro kompatibilitu) */}

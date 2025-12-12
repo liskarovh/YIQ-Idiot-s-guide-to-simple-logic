@@ -1,19 +1,9 @@
 import Header from "../../../components/Header";
 import AutoScale from "../../../components/AutoScale";
-import BoxButton from "../../../components/BoxButton";
-import {PlayIcon} from "../../../assets/icons/PlayIcon.jsx";
 import MinesweeperSettingsStyles from "../../styles/MinesweeperSettingsStyles.jsx";
-import ErrorBanner from "./ErrorBanner";
-import {RestartIcon} from "../../../assets/icons/RestartIcon";
+import ErrorBanner from "../../components/MinesweeperSettingsComponents/ErrorBanner";
 
-function SettingsLayout({leftPanel, rightPanel, disabled, onBack, onPlay, fromGame, changesDetected, error}) {
-    const playButtonTitle = (fromGame && changesDetected) ? "Start new game"
-                                                          : fromGame ? "Continue"
-                                                                     : "Play";
-
-    const playButtonIcon = (fromGame && changesDetected) ? <RestartIcon />
-                                                          : <PlayIcon />;
-
+function GameLayout({onBack, leftPanel, rightPanel, error}) {
     return (
             <div style={MinesweeperSettingsStyles.contentStyle}>
                 <Header showBack={true}
@@ -39,22 +29,9 @@ function SettingsLayout({leftPanel, rightPanel, disabled, onBack, onPlay, fromGa
                         {rightPanel}
                     </AutoScale>
                 </div>
-                <div style={MinesweeperSettingsStyles.footer}>
-                    <BoxButton
-                            title={playButtonTitle}
-                            icon={playButtonIcon}
-                            disabled={disabled}
-                            onClick={onPlay}
-                    />
-                </div>
-                <ErrorBanner
-                        error={error}
-                />
-                <ErrorBanner
-                        error={changesDetected}
-                />
+                <ErrorBanner error={error} />
             </div>
     );
 }
 
-export default SettingsLayout;
+export default GameLayout;

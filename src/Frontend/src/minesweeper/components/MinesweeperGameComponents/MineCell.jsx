@@ -1,9 +1,10 @@
 import React, {useRef, useMemo, useState} from "react";
 import colors from "../../../Colors";
-import unopenedCellTexture from "../../../assets/minesweeper/UnopenedCellTexture.svg";
-import flaggedCellTexture from "../../../assets/minesweeper/FlaggedCellTexture.svg";
-import flaggingModeCellTexture from "../../../assets/minesweeper/FlaggingModeCellTexture.svg";
-import mineIcon from "../../../assets/minesweeper/Mine.svg";
+import {useImageUrl} from "../../../hooks/RenderImage";
+import {UnopenedCellTexture} from "../../../assets/minesweeper/UnopenedCellTexture";
+import {FlaggedCellTexture} from "../../../assets/minesweeper/FlaggedCellTexture";
+import {FlaggingModeCellTexture} from "../../../assets/minesweeper/FlaggingModeCellTexture";
+import {Mine} from "../../../assets/minesweeper/Mine";
 
 const numberColors = {
     1: "#60A5FA",
@@ -17,9 +18,10 @@ const numberColors = {
 };
 
 function MineCell({
-                      r, c,
+                      row,
+                      col,
+                      adjacent = 0,
                       isOpen = false,
-                      adj = 0,
                       isFlagged = false,
                       isMine = false,
                       lostOn = false,
@@ -41,6 +43,11 @@ function MineCell({
     const hoverTimer = useRef(null);
     const [hovered, setHovered] = useState(false);
 
+    const unopenedUrl = useImageUrl(UnopenedCellTexture);
+    const flaggedUrl = useImageUrl(FlaggedCellTexture);
+    const flaggingModeUrl = useImageUrl(FlaggingModeCellTexture);
+    const mineUrl = useImageUrl(Mine);
+
     const baseCell = {
         position: "relative",
         width: size,
@@ -59,7 +66,7 @@ function MineCell({
 
     const unopenedStyle = {
         ...baseCell,
-        backgroundImage: `url(${unopenedCellTexture})`,
+        backgroundImage: unopenedUrl ? `url(${unopenedUrl})` : "none",
         backgroundSize: "cover",
         backgroundRepeat: "no-repeat",
         backgroundPosition: "center"
@@ -75,14 +82,14 @@ function MineCell({
     const numberStyle = {
         fontSize: Math.max(12, Math.floor(size * 0.55)),
         fontWeight: 800,
-        color: numberColors[adj] || colors.text_header,
+        color: numberColors[adjacent] || colors.text_header,
         textShadow: "0 0 3px rgba(0,0,0,0.6)",
         lineHeight: 1
     };
 
     const flaggedCellStyle = {
         ...baseCell,
-        backgroundImage: `url(${flaggedCellTexture})`,
+        backgroundImage: flaggedUrl ? `url(${flaggedUrl})` : "none",
         backgroundSize: "cover",
         backgroundRepeat: "no-repeat",
         backgroundPosition: "center",
@@ -94,15 +101,15 @@ function MineCell({
 
     const MineCellStyle = useMemo(() => ({
         ...baseCell,
-        backgroundImage: `url(${mineIcon})`,
+        backgroundImage: mineUrl ? `url(${mineUrl})` : "none",
         backgroundSize: "60% 60%",
         backgroundRepeat: "no-repeat",
         backgroundPosition: "center"
-    }), [baseCell]);
+    }), [baseCell, mineUrl]);
 
     const flaggingModeCellStyle = {
         ...baseCell,
-        backgroundImage: `url(${flaggingModeCellTexture})`,
+        backgroundImage: flaggingModeUrl ? `url(${flaggingModeUrl})` : "none",
         backgroundSize: "cover",
         backgroundRepeat: "no-repeat",
         backgroundPosition: "center"
@@ -138,14 +145,14 @@ function MineCell({
         // QuickFlag mode: only flagging (if allowed)
         if(quickFlagEnabled) {
             if(!isPermaFlagged && isFlaggable) {
-                onFlag?.(r, c);
+                onFlag?.(row, col);
             }
             return;
         }
 
         // Classic mode: revealing has priority
         if(isRevealable && !isFlagged && !isPermaFlagged) {
-            onReveal?.(r, c);
+            onReveal?.(row, col);
         }
     }
 
@@ -159,7 +166,7 @@ function MineCell({
 
         // Can only flag if isFlaggable is true
         if(isFlaggable) {
-            onFlag?.(r, c);
+            onFlag?.(row, col);
         }
     }
 
@@ -179,11 +186,11 @@ function MineCell({
         holdTimer.current = setTimeout(() => {
             // Long press on OPENED cell -> highlight neighborhood
             if(isOpen) {
-                onBeginHold?.(r, c);
+                onBeginHold?.(row, col);
             }
             // Long press on UNOPENED cell in classic mode -> flagging
             else if(!quickFlagEnabled && !isPermaFlagged && isFlaggable) {
-                onFlag?.(r, c);
+                onFlag?.(row, col);
             }
             holdTimer.current = null;
         }, 350);
@@ -194,7 +201,7 @@ function MineCell({
             clearHoldTimer();
         }
         else {
-            onEndHold?.(r, c);
+            onEndHold?.(row, col);
         }
     }
 
@@ -218,7 +225,7 @@ function MineCell({
         if(holdTimer.current) {
             clearHoldTimer();
         }
-        onEndHold?.(r, c);
+        onEndHold?.(row, col);
     }
 
     // Drag & drop for flags - disabled for permanent flags
@@ -228,8 +235,8 @@ function MineCell({
         if(!draggable) {
             return;
         }
-        e.dataTransfer.setData("text/plain", JSON.stringify({r, c}));
-        onFlagDragStart?.(r, c);
+        e.dataTransfer.setData("text/plain", JSON.stringify({row, col}));
+        onFlagDragStart?.(row, col);
     }
 
     function onDragOver(e) {
@@ -240,9 +247,9 @@ function MineCell({
         e.preventDefault();
         const txt = e.dataTransfer.getData("text/plain");
         try {
-            const {r: fr, c: fc} = JSON.parse(txt || "{}");
-            if(Number.isInteger(fr) && Number.isInteger(fc)) {
-                onFlagDrop?.(fr, fc, r, c);
+            const {row: fromRow, col: fromCol} = JSON.parse(txt || "{}");
+            if(Number.isInteger(fromRow) && Number.isInteger(fromCol)) {
+                onFlagDrop?.(fromRow, fromCol, row, col);
             }
         }
         catch {
@@ -262,10 +269,10 @@ function MineCell({
                         style={MineCellStyle}
                 />;
             }
-            if(adj > 0) {
+            if(adjacent > 0) {
                 return <span
                         style={numberStyle}
-                >{adj}</span>;
+                >{adjacent}</span>;
             }
             return null;
         }
@@ -289,7 +296,7 @@ function MineCell({
             <div
                     style={style}
                     role="button"
-                    aria-label={`cell-${r}-${c}`}
+                    aria-label={`cell-${row}-${col}`}
                     onClick={handleClick}
                     onContextMenu={handleRightClick}
                     onMouseDown={handleMouseDown}
@@ -309,7 +316,7 @@ function MineCell({
 function areEqual(prev, next) {
     return (
             prev.isOpen === next.isOpen &&
-            prev.adj === next.adj &&
+            prev.adjacent === next.adjacent &&
             prev.isFlagged === next.isFlagged &&
             prev.isMine === next.isMine &&
             !!prev.lostOn === !!next.lostOn &&

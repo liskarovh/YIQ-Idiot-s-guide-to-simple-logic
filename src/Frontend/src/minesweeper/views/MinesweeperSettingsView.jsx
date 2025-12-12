@@ -1,31 +1,26 @@
+import {useNavigate} from "react-router-dom";
 import GameBasicsPanel from "../components/MinesweeperSettingsComponents/GameBasicsPanel";
 import GameplayPanel from "../components/MinesweeperSettingsComponents/GameplayPanel";
 import SettingsLayout from "../components/MinesweeperSettingsComponents/SettingsLayout";
-import {useMinesweeperSettingsController} from "../controllers/MinesweeperSettingsController.jsx";
-
-function SettingsSkeleton() {
-    return (
-            <div style={{padding: 24, opacity: 0.6}}>
-                Loading capabilities...
-            </div>
-    );
-}
+import SettingsLoader from "../components/MinesweeperSettingsComponents/SettingsLoader";
+import {MinesweeperSettingsController} from "../controllers/MinesweeperSettingsController";
 
 export default function MinesweeperSettingsView() {
-    const ctrl = useMinesweeperSettingsController();
+    const ctrl = MinesweeperSettingsController();
+    const navigate = useNavigate();
 
-    if(!ctrl.loaded) {
+    if(ctrl.capsLoading) {
         return (
                 <SettingsLayout
-                        onBack={() => window.history.back()}
+                        onBack={() => navigate(-1)}
                         leftPanel={
-                            <SettingsSkeleton />
+                            <SettingsLoader />
                         }
                         rightPanel={
-                            <SettingsSkeleton />
+                            <SettingsLoader />
                         }
                         onPlay={() => {}}
-                        error={ctrl.error}
+                        error={ctrl.submitError}
                         disabled={true}
                 />
         );
@@ -40,10 +35,10 @@ export default function MinesweeperSettingsView() {
                     mines={ctrl.mines}
                     maxMines={ctrl.maxMines}
                     limits={ctrl.limits}
-                    onPresetChange={ctrl.changePreset}
-                    onRowsChange={ctrl.safeSetRows}
-                    onColsChange={ctrl.safeSetCols}
-                    onMinesChange={ctrl.safeSetMines}
+                    onPresetChange={ctrl.handleChangePreset}
+                    onRowsChange={ctrl.handleSetRows}
+                    onColsChange={ctrl.handleSetCols}
+                    onMinesChange={ctrl.handleSetMines}
             />
     );
 
@@ -63,11 +58,11 @@ export default function MinesweeperSettingsView() {
 
     return (
             <SettingsLayout
-                    onBack={() => window.history.back()}
+                    onBack={() => navigate(-1)}
                     leftPanel={leftPanel}
                     rightPanel={rightPanel}
                     onPlay={ctrl.handlePlay}
-                    error={ctrl.error}
+                    error={ctrl.submitError}
                     disabled={ctrl.submitting}
             />
     );

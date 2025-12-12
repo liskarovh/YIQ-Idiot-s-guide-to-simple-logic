@@ -1,25 +1,24 @@
-import React, {useMemo} from "react";
+import React, {useMemo, useEffect} from "react";
 import colors from "../Colors";
 
 /**
  * NumberField is a styled numeric input component with increment/decrement buttons.
  * It supports minValue/maxValue bounds, step, custom digit width, and can display zero as infinity.
  *
- * @param {Object} props
- * @param {number} presetValue - Current presetValue of the field.
- * @param {number} minValue - Minimum allowed presetValue.
- * @param {number} maxValue - Maximum allowed presetValue.
- * @param {number} [maxDigits=3] - Maximum number of digits to display.
- * @param {function} onChange - Callback when presetValue changes.
- * @param {number} [step=1] - Step for increment/decrement.
- * @param {number} [height=40] - Height of the input.
- * @param {number} [padding=10] - Horizontal padding.
- * @param {number} [fontSize=18] - Font size.
- * @param {number} [borderRadius=12] - Border radius.
- * @param {boolean} [zeroAsInfinity=false] - If true, display zero as ∞.
+ * @param value Current presetValue of the field.
+ * @param minValue Minimum allowed presetValue.
+ * @param maxValue Maximum allowed presetValue.
+ * @param maxDigits Maximum number of digits to display (default 3).
+ * @param onChange Callback when presetValue changes.
+ * @param step Step for increment/decrement (default 1).
+ * @param height Height of the input (default 40).
+ * @param padding Horizontal padding (default 10).
+ * @param fontSize Font size (default 18).
+ * @param borderRadius Border radius (default 12).
+ * @param zeroAsInfinity If true, display zero as ∞ (default false).
  */
 function NumberField({
-                         presetValue,
+                         value,
                          minValue,
                          maxValue,
                          maxDigits = 3,
@@ -120,10 +119,21 @@ function NumberField({
     };
 
     // If zeroAsInfinity is true and value is 0, show ∞
-    const showInfinity = zeroAsInfinity && presetValue === 0;
-    const displayValue = showInfinity ? "∞" : presetValue;
+    const showInfinity = zeroAsInfinity && value === 0;
+    const displayValue = showInfinity ? "∞" : value;
 
-    // Handle manual input change.
+    // Clamp value within min/max on mount and when they change
+    useEffect(() => {
+        if (value == null) return;
+        let clamped = value;
+        if (minValue != null) clamped = Math.max(minValue, clamped);
+        if (maxValue != null) clamped = Math.min(maxValue, clamped);
+        if (clamped !== value) {
+            onChange?.(clamped);
+        }
+    }, [minValue, maxValue, value, onChange]);
+
+    // Handle manual input change
     function handleChange(event) {
         const valueString = event.target.value;
         const valueNumber = Number(valueString);
@@ -141,7 +151,7 @@ function NumberField({
 
     // Increment value by step, respecting max.
     function increment() {
-        let nextNumber = presetValue + step;
+        let nextNumber = value + step;
         if(maxValue != null) {
             nextNumber = Math.min(maxValue, nextNumber);
         }
@@ -150,7 +160,7 @@ function NumberField({
 
     // Decrement value by step, respecting min.
     function decrement() {
-        let next = presetValue - step;
+        let next = value - step;
         if(minValue != null) {
             next = Math.max(minValue, next);
         }
@@ -183,7 +193,7 @@ function NumberField({
                         <button
                                 style={arrowButton}
                                 onClick={increment}
-                                disabled={maxValue != null && presetValue >= maxValue}
+                                disabled={maxValue != null && value >= maxValue}
                                 onMouseEnter={(e) => {
                                     e.currentTarget.style.background = "linear-gradient(180deg, rgba(255,255,255,0.3) 0%, rgba(255,255,255,0.2) 100%)";
                                     e.currentTarget.style.transform = "scale(1.05)";
@@ -206,7 +216,7 @@ function NumberField({
                         <button
                                 style={arrowButton}
                                 onClick={decrement}
-                                disabled={minValue != null && presetValue <= minValue}
+                                disabled={minValue != null && value <= minValue}
                                 onMouseEnter={(e) => {
                                     e.currentTarget.style.background = "linear-gradient(180deg, rgba(255,255,255,0.3) 0%, rgba(255,255,255,0.2) 100%)";
                                     e.currentTarget.style.transform = "scale(1.05)";

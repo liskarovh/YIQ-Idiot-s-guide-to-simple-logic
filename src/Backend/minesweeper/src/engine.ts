@@ -1,61 +1,61 @@
-/** @packageDocumentation
- * Core game engine for the Minesweeper backend.
- * Enhanced with detailed console logging for debugging.
- */
-
 import {randomUUID} from "crypto";
 import {maskGameViewForClient} from "./util.js";
 import type {GameOptions, ComputedCell, GameSession, GameView, Snapshot} from "./types.js";
 
-const mem = new Map<string, GameSession>();
+const map = new Map<string, GameSession>();
 
 function nowMs() { return Date.now(); }
 
-function logStart(fn: string, meta?: any) {
-    console.debug(`[engine] START ${fn}`, meta ?? {});
+function logStart(functionName: string, meta?: any) {
+    console.debug(`[engine] START ${functionName}`, meta ?? {});
     return nowMs();
 }
 
-function logEnd(fn: string, start: number, meta?: any) {
-    const dur = Math.round(nowMs() - start);
-    console.debug(`[engine] END   ${fn}`, {...(meta ?? {}), durationMs: dur});
+function logEnd(fileName: string, start: number, meta?: any) {
+    const duration = Math.round(nowMs() - start);
+    console.debug(`[engine] END   ${fileName}`, {...(meta ?? {}), durationMs: duration});
 }
 
 function renderSolutionMap(grid: ComputedCell[][]): string[] {
     return grid.map(row =>
-                        row.map(cell => (cell.isMine ? '*' : (cell.adjacentMines > 0 ? String(cell.adjacentMines) : '.'))).join('')
+                        row.map(cell => (cell.isMine ? "*" : (cell.adjacentMines > 0 ? String(cell.adjacentMines) : "."))).join("")
     );
 }
 
 function logGridInfo(rows: number, cols: number, minePositions: Array<[number, number]>, grid: ComputedCell[][]) {
     try {
-        console.groupCollapsed('[engine] Grid info');
-        console.debug('size', `${rows}x${cols}`);
-        console.debug('minePositions count', minePositions.length, minePositions);
-        console.debug('rendered map:');
-        for (const line of renderSolutionMap(grid)) {
+        console.groupCollapsed("[engine] Grid info");
+        console.debug("size", `${rows}x${cols}`);
+        console.debug("minePositions count", minePositions.length, minePositions);
+        console.debug("rendered map:");
+        for(const line of renderSolutionMap(grid)) {
             console.debug(line);
         }
         const counts: Record<string, number> = {};
-        for (let r = 0; r < grid.length; r++) {
-            const row = grid[r];
-            if (!row) continue;
-            for (let c = 0; c < row.length; c++) {
-                const cell = row[c];
-                if (!cell) continue;
-                const key = cell.isMine ? 'mine' : String(cell.adjacentMines);
+        for(let iRow = 0; iRow < grid.length; iRow++) {
+            const row = grid[iRow];
+            if(!row) {
+                continue;
+            }
+            for(let iCol = 0; iCol < row.length; iCol++) {
+                const cell = row[iCol];
+                if(!cell) {
+                    continue;
+                }
+                const key = cell.isMine ? "mine" : String(cell.adjacentMines);
                 counts[key] = (counts[key] || 0) + 1;
             }
         }
-        console.debug('cell counts', counts);
+        console.debug("cell counts", counts);
         console.groupEnd();
-    } catch (e) {
-        console.error('[engine] logGridInfo error', e);
+    }
+    catch(e) {
+        console.error("[engine] logGridInfo error", e);
     }
 }
 
 function computeSolutionGrid(rows: number, cols: number, minePositions: Array<[number, number]>): ComputedCell[][] {
-    const start = logStart("computeSolutionGrid", { rows, cols, mines: minePositions.length });
+    const start = logStart("computeSolutionGrid", {rows, cols, mines: minePositions.length});
 
     const grid: ComputedCell[][] = Array.from({length: rows}, () =>
         Array.from({length: cols}, () => ({
@@ -65,42 +65,51 @@ function computeSolutionGrid(rows: number, cols: number, minePositions: Array<[n
     );
 
     const mineSet = new Set<string>();
-    for(const [r, c] of minePositions) {
-        if(r >= 0 && r < rows && c >= 0 && c < cols) {
-            const cell = grid[r]?.[c];
-            if (cell) cell.isMine = true;
-            mineSet.add(`${r},${c}`);
-        } else {
-            console.warn('[engine] computeSolutionGrid - mine out of bounds ignored', {r, c});
+    for(const [row, col] of minePositions) {
+        if(row >= 0 && row < rows && col >= 0 && col < cols) {
+            const cell = grid[row]?.[col];
+            if(cell) {
+                cell.isMine = true;
+            }
+            mineSet.add(`${row},${col}`);
+        }
+        else {
+            console.warn("[engine] computeSolutionGrid - mine out of bounds ignored", {row, col});
         }
     }
 
-    for(let r = 0; r < rows; r++) {
-        for(let c = 0; c < cols; c++) {
-            if(grid?.[r]?.[c]?.isMine) continue;
+    for(let iRow = 0; iRow < rows; iRow++) {
+        for(let iCol = 0; iCol < cols; iCol++) {
+            if(grid?.[iRow]?.[iCol]?.isMine) {
+                continue;
+            }
 
             let count = 0;
-            for(let dr = -1; dr <= 1; dr++) {
-                for(let dc = -1; dc <= 1; dc++) {
-                    if(dr === 0 && dc === 0) continue;
-                    const nr = r + dr;
-                    const nc = c + dc;
-                    if(nr >= 0 && nr < rows && nc >= 0 && nc < cols) {
-                        if(mineSet.has(`${nr},${nc}`)) count++;
+            for(let deltaRow = -1; deltaRow <= 1; deltaRow++) {
+                for(let deltaCol = -1; deltaCol <= 1; deltaCol++) {
+                    if(deltaRow === 0 && deltaCol === 0) {
+                        continue;
+                    }
+                    const resultRow = iRow + deltaRow;
+                    const resultCol = iCol + deltaCol;
+                    if(resultRow >= 0 && resultRow < rows && resultCol >= 0 && resultCol < cols) {
+                        if(mineSet.has(`${resultRow},${resultCol}`)) {
+                            count++;
+                        }
                     }
                 }
             }
 
-            const row = grid[r];
-            if (!row) {
-                console.error('[engine] computeSolutionGrid - invalid row', { r });
-                throw new Error(`Invalid board state: row ${r} is undefined`);
+            const row = grid[iRow];
+            if(!row) {
+                console.error("[engine] computeSolutionGrid - invalid row", {iRow});
+                throw new Error(`Invalid board state: row ${iRow} is undefined`);
             }
 
-            const cell = row[c];
-            if (!cell) {
-                console.error('[engine] computeSolutionGrid - invalid cell', { r, c });
-                throw new Error(`Invalid board state: cell at (${r}, ${c}) is undefined`);
+            const cell = row[iCol];
+            if(!cell) {
+                console.error("[engine] computeSolutionGrid - invalid cell", {iRow, iCol});
+                throw new Error(`Invalid board state: cell at (${iRow}, ${iCol}) is undefined`);
             }
 
             cell.adjacentMines = count;
@@ -108,151 +117,158 @@ function computeSolutionGrid(rows: number, cols: number, minePositions: Array<[n
     }
 
     logGridInfo(rows, cols, minePositions, grid);
-    logEnd("computeSolutionGrid", start, { totalCells: rows * cols });
+    logEnd("computeSolutionGrid", start, {totalCells: rows * cols});
     return grid;
 }
 
-function floodFillOpen(grid: ComputedCell[][], startR: number, startC: number, opened: Set<string>): Array<{r: number; c: number; adj: number}> {
-    const start = logStart("floodFillOpen", { startR, startC });
-    if (!grid || grid.length === 0 || !grid[0]) {
-        console.error('[engine] floodFillOpen - invalid grid');
+function floodFillOpen(grid: ComputedCell[][], startRow: number, startCol: number, opened: Set<string>): Array<{ row: number; col: number; adjacent: number }> {
+    const start = logStart("floodFillOpen", {startRow, startCol});
+    if(!grid || grid.length === 0 || !grid[0]) {
+        console.error("[engine] floodFillOpen - invalid grid");
         throw new Error("grid must have at least one row");
     }
 
     const rows = grid.length;
     const cols = grid[0].length;
-    const result: Array<{r: number; c: number; adj: number}> = [];
-    const queue: Array<[number, number]> = [[startR, startC]];
+    const result: Array<{ row: number; col: number; adjacent: number }> = [];
+    const queue: Array<[number, number]> = [[startRow, startCol]];
     const visited = new Set<string>();
 
     while(queue.length > 0) {
-        const [r, c] = queue.shift()!;
-        const key = `${r},${c}`;
+        const [rowIdx, coldx] = queue.shift()!;
+        const key = `${rowIdx},${coldx}`;
 
-        if(visited.has(key) || opened.has(key)) continue;
+        if(visited.has(key) || opened.has(key)) {
+            continue;
+        }
         visited.add(key);
         opened.add(key);
 
-        const row = grid[r];
-        if (!row) {
-            console.error('[engine] floodFillOpen - invalid row index', { r });
-            throw new Error(`Invalid grid row index: ${r}`);
+        const row = grid[rowIdx];
+        if(!row) {
+            console.error("[engine] floodFillOpen - invalid row index", {rowIdx});
+            throw new Error(`Invalid grid row index: ${rowIdx}`);
         }
-        const cell = row[c];
-        if (!cell) {
-            console.error('[engine] floodFillOpen - invalid column index', { r, c });
-            throw new Error(`Invalid grid column index: ${c} (row ${r})`);
+        const cell = row[coldx];
+        if(!cell) {
+            console.error("[engine] floodFillOpen - invalid column index", {rowIdx, coldx});
+            throw new Error(`Invalid grid column index: ${coldx} (row ${rowIdx})`);
         }
-        result.push({ r, c, adj: cell.adjacentMines });
+        result.push({row: rowIdx, col: coldx, adjacent: cell.adjacentMines});
 
-        if(cell.adjacentMines > 0) continue;
+        if(cell.adjacentMines > 0) {
+            continue;
+        }
 
-        for(let dr = -1; dr <= 1; dr++) {
-            for(let dc = -1; dc <= 1; dc++) {
-                if(dr === 0 && dc === 0) continue;
-                const nr = r + dr;
-                const nc = c + dc;
-                if(nr >= 0 && nr < rows && nc >= 0 && nc < cols) {
-                    const nkey = `${nr},${nc}`;
-                    const neighbor = grid[nr]?.[nc];
-                    if (neighbor && !visited.has(nkey) && !opened.has(nkey) && !neighbor.isMine) {
-                        queue.push([nr, nc]);
+        for(let deltaRow = -1; deltaRow <= 1; deltaRow++) {
+            for(let deltaCol = -1; deltaCol <= 1; deltaCol++) {
+                if(deltaRow === 0 && deltaCol === 0) {
+                    continue;
+                }
+                const resultRow = rowIdx + deltaRow;
+                const resultCol = coldx + deltaCol;
+                if(resultRow >= 0 && resultRow < rows && resultCol >= 0 && resultCol < cols) {
+                    const resultKey = `${resultRow},${resultCol}`;
+                    const neighbour = grid[resultRow]?.[resultCol];
+                    if(neighbour && !visited.has(resultKey) && !opened.has(resultKey) && !neighbour.isMine) {
+                        queue.push([resultRow, resultCol]);
                     }
                 }
             }
         }
     }
 
-    logEnd("floodFillOpen", start, { openedCount: result.length });
+    logEnd("floodFillOpen", start, {openedCount: result.length});
     return result;
 }
 
 /** Builds a snapshot by replaying actions up to `upto` index.
  * Respects permanent flags - they are always included in flagged list.
  */
-function stepToSnapshot(g: GameSession, upto: number): Snapshot {
-    const start = logStart("stepToSnapshot", { gameId: g.id, upto, actionsTotal: g.actions.length });
+function stepToSnapshot(gameSession: GameSession, uptoAction: number): Snapshot {
+    const start = logStart("stepToSnapshot", {gameId: gameSession.id, uptoAction, actionsTotal: gameSession.actions.length});
 
     const opened = new Set<string>();
     const flagged = new Set<string>();
-    const openedList: Array<{r: number; c: number; adj: number}> = [];
-    const flaggedList: Array<{r: number; c: number}> = [];
-    let lostOn: {r: number; c: number} | undefined;
+    const openedList: Array<{ row: number; col: number; adjacent: number }> = [];
+    const flaggedList: Array<{ row: number; col: number }> = [];
+    let lostOn: { row: number; col: number } | undefined;
     let cleared = false;
 
-    if(!g.solutionGrid) {
-        console.debug('[engine] stepToSnapshot - computing solution grid on demand');
-        g.solutionGrid = computeSolutionGrid(g.rows, g.cols, g.minePositions);
+    if(!gameSession.solutionGrid) {
+        console.debug("[engine] stepToSnapshot - computing solution grid on demand");
+        gameSession.solutionGrid = computeSolutionGrid(gameSession.rows, gameSession.cols, gameSession.minePositions);
     }
 
-    console.groupCollapsed(`[stepToSnapshot] processing up to ${upto} actions for game ${g.id}`);
+    console.groupCollapsed(`[stepToSnapshot] processing up to ${uptoAction} actions for game ${gameSession.id}`);
     try {
-        for(let i = 0; i < upto; i++) {
-            const a = g.actions[i];
-            if(!a) {
-                console.debug(`[stepToSnapshot] action[${i}] - empty/undefined, skipping`);
+        for(let iAction = 0; iAction < uptoAction; iAction++) {
+            const action = gameSession.actions[iAction];
+            if(!action) {
+                console.debug(`[stepToSnapshot] action[${iAction}] - empty/undefined, skipping`);
                 continue;
             }
 
-            console.groupCollapsed(`[stepToSnapshot] action[${i}] type=${a.type}`);
+            console.groupCollapsed(`[stepToSnapshot] action[${iAction}] type=${action.type}`);
             try {
-                console.debug('action payload:', a);
+                console.debug("action payload:", action);
 
-                if(a.type === "flag") {
-                    const key = `${a.row},${a.column}`;
+                if(action.type === "flag") {
+                    const key = `${action.row},${action.col}`;
 
                     // Permanent flags cannot be toggled off
-                    if(g.permanentFlags.has(key)) {
+                    if(gameSession.permanentFlags.has(key)) {
                         flagged.add(key);
-                        console.debug(`[stepToSnapshot] action[${i}] flag action on permanent flag - keeping flagged -> ${key}`);
+                        console.debug(`[stepToSnapshot] action[${iAction}] flag action on permanent flag - keeping flagged -> ${key}`);
                         console.groupEnd();
                         continue;
                     }
 
-                    const shouldSet = a.set !== undefined ? a.set : !flagged.has(key);
+                    const shouldSet = action.set !== undefined ? action.set : !flagged.has(key);
 
                     if(shouldSet) {
                         flagged.add(key);
-                        console.debug(`[stepToSnapshot] action[${i}] flag set -> ${key}`);
-                    } else {
+                        console.debug(`[stepToSnapshot] action[${iAction}] flag set -> ${key}`);
+                    }
+                    else {
                         flagged.delete(key);
-                        console.debug(`[stepToSnapshot] action[${i}] flag removed -> ${key}`);
+                        console.debug(`[stepToSnapshot] action[${iAction}] flag removed -> ${key}`);
                     }
                 }
-                else if(a.type === "reveal") {
-                    const key = `${a.row},${a.column}`;
+                else if(action.type === "reveal") {
+                    const key = `${action.row},${action.col}`;
 
                     if(opened.has(key)) {
-                        console.debug(`[stepToSnapshot] action[${i}] reveal skipped, already opened -> ${key}`);
+                        console.debug(`[stepToSnapshot] action[${iAction}] reveal skipped, already opened -> ${key}`);
                         console.groupEnd();
                         continue;
                     }
 
-                    const cell = getSolutionCell(g, a.row, a.column);
-                    if (!cell) {
-                        console.error('[engine] stepToSnapshot - invalid reveal coords', { idx: i, row: a.row, column: a.column });
-                        throw new Error(`Invalid solutionGrid coordinates: ${a.row},${a.column}`);
+                    const cell = getSolutionCell(gameSession, action.row, action.col);
+                    if(!cell) {
+                        console.error("[engine] stepToSnapshot - invalid reveal coords", {idx: iAction, row: action.row, col: action.col});
+                        throw new Error(`Invalid solutionGrid coordinates: ${action.row},${action.col}`);
                     }
 
                     if(cell.isMine) {
                         opened.add(key);
-                        openedList.push({r: a.row, c: a.column, adj: 0});
-                        lostOn = {r: a.row, c: a.column};
-                        console.debug(`[stepToSnapshot] action[${i}] mine revealed -> ${key}`);
+                        openedList.push({row: action.row, col: action.col, adjacent: 0});
+                        lostOn = {row: action.row, col: action.col};
+                        console.debug(`[stepToSnapshot] action[${iAction}] mine revealed -> ${key}`);
                         console.groupEnd();
                         continue;
                     }
 
-                    const newlyOpened = floodFillOpen(g.solutionGrid, a.row, a.column, opened);
+                    const newlyOpened = floodFillOpen(gameSession.solutionGrid, action.row, action.col, opened);
                     openedList.push(...newlyOpened);
-                    console.debug(`[stepToSnapshot] action[${i}] revealed ${newlyOpened.length} cells`, newlyOpened.slice(0,10));
+                    console.debug(`[stepToSnapshot] action[${iAction}] revealed ${newlyOpened.length} cells`, newlyOpened.slice(0, 10));
                 }
                 else {
-                    console.warn('[engine] stepToSnapshot - unknown action type', { action: a });
+                    console.warn("[engine] stepToSnapshot - unknown action type", {action: action});
                 }
             }
             catch(e) {
-                console.error('[engine] stepToSnapshot - error processing action', { idx: i, action: a, error: e });
+                console.error("[engine] stepToSnapshot - error processing action", {idx: iAction, action: action, error: e});
                 console.groupEnd();
                 throw e;
             }
@@ -264,31 +280,31 @@ function stepToSnapshot(g: GameSession, upto: number): Snapshot {
     }
 
     // Add permanent flags to flagged set
-    for (const permKey of g.permanentFlags) {
-        flagged.add(permKey);
+    for(const permanentFlag of gameSession.permanentFlags) {
+        flagged.add(permanentFlag);
     }
 
     // Build flagged list
-    for (const key of flagged) {
-        const [rs = '', cs = ''] = key.split(',');
-        const r = Number(rs);
-        const c = Number(cs);
-        if (!Number.isFinite(r) || !Number.isFinite(c)) {
-            console.warn('[stepToSnapshot] flagged key parse failed', key);
+    for(const key of flagged) {
+        const [rowString = "", colString = ""] = key.split(",");
+        const row = Number(rowString);
+        const col = Number(colString);
+        if(!Number.isFinite(row) || !Number.isFinite(col)) {
+            console.warn("[stepToSnapshot] flagged key parse failed", key);
             continue;
         }
-        flaggedList.push({ r, c });
+        flaggedList.push({row, col});
     }
 
     // Build permanent flags list
-    const permanentFlagsList = Array.from(g.permanentFlags).map(key => {
-        const [rs, cs] = key.split(',');
-        return { r: Number(rs), c: Number(cs) };
+    const permanentFlagsList = Array.from(gameSession.permanentFlags).map(key => {
+        const [rowString, colString] = key.split(",");
+        return {row: Number(rowString), col: Number(colString)};
     });
 
     // Check win condition
-    const totalCells = g.rows * g.cols;
-    const totalMines = g.minePositions.length;
+    const totalCells = gameSession.rows * gameSession.cols;
+    const totalMines = gameSession.minePositions.length;
     if(opened.size === totalCells - totalMines && !lostOn) {
         cleared = true;
     }
@@ -301,10 +317,10 @@ function stepToSnapshot(g: GameSession, upto: number): Snapshot {
         cleared
     };
 
-    logEnd("stepToSnapshot", start, { opened: openedList.length, flagged: flaggedList.length, permanentFlags: permanentFlagsList.length, lostOn: !!lostOn, cleared });
-    console.info('[stepToSnapshot] summary', {
-        gameId: g.id,
-        upto,
+    logEnd("stepToSnapshot", start, {opened: openedList.length, flagged: flaggedList.length, permanentFlags: permanentFlagsList.length, lostOn: !!lostOn, cleared});
+    console.info("[stepToSnapshot] summary", {
+        gameId: gameSession.id,
+        upto: uptoAction,
         openedCount: openedList.length,
         flaggedCount: flaggedList.length,
         permanentFlagsCount: permanentFlagsList.length,
@@ -315,97 +331,98 @@ function stepToSnapshot(g: GameSession, upto: number): Snapshot {
     return snapshot;
 }
 
-function getSolutionCell<CellType>(g: { solutionGrid?: CellType[][] }, row: number, col: number): CellType | undefined {
-    if(!g.solutionGrid) {
-        console.warn('[engine] getSolutionCell - no solutionGrid present');
+function getSolutionCell<CellType>(gameSession: { solutionGrid?: CellType[][] }, row: number, col: number): CellType | undefined {
+    if(!gameSession.solutionGrid) {
+        console.warn("[engine] getSolutionCell - no solutionGrid present");
         return undefined;
     }
-    const grid = g.solutionGrid;
-    if (row < 0 || row >= grid.length) {
-        console.debug('[engine] getSolutionCell - row OOB', { row, max: grid.length - 1 });
+    const grid = gameSession.solutionGrid;
+    if(row < 0 || row >= grid.length) {
+        console.debug("[engine] getSolutionCell - row OOB", {row, max: grid.length - 1});
         return undefined;
     }
-    const r = grid[row];
-    if (!r) {
-        console.debug('[engine] getSolutionCell - row undefined', { row });
+    const gridRow = grid[row];
+    if(!gridRow) {
+        console.debug("[engine] getSolutionCell - row undefined", {row});
         return undefined;
     }
-    if (col < 0 || col >= r.length) {
-        console.debug('[engine] getSolutionCell - col OOB', { col, max: r.length - 1 });
+    if(col < 0 || col >= gridRow.length) {
+        console.debug("[engine] getSolutionCell - col OOB", {col, max: gridRow.length - 1});
         return undefined;
     }
-    return r[col];
+    return gridRow[col];
 }
 
-function ensureFirstClickSafe(g: GameSession, clickR: number, clickC: number): void {
-    const start = logStart("ensureFirstClickSafe", { gameId: g.id, clickR, clickC });
+function ensureFirstClickSafe(gameSession: GameSession, clickRow: number, clickCol: number): void {
+    const start = logStart("ensureFirstClickSafe", {gameId: gameSession.id, clickRow, clickCol});
 
     // Define forbidden area (3×3 around click)
     const forbidden = new Set<string>();
-    for(let dr = -1; dr <= 1; dr++) {
-        for(let dc = -1; dc <= 1; dc++) {
-            const nr = clickR + dr;
-            const nc = clickC + dc;
-            if(nr >= 0 && nr < g.rows && nc >= 0 && nc < g.cols) {
-                forbidden.add(`${nr},${nc}`);
+    for(let deltaRow = -1; deltaRow <= 1; deltaRow++) {
+        for(let deltaCol = -1; deltaCol <= 1; deltaCol++) {
+            const resultRow = clickRow + deltaRow;
+            const resultCol = clickCol + deltaCol;
+            if(resultRow >= 0 && resultRow < gameSession.rows && resultCol >= 0 && resultCol < gameSession.cols) {
+                forbidden.add(`${resultRow},${resultCol}`);
             }
         }
     }
 
     // Generate available positions
     const available: Array<[number, number]> = [];
-    for(let r = 0; r < g.rows; r++) {
-        for(let c = 0; c < g.cols; c++) {
-            if(!forbidden.has(`${r},${c}`)) {
-                available.push([r, c]);
+    for(let iRow = 0; iRow < gameSession.rows; iRow++) {
+        for(let iCol = 0; iCol < gameSession.cols; iCol++) {
+            if(!forbidden.has(`${iRow},${iCol}`)) {
+                available.push([iRow, iCol]);
             }
         }
     }
 
-    if(available.length < g.mines) {
-        console.error('[engine] ensureFirstClickSafe - not enough space for mines outside forbidden zone');
+    if(available.length < gameSession.mines) {
+        console.error("[engine] ensureFirstClickSafe - not enough space for mines outside forbidden zone");
         throw new Error("Cannot place all mines outside first click area");
     }
 
     // Randomly select positions for mines
     const shuffled = available.sort(() => Math.random() - 0.5);
-    const newPositions = shuffled.slice(0, g.mines);
+    const newPositions = shuffled.slice(0, gameSession.mines);
 
-    g.minePositions = newPositions;
-    g.solutionGrid = computeSolutionGrid(g.rows, g.cols, newPositions);
+    gameSession.minePositions = newPositions;
+    gameSession.solutionGrid = computeSolutionGrid(gameSession.rows, gameSession.cols, newPositions);
 
     // Verify clicked cell has adjacentMines === 0
-    const clickedCell = getSolutionCell(g, clickR, clickC);
+    const clickedCell = getSolutionCell(gameSession, clickRow, clickCol);
     if(!clickedCell || clickedCell.adjacentMines !== 0) {
-        console.warn('[engine] ensureFirstClickSafe - clicked cell still has adjacent mines', {
-            clickR, clickC,
-            adj: clickedCell?.adjacentMines
+        console.warn("[engine] ensureFirstClickSafe - clicked cell still has adjacent mines", {
+            clickRow,
+            clickCol,
+            adjacent: clickedCell?.adjacentMines
         });
     }
 
-    logEnd("ensureFirstClickSafe", start, { minesPlaced: newPositions.length });
+    logEnd("ensureFirstClickSafe", start, {minesPlaced: newPositions.length});
 }
 
 export function createGame(payload: Partial<GameOptions>): GameView {
-    const start = logStart("createGame", { payload });
+    const start = logStart("createGame", {payload});
 
     if(!payload.rows || !payload.cols || payload.mines == null) {
-        console.error('[engine] createGame - missing rows/cols/mines', { payload });
+        console.error("[engine] createGame - missing rows/cols/mines", {payload});
         throw new Error("Missing rows/cols/mines");
     }
     if(payload.rows <= 0 || payload.cols <= 0) {
-        console.error('[engine] createGame - invalid dims', { payload });
+        console.error("[engine] createGame - invalid dims", {payload});
         throw new Error("rows/cols must be positive");
     }
     if(payload.mines < 0 || payload.mines >= payload.rows * payload.cols) {
-        console.error('[engine] createGame - invalid mines count', { payload });
+        console.error("[engine] createGame - invalid mines count", {payload});
         throw new Error("invalid mines count");
     }
 
     const id = randomUUID();
     const livesValue = payload.lives ?? 0;
 
-    const g: GameSession = {
+    const gameSession: GameSession = {
         id,
         rows: payload.rows,
         cols: payload.cols,
@@ -422,22 +439,22 @@ export function createGame(payload: Partial<GameOptions>): GameView {
         pausedDuration: 0
     };
 
-    mem.set(id, g);
-    logEnd("createGame", start, { gameId: id });
-    return summarize(g);
+    map.set(id, gameSession);
+    logEnd("createGame", start, {gameId: id});
+    return summarize(gameSession);
 }
 
-function summarize(g: GameSession): GameView {
-    const start = logStart("summarize", { gameId: g.id, cursor: g.cursor, actions: g.actions.length });
+function summarize(gameSession: GameSession): GameView {
+    const start = logStart("summarize", {gameId: gameSession.id, cursor: gameSession.cursor, actions: gameSession.actions.length});
 
     // Special case: brand new game
-    if(g.status === "new" && g.cursor === 0 && g.minePositions.length === 0) {
-        logEnd("summarize", start, { gameId: g.id, status: "new" });
+    if(gameSession.status === "new" && gameSession.cursor === 0 && gameSession.minePositions.length === 0) {
+        logEnd("summarize", start, {gameId: gameSession.id, status: "new"});
         return {
-            gameId: g.id,
-            rows: g.rows,
-            cols: g.cols,
-            mines: g.mines,
+            gameId: gameSession.id,
+            rows: gameSession.rows,
+            cols: gameSession.cols,
+            mines: gameSession.mines,
             status: "new",
             board: {
                 opened: [],
@@ -446,259 +463,264 @@ function summarize(g: GameSession): GameView {
                 lostOn: undefined,
                 mines: []
             },
-            lives: { total: g.livesTotal, left: g.livesLeft },
-            quickFlag: g.quickFlag,
+            lives: {
+                total: gameSession.livesTotal,
+                left: gameSession.livesLeft
+            },
+            quickFlag: gameSession.quickFlag,
             cursor: 0,
             totalActions: 0,
             elapsedTime: 0
         };
     }
 
-    const s = stepToSnapshot(g, g.cursor);
-    g.lastSnapshot = s;
+    const snapshot = stepToSnapshot(gameSession, gameSession.cursor);
+    gameSession.lastSnapshot = snapshot;
 
-    const oldStatus = g.status;
+    const oldStatus = gameSession.status;
 
     // Determine status based on snapshot
-    if(s.cleared) {
-        g.status = "won";
+    if(snapshot.cleared) {
+        gameSession.status = "won";
     }
-    else if(s.lostOn) {
+    else if(snapshot.lostOn) {
         // Infinite lives mode - never game over from mines
-        if(g.livesTotal === 0) {
-            g.status = "playing";
-        } else {
+        if(gameSession.livesTotal === 0) {
+            gameSession.status = "playing";
+        }
+        else {
             // Finite lives mode - check lives left
-            g.status = g.livesLeft > 0 ? "playing" : "lost";
+            gameSession.status = gameSession.livesLeft > 0 ? "playing" : "lost";
         }
     }
     else {
-        g.status = g.cursor === 0 ? "new" : "playing";
+        gameSession.status = gameSession.cursor === 0 ? "new" : "playing";
     }
 
     // Pause timer when game ends
-    if((g.status === "won" || g.status === "lost") &&
+    if((gameSession.status === "won" || gameSession.status === "lost") &&
        (oldStatus !== "won" && oldStatus !== "lost") &&
-       !g.lastPauseStart) {
-        g.lastPauseStart = Date.now();
-        console.debug('[engine] summarize - game ended, timer paused', { status: g.status });
+       !gameSession.lastPauseStart) {
+        gameSession.lastPauseStart = Date.now();
+        console.debug("[engine] summarize - game ended, timer paused", {status: gameSession.status});
     }
 
-    const view = maskGameViewForClient(g, s);
-    logEnd("summarize", start, { gameId: g.id, oldStatus, newStatus: g.status });
+    const view = maskGameViewForClient(gameSession, snapshot);
+    logEnd("summarize", start, {gameId: gameSession.id, oldStatus, newStatus: gameSession.status});
     return view;
 }
 
 export function getGame(id: string): GameView {
-    const start = logStart("getGame", { gameId: id });
-    const g = mem.get(id);
-    if(!g) {
-        console.error('[engine] getGame - not found', { gameId: id });
+    const start = logStart("getGame", {gameId: id});
+    const gameSession = map.get(id);
+    if(!gameSession) {
+        console.error("[engine] getGame - not found", {gameId: id});
         throw new Error("not found");
     }
-    const view = summarize(g);
-    logEnd("getGame", start, { gameId: id });
+    const view = summarize(gameSession);
+    logEnd("getGame", start, {gameId: id});
     return view;
 }
 
-export function reveal(id: string, r: number, c: number): GameView {
-    const start = logStart("reveal", { gameId: id, r, c });
-    const g = mem.get(id);
-    if(!g) {
-        console.error('[engine] reveal - not found', { gameId: id });
+export function reveal(id: string, row: number, col: number): GameView {
+    const start = logStart("reveal", {gameId: id, row, col});
+    const gameSession = map.get(id);
+    if(!gameSession) {
+        console.error("[engine] reveal - not found", {gameId: id});
         throw new Error("not found");
     }
 
     // Block reveal on permanent flags
-    const key = `${r},${c}`;
-    if(g.permanentFlags.has(key)) {
-        console.warn('[engine] reveal - blocked by permanent flag', { gameId: id, r, c });
-        return summarize(g);
+    const key = `${row},${col}`;
+    if(gameSession.permanentFlags.has(key)) {
+        console.warn("[engine] reveal - blocked by permanent flag", {gameId: id, row, col});
+        return summarize(gameSession);
     }
 
     // Block if game is over
-    if(g.status === "lost" || g.status === "won") {
-        console.warn('[engine] reveal - game over', { gameId: id, status: g.status });
+    if(gameSession.status === "lost" || gameSession.status === "won") {
+        console.warn("[engine] reveal - game over", {gameId: id, status: gameSession.status});
         throw new Error("game over");
     }
 
     // Resume timer if paused
-    if(g.lastPauseStart) {
-        g.pausedDuration += Date.now() - g.lastPauseStart;
-        g.lastPauseStart = undefined;
-        console.debug('[engine] reveal - timer resumed');
+    if(gameSession.lastPauseStart) {
+        gameSession.pausedDuration += Date.now() - gameSession.lastPauseStart;
+        gameSession.lastPauseStart = undefined;
+        console.debug("[engine] reveal - timer resumed");
     }
 
     // Start timer on first move
-    if(!g.startTime && g.cursor === 0) {
-        g.startTime = Date.now();
-        console.debug('[engine] reveal - timer started');
+    if(!gameSession.startTime && gameSession.cursor === 0) {
+        gameSession.startTime = Date.now();
+        console.debug("[engine] reveal - timer started");
     }
 
     // Ensure first click is safe (engine keeps behaviour)
-    if(g.cursor === 0 && g.minePositions.length === 0) {
-        ensureFirstClickSafe(g, r, c);
+    if(gameSession.cursor === 0 && gameSession.minePositions.length === 0) {
+        ensureFirstClickSafe(gameSession, row, col);
     }
 
     // Trim future actions and add new one
-    g.actions = g.actions.slice(0, g.cursor);
-    g.actions.push({type: "reveal", row: r, column: c});
-    g.cursor++;
-    console.debug('[engine] reveal - action added', { cursor: g.cursor, totalActions: g.actions.length });
+    gameSession.actions = gameSession.actions.slice(0, gameSession.cursor);
+    gameSession.actions.push({type: "reveal", row, col});
+    gameSession.cursor++;
+    console.debug("[engine] reveal - action added", {cursor: gameSession.cursor, totalActions: gameSession.actions.length});
 
     // Check if this reveal hit a mine
-    const cell = getSolutionCell(g, r, c);
+    const cell = getSolutionCell(gameSession, row, col);
     if(cell?.isMine) {
-        console.debug('[engine] reveal - mine hit!', { r, c, livesLeftBefore: g.livesLeft });
+        console.debug("[engine] reveal - mine hit!", {row, col, livesLeftBefore: gameSession.livesLeft});
 
         // Consume life only in finite lives mode
-        if(g.livesTotal > 0) {
-            g.livesLeft = Math.max(0, g.livesLeft - 1);
-            console.debug("[engine] reveal - life consumed", {livesLeft: g.livesLeft});
-        } else {
+        if(gameSession.livesTotal > 0) {
+            gameSession.livesLeft = Math.max(0, gameSession.livesLeft - 1);
+            console.debug("[engine] reveal - life consumed", {livesLeft: gameSession.livesLeft});
+        }
+        else {
             console.debug("[engine] reveal - infinite lives mode, life not consumed");
         }
 
         // Pause timer (will stay paused until revive or game over)
-        if(!g.lastPauseStart) {
-            g.lastPauseStart = Date.now();
+        if(!gameSession.lastPauseStart) {
+            gameSession.lastPauseStart = Date.now();
             console.debug("[engine] reveal - timer paused after explosion");
         }
     }
 
-    const view = summarize(g);
-    logEnd("reveal", start, { gameId: id, cursor: g.cursor, hitMine: !!cell?.isMine, livesLeft: g.livesLeft });
+    const view = summarize(gameSession);
+    logEnd("reveal", start, {gameId: id, cursor: gameSession.cursor, hitMine: !!cell?.isMine, livesLeft: gameSession.livesLeft});
     return view;
 }
 
-export function flag(id: string, r: number, c: number, set?: boolean): GameView {
-    const start = logStart("flag", { gameId: id, r, c, set });
-    const g = mem.get(id);
-    if(!g) {
-        console.error('[engine] flag - not found', { gameId: id });
+export function flag(id: string, row: number, col: number, set?: boolean): GameView {
+    const start = logStart("flag", {gameId: id, row, col, set});
+    const gameSession = map.get(id);
+    if(!gameSession) {
+        console.error("[engine] flag - not found", {gameId: id});
         throw new Error("not found");
     }
 
     // Cannot flag before first reveal
-    if(g.status === "new") {
-        console.warn('[engine] flag - cannot flag before first reveal', { gameId: id });
+    if(gameSession.status === "new") {
+        console.warn("[engine] flag - cannot flag before first reveal", {gameId: id});
         throw new Error("Cannot place flags before first reveal");
     }
 
     // Block if game is over
-    if(g.status === "lost" || g.status === "won") {
-        console.warn('[engine] flag - game over', { gameId: id, status: g.status });
+    if(gameSession.status === "lost" || gameSession.status === "won") {
+        console.warn("[engine] flag - game over", {gameId: id, status: gameSession.status});
         throw new Error("game over");
     }
 
     // Cannot unflag permanent flags
-    const key = `${r},${c}`;
-    if(g.permanentFlags.has(key)) {
-        console.warn('[engine] flag - cannot modify permanent flag', { gameId: id, r, c });
-        return summarize(g);
+    const key = `${row},${col}`;
+    if(gameSession.permanentFlags.has(key)) {
+        console.warn("[engine] flag - cannot modify permanent flag", {gameId: id, row, col});
+        return summarize(gameSession);
     }
 
     // Resume timer if paused
-    if(g.lastPauseStart) {
-        g.pausedDuration += Date.now() - g.lastPauseStart;
-        g.lastPauseStart = undefined;
-        console.debug('[engine] flag - timer resumed');
+    if(gameSession.lastPauseStart) {
+        gameSession.pausedDuration += Date.now() - gameSession.lastPauseStart;
+        gameSession.lastPauseStart = undefined;
+        console.debug("[engine] flag - timer resumed");
     }
 
     // Start timer if this is somehow the first action (shouldn't happen due to status check)
-    if(!g.startTime && g.cursor === 0) {
-        g.startTime = Date.now();
-        console.debug('[engine] flag - timer started');
+    if(!gameSession.startTime && gameSession.cursor === 0) {
+        gameSession.startTime = Date.now();
+        console.debug("[engine] flag - timer started");
     }
 
     // Trim future actions and add new one
-    g.actions = g.actions.slice(0, g.cursor);
-    g.actions.push({type: "flag", row: r, column: c, set});
-    g.cursor++;
-    console.debug('[engine] flag - action added', { cursor: g.cursor, totalActions: g.actions.length });
+    gameSession.actions = gameSession.actions.slice(0, gameSession.cursor);
+    gameSession.actions.push({type: "flag", row, col, set});
+    gameSession.cursor++;
+    console.debug("[engine] flag - action added", {cursor: gameSession.cursor, totalActions: gameSession.actions.length});
 
-    logEnd("flag", start, { gameId: id, cursor: g.cursor });
-    return summarize(g);
+    logEnd("flag", start, {gameId: id, cursor: gameSession.cursor});
+    return summarize(gameSession);
 }
 
 export function setMode(id: string, quickFlag: boolean) {
-    const start = logStart("setMode", { gameId: id, quickFlag });
-    const g = mem.get(id);
-    if(!g) {
-        console.error('[engine] setMode - not found', { gameId: id });
+    const start = logStart("setMode", {gameId: id, quickFlag});
+    const gameSession = map.get(id);
+    if(!gameSession) {
+        console.error("[engine] setMode - not found", {gameId: id});
         throw new Error("not found");
     }
-    g.quickFlag = quickFlag;
-    logEnd("setMode", start, { gameId: id, quickFlag: g.quickFlag });
-    return {ok: true, quickFlagEnabled: g.quickFlag};
+    gameSession.quickFlag = quickFlag;
+    logEnd("setMode", start, {gameId: id, quickFlag: gameSession.quickFlag});
+    return {ok: true, quickFlagEnabled: gameSession.quickFlag};
 }
 
 export function undo(id: string, steps = 1): GameView {
-    const start = logStart("undo", { gameId: id, steps });
-    const g = mem.get(id);
-    if(!g) {
-        console.error('[engine] undo - not found', { gameId: id });
+    const start = logStart("undo", {gameId: id, steps});
+    const gameSession = map.get(id);
+    if(!gameSession) {
+        console.error("[engine] undo - not found", {gameId: id});
         throw new Error("not found");
     }
 
     // Cannot undo if no actions
-    if(g.cursor === 0) {
-        console.warn('[engine] undo - already at start', { gameId: id });
-        return summarize(g);
+    if(gameSession.cursor === 0) {
+        console.warn("[engine] undo - already at start", {gameId: id});
+        return summarize(gameSession);
     }
 
-    const prevCursor = g.cursor;
-    let targetCursor = Math.max(0, g.cursor - Math.max(1, steps));
+    const prevCursor = gameSession.cursor;
+    let targetCursor = Math.max(0, gameSession.cursor - Math.max(1, steps));
 
     // Check if target snapshot has revealed mine - if so, skip one more back
-    let checkSnapshot = stepToSnapshot(g, targetCursor);
+    let checkSnapshot = stepToSnapshot(gameSession, targetCursor);
     if(checkSnapshot.lostOn && targetCursor > 0) {
-        console.debug('[engine] undo - target has revealed mine, skipping back one more', { targetCursor });
+        console.debug("[engine] undo - target has revealed mine, skipping back one more", {targetCursor});
         targetCursor = Math.max(0, targetCursor - 1);
     }
 
-    g.cursor = targetCursor;
-    console.debug('[engine] undo - cursor changed', { prevCursor, newCursor: g.cursor });
+    gameSession.cursor = targetCursor;
+    console.debug("[engine] undo - cursor changed", {prevCursor, newCursor: gameSession.cursor});
 
     // Note: Undo does NOT trim actions - they remain for potential redo
     // Note: Undo does NOT change lives
     // Note: Timer keeps running
 
-    logEnd("undo", start, { gameId: id, cursor: g.cursor });
-    return summarize(g);
+    logEnd("undo", start, {gameId: id, cursor: gameSession.cursor});
+    return summarize(gameSession);
 }
 
 export function seek(id: string, toIndex: number, isPreview = false): GameView {
-    const start = logStart(isPreview ? "preview" : "seek", { gameId: id, toIndex, isPreview });
-    const g = mem.get(id);
-    if(!g) {
-        console.error(`[engine] ${isPreview ? "preview" : "seek"} - not found`, { gameId: id });
+    const start = logStart(isPreview ? "preview" : "seek", {gameId: id, toIndex, isPreview});
+    const gameSession = map.get(id);
+    if(!gameSession) {
+        console.error(`[engine] ${isPreview ? "preview" : "seek"} - not found`, {gameId: id});
         throw new Error("not found");
     }
 
-    const targetCursor = Math.min(Math.max(0, toIndex), g.actions.length);
-    console.debug(`[engine] ${isPreview ? "preview" : "seek"} - target cursor`, { targetCursor, actualCursor: g.cursor });
+    const targetCursor = Math.min(Math.max(0, toIndex), gameSession.actions.length);
+    console.debug(`[engine] ${isPreview ? "preview" : "seek"} - target cursor`, {targetCursor, actualCursor: gameSession.cursor});
 
-    if (!isPreview) {
+    if(!isPreview) {
         // Seek mění stav hry
-        g.cursor = targetCursor;
-        logEnd("seek", start, { gameId: id, cursor: g.cursor });
-        return summarize(g);
+        gameSession.cursor = targetCursor;
+        logEnd("seek", start, {gameId: id, cursor: gameSession.cursor});
+        return summarize(gameSession);
     }
 
     // Preview negeneruje snapshot bez změny stavu
-    const s = stepToSnapshot(g, targetCursor);
+    const s = stepToSnapshot(gameSession, targetCursor);
 
     const view: GameView = {
-        gameId: g.id,
-        rows: g.rows,
-        cols: g.cols,
-        mines: g.mines,
-        status: g.status,
-        lives: {left: g.livesLeft, total: g.livesTotal},
-        quickFlag: g.quickFlag,
+        gameId: gameSession.id,
+        rows: gameSession.rows,
+        cols: gameSession.cols,
+        mines: gameSession.mines,
+        status: gameSession.status,
+        lives: {left: gameSession.livesLeft, total: gameSession.livesTotal},
+        quickFlag: gameSession.quickFlag,
         cursor: targetCursor,
-        totalActions: g.actions.length,
+        totalActions: gameSession.actions.length,
         elapsedTime: 0,
         board: {
             opened: s.opened,
@@ -707,14 +729,14 @@ export function seek(id: string, toIndex: number, isPreview = false): GameView {
             lostOn: s.lostOn,
             cleared: s.cleared,
             mines: (s.lostOn || s.cleared)
-                   ? g.minePositions.map(([r, c]) => ({r, c}))
+                   ? gameSession.minePositions.map(([row, col]) => ({row, col}))
                    : undefined
         },
         isPreview: true,
         previewIndex: targetCursor
     };
 
-    logEnd("preview", start, { gameId: id, previewCursor: targetCursor });
+    logEnd("preview", start, {gameId: id, previewCursor: targetCursor});
     return view;
 }
 
@@ -723,92 +745,93 @@ export function preview(id: string, toIndex: number): GameView {
 }
 
 export function revive(id: string, toIndex?: number): GameView {
-    const start = logStart("revive", { gameId: id, toIndex });
-    const g = mem.get(id);
-    if(!g) {
-        console.error('[engine] revive - not found', { gameId: id });
+    const start = logStart("revive", {gameId: id, toIndex});
+    const gameSession = map.get(id);
+    if(!gameSession) {
+        console.error("[engine] revive - not found", {gameId: id});
         throw new Error("not found");
     }
 
-    if(g.livesTotal > 0 && g.livesLeft <= 0) {
-        console.warn('[engine] revive - no lives left', { gameId: id });
+    if(gameSession.livesTotal > 0 && gameSession.livesLeft <= 0) {
+        console.warn("[engine] revive - no lives left", {gameId: id});
         throw new Error("no lives left");
     }
 
     // Find last mine explosion
     let lostIndex = -1;
-    let lostCell: {r: number; c: number} | null = null;
+    let lostCell: { row: number; col: number } | null = null;
 
-    for(let i = g.actions.length - 1; i >= 0; i--) {
-        const a = g.actions[i];
-        if(a && a.type === "reveal") {
-            const cell = getSolutionCell(g, a.row, a.column);
+    for(let iAction = gameSession.actions.length - 1; iAction >= 0; iAction--) {
+        const action = gameSession.actions[iAction];
+        if(action && action.type === "reveal") {
+            const cell = getSolutionCell(gameSession, action.row, action.col);
             if(cell?.isMine) {
-                lostIndex = i;
-                lostCell = {r: a.row, c: a.column};
+                lostIndex = iAction;
+                lostCell = {row: action.row, col: action.col};
                 break;
             }
         }
     }
 
     if(!lostCell) {
-        console.warn('[engine] revive - no explosion found', { gameId: id });
+        console.warn("[engine] revive - no explosion found", {gameId: id});
         throw new Error("No explosion to revive from");
     }
 
-    console.debug('[engine] revive - found explosion', { lostIndex, lostCell });
+    console.debug("[engine] revive - found explosion", {lostIndex, lostCell});
 
     // Determine target index (EXCLUSIVE - trim BEFORE this action)
     let targetIndex: number;
     if(toIndex !== undefined) {
         targetIndex = Math.min(Math.max(0, toIndex), lostIndex); // Clamp to lostIndex max
-    } else {
+    }
+    else {
         targetIndex = lostIndex; // go back to state BEFORE mine reveal
     }
 
     // Trim to state BEFORE target
-    g.actions = g.actions.slice(0, targetIndex);
+    gameSession.actions = gameSession.actions.slice(0, targetIndex);
 
     // Add permanent flag
-    const mineKey = `${lostCell.r},${lostCell.c}`;
-    g.permanentFlags.add(mineKey);
-    console.debug('[engine] revive - added permanent flag', { mineKey });
+    const mineKey = `${lostCell.row},${lostCell.col}`;
+    gameSession.permanentFlags.add(mineKey);
+    console.debug("[engine] revive - added permanent flag", {mineKey});
 
     // Now add flag action AFTER trimming
-    g.actions.push({type: "flag", row: lostCell.r, column: lostCell.c, set: true});
-    g.cursor = g.actions.length;
+    gameSession.actions.push({type: "flag", row: lostCell.row, col: lostCell.col, set: true});
+    gameSession.cursor = gameSession.actions.length;
 
     // Resume timer
-    if(g.lastPauseStart) {
-        g.pausedDuration += Date.now() - g.lastPauseStart;
-        g.lastPauseStart = undefined;
-        console.debug('[engine] revive - timer resumed');
+    if(gameSession.lastPauseStart) {
+        gameSession.pausedDuration += Date.now() - gameSession.lastPauseStart;
+        gameSession.lastPauseStart = undefined;
+        console.debug("[engine] revive - timer resumed");
     }
 
-    g.status = "playing";
+    gameSession.status = "playing";
 
-    const view = summarize(g);
-    logEnd("revive", start, { cursor: g.cursor, livesLeft: g.livesLeft });
+    const view = summarize(gameSession);
+    logEnd("revive", start, {cursor: gameSession.cursor, livesLeft: gameSession.livesLeft});
     return {...view, status: "playing"};
 }
 
 export function hint(id: string) {
-    const start = logStart("hint", { gameId: id });
-    const g = mem.get(id);
-    if(!g) {
-        console.error('[engine] hint - not found', { gameId: id });
+    const start = logStart("hint", {gameId: id});
+    const gameSession = map.get(id);
+    if(!gameSession) {
+        console.error("[engine] hint - not found", {gameId: id});
         throw new Error("not found");
     }
 
-    const s = g.lastSnapshot ?? stepToSnapshot(g, g.cursor);
-    const openedSet = new Set(s.opened.map((o) => `${o.r},${o.c}`));
-    const flaggedSet = new Set(s.flagged.map((f) => `${f.r},${f.c}`));
-    const hiddenMines = g.minePositions.filter(([r, c]) => !openedSet.has(`${r},${c}`));
+    const snapshot = gameSession.lastSnapshot ?? stepToSnapshot(gameSession, gameSession.cursor);
+    const openedSet = new Set(snapshot.opened.map((opened) => `${opened.row},${opened.col}`));
+    const flaggedSet = new Set(snapshot.flagged.map((flagged) => `${flagged.row},${flagged.col}`));
+    const hiddenMines = gameSession.minePositions.filter(([row, col]) => !openedSet.has(`${row},${col}`));
 
-    console.debug('[engine] hint - hiddenMines count', { count: hiddenMines.length });
+    console.debug("[engine] hint - hiddenMines count", {count: hiddenMines.length});
 
     if(hiddenMines.length === 0) {
-        logEnd("hint", start, { result: "none" });
+        logEnd("hint", start, {result: "none"});
         return {type: "none"} as const;
     }
 
@@ -816,17 +839,21 @@ export function hint(id: string) {
     let bestMine: [number, number] | null = null;
     let bestScore = -1;
 
-    for(const [mr, mc] of hiddenMines) {
-        if(flaggedSet.has(`${mr},${mc}`)) continue; // Skip already flagged
+    for(const [mineRow, moneCol] of hiddenMines) {
+        if(flaggedSet.has(`${mineRow},${moneCol}`)) {
+            continue;
+        } // Skip already flagged
 
         let adjacentOpenCount = 0;
-        for(let dr = -1; dr <= 1; dr++) {
-            for(let dc = -1; dc <= 1; dc++) {
-                if(dr === 0 && dc === 0) continue;
-                const nr = mr + dr;
-                const nc = mc + dc;
-                if(nr >= 0 && nr < g.rows && nc >= 0 && nc < g.cols) {
-                    if(openedSet.has(`${nr},${nc}`)) {
+        for(let deltaRow = -1; deltaRow <= 1; deltaRow++) {
+            for(let deltaCol = -1; deltaCol <= 1; deltaCol++) {
+                if(deltaRow === 0 && deltaCol === 0) {
+                    continue;
+                }
+                const resultRow = mineRow + deltaRow;
+                const resultCol = moneCol + deltaCol;
+                if(resultRow >= 0 && resultRow < gameSession.rows && resultCol >= 0 && resultCol < gameSession.cols) {
+                    if(openedSet.has(`${resultRow},${resultCol}`)) {
                         adjacentOpenCount++;
                     }
                 }
@@ -835,27 +862,27 @@ export function hint(id: string) {
 
         // Score: more opened neighbors = more useful hint
         // Add position as tiebreaker for determinism
-        const score = adjacentOpenCount * 10000 + mr * 100 + mc;
+        const score = adjacentOpenCount * 10000 + mineRow * 100 + moneCol;
         if(score > bestScore) {
             bestScore = score;
-            bestMine = [mr, mc];
+            bestMine = [mineRow, moneCol];
         }
     }
 
     // If none near opened cells, take first unflagged (deterministic)
     if(!bestMine) {
-        bestMine = hiddenMines.find(([r, c]) => !flaggedSet.has(`${r},${c}`)) ?? hiddenMines[0]!;
+        bestMine = hiddenMines.find(([row, col]) => !flaggedSet.has(`${row},${col}`)) ?? hiddenMines[0]!;
     }
 
-    const [mr, mc] = bestMine;
+    const [mineRow, mineCol] = bestMine;
 
-    const clamp = (v: number, min: number, max: number) => Math.max(min, Math.min(max, v));
-    const r0 = clamp(mr - 1, 0, g.rows - 1);
-    const r1 = clamp(mr + 1, 0, g.rows - 1);
-    const c0 = clamp(mc - 1, 0, g.cols - 1);
-    const c1 = clamp(mc + 1, 0, g.cols - 1);
+    const clamp = (value: number, min: number, max: number) => Math.max(min, Math.min(max, value));
+    const rowStart = clamp(mineRow - 1, 0, gameSession.rows - 1);
+    const rowEnd = clamp(mineRow + 1, 0, gameSession.rows - 1);
+    const colStart = clamp(mineCol - 1, 0, gameSession.cols - 1);
+    const colEnd = clamp(mineCol + 1, 0, gameSession.cols - 1);
 
-    const rect = {r0, c0, r1, c1};
-    logEnd("hint", start, { selectedMine: [mr, mc], rect, score: bestScore });
-    return {type: "mine-area", rect} as const;
+    const hintRectangle = {rowStart, colStart, rowEnd, colEnd};
+    logEnd("hint", start, {selectedMine: [mineRow, mineCol], hintRectangle, score: bestScore});
+    return {type: "mine-area", hintRectangle} as const;
 }

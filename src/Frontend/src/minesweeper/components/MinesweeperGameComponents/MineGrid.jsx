@@ -17,7 +17,7 @@ function MineGrid({
                       mines = [],
 
                       /* Highlighting */
-                      hintRect,
+                      hintRectangle,
                       highlightCell = null,
 
                       /* Mutability */
@@ -39,44 +39,44 @@ function MineGrid({
                   }) {
 
     const openedMap = useMemo(() => {
-        const m = new Map();
-        for(const {r, c, adj} of opened) {
-            m.set(`${r},${c}`, adj);
+        const map = new Map();
+        for(const {row, col, adjacent} of opened) {
+            map.set(`${row},${col}`, adjacent);
         }
-        return m;
+        return map;
     }, [opened]);
 
     const flaggedSet = useMemo(() => {
-        const s = new Set();
-        for(const {r, c} of flagged) {
-            s.add(`${r},${c}`);
+        const set = new Set();
+        for(const {row, col} of flagged) {
+            set.add(`${row},${col}`);
         }
-        return s;
+        return set;
     }, [flagged]);
 
     const mineSet = useMemo(() => {
-        const s = new Set();
-        for(const m of mines || []) {
-            s.add(`${m.r},${m.c}`);
+        const set = new Set();
+        for(const mine of mines || []) {
+            set.add(`${mine.row},${mine.col}`);
         }
-        return s;
+        return set;
     }, [mines]);
 
     const highlightKeys = useMemo(() => {
         if(!highlightCell || !holdHighlight) {
             return new Set();
         }
-        const {r, c} = highlightCell;
-        if(!openedMap.has(`${r},${c}`)) {
+        const {row, col} = highlightCell;
+        if(!openedMap.has(`${row},${col}`)) {
             return new Set();
         }
         const keys = new Set();
-        for(let dr = -1; dr <= 1; dr++) {
-            for(let dc = -1; dc <= 1; dc++) {
-                const rr = r + dr,
-                        cc = c + dc;
-                if(rr >= 0 && rr < rows && cc >= 0 && cc < cols) {
-                    keys.add(`${rr},${cc}`);
+        for(let deltaRow = -1; deltaRow <= 1; deltaRow++) {
+            for(let deltaCol = -1; deltaCol <= 1; deltaCol++) {
+                const resultRow = row + deltaRow,
+                        resultCol = col + deltaCol;
+                if(resultRow >= 0 && resultRow < rows && resultCol >= 0 && resultCol < cols) {
+                    keys.add(`${resultRow},${resultCol}`);
                 }
             }
         }
@@ -138,22 +138,22 @@ function MineGrid({
                             onContextMenu={(e) => e.preventDefault()}
                     >
                         <HintOverlay
-                                rect={hintRect}
+                                rect={hintRectangle}
                                 cellSize={cellSize}
                                 gap={gap}
                         />
 
                         {Array.from({length: rows * cols}, (_, idx) => {
-                            const r = Math.floor(idx / cols);
-                            const c = idx % cols;
-                            const key = `${r},${c}`;
+                            const row = Math.floor(idx / cols);
+                            const col = idx % cols;
+                            const key = `${row},${col}`;
                             const isOpen = openedMap.has(key);
-                            const adj = openedMap.get(key) ?? 0;
+                            const adjacent = openedMap.get(key) ?? 0;
                             const isFlagged = flaggedSet.has(key);
-                            const lostOnCell = !!(lostOn && lostOn.r === r && lostOn.c === c);
+                            const lostOnCell = !!(lostOn && lostOn.row === row && lostOn.col === col);
                             const isHighlighted = highlightKeys.has(key);
                             const isMine = mineSet.has(key);
-                            const inHint = !!hintRect && r >= hintRect.r0 && r <= hintRect.r1 && c >= hintRect.c0 && c <= hintRect.c1;
+                            const inHint = !!hintRectangle && row >= hintRectangle.r0 && row <= hintRectangle.r1 && col >= hintRectangle.c0 && col <= hintRectangle.c1;
                             const isPermaFlagged = permanentFlags.has(key);
 
                             // Cell interactivity according to spec:
@@ -184,16 +184,16 @@ function MineGrid({
                             return (
                                     <MineCell
                                             key={key}
-                                            r={r}
-                                            c={c}
+                                            row={row}
+                                            col={col}
                                             isOpen={isOpen}
-                                            adj={adj}
+                                            adjacent={adjacent}
                                             isFlagged={isFlagged}
                                             isPermaFlagged={isPermaFlagged}
                                             isMine={isMine}
                                             lostOn={lostOnCell}
                                             isHighlighted={isHighlighted}
-                                            inHintRect={inHint}
+                                            inhintRectangle={inHint}
                                             size={cellSize}
                                             quickFlagEnabled={quickFlag}
                                             isFlaggable={isFlaggable}
@@ -203,7 +203,7 @@ function MineGrid({
                                             onBeginHold={onBeginHold}
                                             onEndHold={onEndHold}
                                             onFlagDragStart={() => {}}
-                                            onFlagDrop={(fr, fc, tr, tc) => onMoveFlag?.(fr, fc, tr, tc)}
+                                            onFlagDrop={(fromRow, fromCol, toRow, toCol) => onMoveFlag?.(fromRow, fromCol, toRow, toCol)}
                                     />);
                         })}
                     </div>
