@@ -128,9 +128,21 @@ function Game() {
     return bounds.width < 1000 || bounds.width < bounds.height * 1.2; 
   }, [bounds.width, bounds.height]);
 
-  const iconSize = useMemo(() => {
-    if (!bounds.width) return 24;
-    return Math.max(16, Math.min(28, bounds.width / 13));
+  // Calculate dynamic sizes for Icons and Font
+  const { iconSize, buttonFontSize } = useMemo(() => {
+    if (!bounds.width) return { iconSize: 24, buttonFontSize: "1rem" };
+    
+    // Icon Size Calculation
+    const iSize = Math.max(12, Math.min(28, bounds.width / 22));
+    
+    // Font Size Calculation
+    // Scales from ~12px (0.75rem) at mobile widths to 20px (1.25rem) at 1000px+ width
+    const fSizeRaw = Math.max(12, Math.min(20, bounds.width / 50));
+    
+    return { 
+      iconSize: iSize, 
+      buttonFontSize: `${fSizeRaw}px` 
+    };
   }, [bounds.width]);
 
   // Calculate responsive sizes based on grid actual size
@@ -254,6 +266,9 @@ function Game() {
   }
 
   if (isMobile) {
+    // Calculate actual grid height based on its width (since it's square)
+    const actualGridHeight = gridBounds.width || 0;
+    
     return (
       <div style={pageStyle}>
         <Header showBack={true} onNavigate={goBack} />
@@ -263,17 +278,22 @@ function Game() {
           </div>
           
           <div style={{ gridRow: '2', ...mobileGameAreaStyle }}>
-            {/* Added ref={gridRef} here to measure available space */}
+            {/* Container that flexes and shrinks */}
             <div ref={gridRef} style={{ 
               flex: '1 1 0', 
               minWidth: 0, 
               minHeight: 0, 
               display: 'flex', 
-              justifyContent: 'center',
-              alignItems: 'center'
+              justifyContent: 'flex-start',
+              alignItems: 'flex-start'
             }}>
-              {/* Constrain Grid size explicitly like Desktop to fix resizing issue */}
-              <div style={{ width: gridSize || '100%', height: gridSize || '100%' }}>
+              {/* Grid wrapper that maintains square aspect ratio and shrinks with container */}
+              <div style={{ 
+                width: '100%',
+                aspectRatio: '1',
+                maxWidth: '100%',
+                maxHeight: '100%',
+              }}>
                 <SudokuGrid 
                   gridData={gridData}
                   selectedCell={selectedCell}
@@ -290,18 +310,23 @@ function Game() {
               onNumberSelect={numberClicked}
               isColumn={true}
               completedNumbers={completedNumbers}
-              style={{ height: '100%', width: '16vw', maxHeight: '100%' }}
+              style={{ 
+                height: `${actualGridHeight}px`, 
+                width: `${gridBounds.width * 0.25}px`, 
+                maxWidth: '16vw', 
+                maxHeight: '100%' 
+              }}
             />
           </div>
           
           <div style={{ gridRow: '3', display: 'flex', justifyContent: 'space-between', width: '100%' }}>
-            <IconButton size={iconSize} icon={Lightbulb} description="Hint" onClick={hintClicked}/>
-            <IconButton size={iconSize} icon={Undo} description="Undo" onClick={undoClicked}/>
-            <IconButton size={iconSize} icon={Eraser} description={getDescriptions().erase} onClick={eraseClicked}/>
-            <IconButton size={iconSize} icon={StickyNote} description={getDescriptions().notes} onClick={notesClicked}/>
-            <IconButton size={iconSize} icon={BookOpen} description="Strategy" onClick={() => setRelativeView("Strategy")}/>
-            <IconButton size={iconSize} icon={Settings} description="Settings" onClick={() => setRelativeView("Settings")}/>
-            <IconButton size={iconSize} icon={Pointer} description={getDescriptions().inputMethod} onClick={inputClicked}/>
+            <IconButton size={iconSize} fontSize={buttonFontSize} icon={Lightbulb} description="Hint" onClick={hintClicked}/>
+            <IconButton size={iconSize} fontSize={buttonFontSize} icon={Undo} description="Undo" onClick={undoClicked}/>
+            <IconButton size={iconSize} fontSize={buttonFontSize} icon={Eraser} description={getDescriptions().erase} onClick={eraseClicked}/>
+            <IconButton size={iconSize} fontSize={buttonFontSize} icon={StickyNote} description={getDescriptions().notes} onClick={notesClicked}/>
+            <IconButton size={iconSize} fontSize={buttonFontSize} icon={BookOpen} description="Strategy" onClick={() => setRelativeView("Strategy")}/>
+            <IconButton size={iconSize} fontSize={buttonFontSize} icon={Settings} description="Settings" onClick={() => setRelativeView("Settings")}/>
+            <IconButton size={iconSize} fontSize={buttonFontSize} icon={Pointer} description={getDescriptions().inputMethod} onClick={inputClicked}/>
           </div>
         </div>
       </div>
@@ -343,13 +368,13 @@ function Game() {
         <div style={{ gridColumn: '1 / 5', gridRow: '2', minHeight: 0 }}></div>
         
         <div style={buttonsCellStyle}>
-          <IconButton size={iconSize} icon={Lightbulb} description="Hint" onClick={hintClicked}/>
-          <IconButton size={iconSize} icon={Undo} description="Undo" onClick={undoClicked}/>
-          <IconButton size={iconSize} icon={Eraser} description={getDescriptions().erase} onClick={eraseClicked}/>
-          <IconButton size={iconSize} icon={StickyNote} description={getDescriptions().notes} onClick={notesClicked}/>
-          <IconButton size={iconSize} icon={BookOpen} description="Strategy" onClick={() => setRelativeView("Strategy")}/>
-          <IconButton size={iconSize} icon={Settings} description="Settings" onClick={() => setRelativeView("Settings")}/>
-          <IconButton size={iconSize} icon={Pointer} description={getDescriptions().inputMethod} onClick={inputClicked}/>
+          <IconButton size={iconSize} fontSize={buttonFontSize} icon={Lightbulb} description="Hint" onClick={hintClicked}/>
+          <IconButton size={iconSize} fontSize={buttonFontSize} icon={Undo} description="Undo" onClick={undoClicked}/>
+          <IconButton size={iconSize} fontSize={buttonFontSize} icon={Eraser} description={getDescriptions().erase} onClick={eraseClicked}/>
+          <IconButton size={iconSize} fontSize={buttonFontSize} icon={StickyNote} description={getDescriptions().notes} onClick={notesClicked}/>
+          <IconButton size={iconSize} fontSize={buttonFontSize} icon={BookOpen} description="Strategy" onClick={() => setRelativeView("Strategy")}/>
+          <IconButton size={iconSize} fontSize={buttonFontSize} icon={Settings} description="Settings" onClick={() => setRelativeView("Settings")}/>
+          <IconButton size={iconSize} fontSize={buttonFontSize} icon={Pointer} description={getDescriptions().inputMethod} onClick={inputClicked}/>
         </div>
       </div>
     </div>
