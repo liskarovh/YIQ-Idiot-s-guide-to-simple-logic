@@ -7,6 +7,7 @@ import { useSudokuNavigation } from './NavigationController';
 import { mapGridToReceive } from '../models/APIMappers';
 import { fetchNewGrid } from '../models/ServerCommunicationModel';
 import { useHistory } from '../models/HistoryModel';
+import { fetchHint } from '../models/ServerCommunicationModel';
 
 /**
  * SUDOKU CONTROLLER - MVC Structure
@@ -38,6 +39,10 @@ export function useGameController() {
   const [highlightAreas, setHighlightAreas] = useState(
     Array(9).fill(null).map(() => Array(9).fill(false))
   )
+  const [activeHint, setActiveHint] = useState(null); 
+  const [hintHighlights, setHintHighlights] = useState(
+      Array(9).fill(null).map(() => Array(9).fill(false))
+  );
 
   useEffect(() => {
           if (gameInfo.timer === null || isComplete) return;
@@ -58,7 +63,8 @@ export function useGameController() {
   useEffect(() => {
     generalUpdateNumberHighlights()
     generalUpdateAreaHighlights()
-  }, [gameOptions.selectedCell, gameOptions.selectedNumber, gameOptions.selectMethod, gameOptions.highlightNumbers, gameOptions.highlightAreas]);
+    softDismissHint()
+  }, [gameOptions.selectedCell, gameOptions.selectedNumber, gameOptions.selectMethod, gameOptions.highlightNumbers, gameOptions.highlightAreas, gameOptions.explainSmartHints]);
 
   // ==================== HELPER: CAPTURE STATE ====================
 
@@ -206,10 +212,6 @@ export function useGameController() {
     strategy.eraseClicked()
   }
 
-  function hintClicked() {
-    // TODO
-  }
-
   function undoClicked() {
     if (isComplete) return;
 
@@ -232,6 +234,57 @@ export function useGameController() {
     updateOption('selectMethod', newOpt)
   }
 
+  // ==================== HINT LOGIC ====================
+
+  async function smartHintClicked() {
+    if (isComplete) return;
+
+    // 1. Fetch from Python API
+    const response = await fetchHint();
+
+    if (response.err === 0) {
+        // 2. Update UI State
+        setActiveHint({
+            title: response.title,
+            text: response.explanation 
+        });
+        
+        // 3. Apply the Matrix from the server
+        if (response.matrix) {
+            setHintHighlights(response.matrix);
+        }
+    } else {
+        console.error("Failed to get hint:", response.message);
+    }
+  }
+
+  function revealHintClicked() {
+    // [Keep previous Reveal logic or implement fetchReveal if needed]
+    if (gameOptions.selectMethod === "Cell" && !gameOptions.selectedCell) {
+        // Show local warning using the hint UI
+        setActiveHint({
+            title: "Select a Cell",
+            text: "Please select a cell first to use the Reveal feature."
+        });
+        // No highlights for this warning
+        setHintHighlights(Array(9).fill(null).map(() => Array(9).fill(false)));
+        return;
+    }
+    // Logic for revealing cell...
+  }
+
+  function softDismissHint() {
+    if (!gameOptions.explainSmartHints) {
+      dismissHint();
+    }
+  }
+
+  function dismissHint() {
+    setActiveHint(null);
+    // Clear hint highlights
+    setHintHighlights(Array(9).fill(null).map(() => Array(9).fill(false)));
+  }
+
   // ==================== UPDATE STATE ====================
 
   function updateAll() {
@@ -241,6 +294,7 @@ export function useGameController() {
     updateMistakes(conflicts)
     generalUpdateNumberHighlights()
     generalUpdateAreaHighlights()
+    softDismissHint()
   }
 
   function updatePuzzleCompletion(conflicts) {
@@ -403,12 +457,17 @@ export function useGameController() {
     completedNumbers,
     highlightNumbers,
     highlightAreas,
+    hintHighlights,
+    activeHint,
+    showExplanations: gameOptions.explainSmartHints ?? true,
 
     
     // Actions
     cellClicked,
     numberClicked,
-    hintClicked,
+    smartHintClicked,
+    revealHintClicked,
+    dismissHint,
     undoClicked,
     eraseClicked,
     notesClicked,

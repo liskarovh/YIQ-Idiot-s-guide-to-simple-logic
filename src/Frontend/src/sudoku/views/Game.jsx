@@ -5,7 +5,7 @@ import { useGameController } from "../controllers/GameController";
 import NumberSelector from "../components/NumberSelect";
 import Box from "../../components/Box"
 import IconButton from "../../components/IconButton";
-import { Lightbulb, Undo, Eraser, StickyNote, BookOpen, Settings, Pointer } from "lucide-react";
+import { Eye, Sparkles, Undo, Eraser, StickyNote, BookOpen, Settings, Pointer } from "lucide-react";
 import useMeasure from "react-use-measure";
 import colors from "../../Colors";
 import { useMemo } from "react";
@@ -72,6 +72,35 @@ const timeStyle = {
   marginBottom: '10cqh',
 };
 
+const hintTitleStyle = {
+  color: "#FFFFFF",
+  fontSize: '1.5rem',
+  fontWeight: 'bold',
+  marginBottom: '0.5rem',
+};
+
+const hintTextStyle = {
+  color: "rgba(255, 255, 255, 0.9)",
+  fontSize: '1.1rem',
+  lineHeight: '1.6',
+  whiteSpace: 'pre-wrap',
+};
+
+const hintButtonStyle = {
+  backgroundColor: colors.primary,
+  color: "#FFFFFF",
+  border: 'none',
+  borderRadius: '8px',
+  padding: '12px',
+  fontSize: '1.1rem',
+  fontWeight: 'bold',
+  cursor: 'pointer',
+  width: '100%',
+  marginTop: '1rem',
+  boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
+  transition: 'transform 0.1s active',
+};
+
 const gridCellStyle = {
   gridColumn: '3',
   gridRow: '1',
@@ -119,7 +148,8 @@ function Game() {
   const {
     gridData, selectedCell, selectedNumber, eraseOn, notesOn, inputMethod,
     mode, difficulty, timer, hintsUsed, mistakes, completedNumbers, highlightNumbers, highlightAreas,
-    cellClicked, numberClicked, hintClicked, undoClicked, eraseClicked, notesClicked, inputClicked,
+    activeHint, hintHighlights, showExplanations,
+    cellClicked, numberClicked, smartHintClicked, revealHintClicked, dismissHint, undoClicked, eraseClicked, notesClicked, inputClicked,
   } = useGameController()
 
   // Determine if mobile layout based on aspect ratio
@@ -251,16 +281,57 @@ function Game() {
     
     return (
       <Box width={infoWidth} height={gridSize} style={desktopBoxStyle}>
-        <div style={boxContentStyle}>
-          <span style={gameInfoStyle}>Game Info</span>
-          
-          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center' }}>
-            <span style={whiteTextStyle}>Mode: {mode}</span>
-            <span style={whiteTextStyle}>Difficulty: {difficulty}</span>
+        {activeHint && showExplanations ? (
+            <div style={{
+              height: '100%', 
+              display: 'flex', 
+              flexDirection: 'column'
+            }}>
+                <span style={{...gameInfoStyle, marginBottom: '1rem'}}>Hint</span>
+                
+                <div style={{
+                  flex: 1, 
+                  overflowY: 'auto', 
+                  paddingRight: '0.5rem',
+                  display: 'flex', 
+                  flexDirection: 'column', 
+                  gap: '1rem'
+                }}>
+                    {/* Title */}
+                    <div style={hintTitleStyle}>
+                      {activeHint.title}
+                    </div>
+                    
+                    {/* Explanation */}
+                    {showExplanations && (
+                         <div style={hintTextStyle}>
+                           {activeHint.text}
+                         </div>
+                    )}
+                </div>
+                
+                <button 
+                  onClick={dismissHint} 
+                  style={hintButtonStyle}
+                  onMouseDown={(e) => e.target.style.transform = "scale(0.98)"}
+                  onMouseUp={(e) => e.target.style.transform = "scale(1)"}
+                  onMouseLeave={(e) => e.target.style.transform = "scale(1)"}
+                >
+                  Got it
+                </button>
+            </div>
+        ) : (
+          <div style={boxContentStyle}>
+            <span style={gameInfoStyle}>Game Info</span>
+            
+            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center' }}>
+              <span style={whiteTextStyle}>Mode: {mode}</span>
+              <span style={whiteTextStyle}>Difficulty: {difficulty}</span>
+            </div>
+            
+            <Timer customStyle={timeStyle}/>
           </div>
-          
-          <Timer customStyle={timeStyle}/>
-        </div>
+        )}
       </Box>
     )
   }
@@ -301,6 +372,7 @@ function Game() {
                   highlightedNumbers={highlightNumbers}
                   highlightedAreas={highlightAreas}
                   mistakes={mistakes}
+                  hintHighlights={hintHighlights}
                 />
               </div>
             </div>
@@ -320,7 +392,8 @@ function Game() {
           </div>
           
           <div style={{ gridRow: '3', display: 'flex', justifyContent: 'space-between', width: '100%' }}>
-            <IconButton size={iconSize} fontSize={buttonFontSize} icon={Lightbulb} description="Hint" onClick={hintClicked}/>
+            <IconButton size={iconSize} fontSize={buttonFontSize} icon={Eye} description="Reveal Cell" onClick={revealHintClicked}/>
+            <IconButton size={iconSize} fontSize={buttonFontSize} icon={Sparkles} description="Smart Hint" onClick={smartHintClicked}/>
             <IconButton size={iconSize} fontSize={buttonFontSize} icon={Undo} description="Undo" onClick={undoClicked}/>
             <IconButton size={iconSize} fontSize={buttonFontSize} icon={Eraser} description={getDescriptions().erase} onClick={eraseClicked}/>
             <IconButton size={iconSize} fontSize={buttonFontSize} icon={StickyNote} description={getDescriptions().notes} onClick={notesClicked}/>
@@ -351,6 +424,7 @@ function Game() {
               highlightedNumbers={highlightNumbers}
               highlightedAreas={highlightAreas}
               mistakes={mistakes}
+              hintHighlights={hintHighlights}
             />
           </div>
         </div>
@@ -368,7 +442,8 @@ function Game() {
         <div style={{ gridColumn: '1 / 5', gridRow: '2', minHeight: 0 }}></div>
         
         <div style={buttonsCellStyle}>
-          <IconButton size={iconSize} fontSize={buttonFontSize} icon={Lightbulb} description="Hint" onClick={hintClicked}/>
+          <IconButton size={iconSize} fontSize={buttonFontSize} icon={Eye} description="Reveal Cell" onClick={revealHintClicked}/>
+          <IconButton size={iconSize} fontSize={buttonFontSize} icon={Sparkles} description="Smart Hint" onClick={smartHintClicked}/>
           <IconButton size={iconSize} fontSize={buttonFontSize} icon={Undo} description="Undo" onClick={undoClicked}/>
           <IconButton size={iconSize} fontSize={buttonFontSize} icon={Eraser} description={getDescriptions().erase} onClick={eraseClicked}/>
           <IconButton size={iconSize} fontSize={buttonFontSize} icon={StickyNote} description={getDescriptions().notes} onClick={notesClicked}/>

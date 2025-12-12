@@ -84,7 +84,25 @@ def getValue():
 
 @sudoku_bp.route('/hint', methods=['GET'])
 def getHint():
-    pass
+    sid = flask_session.get("sid")
+    ses = get_or_create_session(sid)
+    
+    # TODO: Connect this to ses.gameManager.get_hint()
+    # The solver should return the structure below.
+    # For now, we return a Mock response to test the UI highlights.
+    
+    # Example: Highlighting the first row (Row 0)
+    highlight_matrix = [[False for _ in range(9)] for _ in range(9)]
+    for c in range(9):
+        highlight_matrix[0][c] = True
+
+    response_data = {
+        "title": "Naked Single",
+        "explanation": "In the highlighted cells, there is only one possible candidate remaining.",
+        "matrix": highlight_matrix
+    }
+    
+    return jsonify(response_data)
 
 @sudoku_bp.route('/mistakes', methods=['GET'])
 def getMistakes():

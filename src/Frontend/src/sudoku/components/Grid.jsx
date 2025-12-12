@@ -31,6 +31,14 @@ function SudokuCell({ value, type, row, col, isSelected, isHint, isHighlightedAr
         };
     }
 
+    if (isHint) {
+        return {
+            backgroundColor: `rgba(${COLORS.purple}, 0.6)`,
+            textColor,
+            fontWeight: '700'
+        };
+    }
+
     // 2. SELECTED CELL (Focus)
     // We give it a distinct background to make the cursor position obvious
     if (isSelected) {
@@ -163,7 +171,7 @@ function SudokuGrid({
   highlightedNumbers = Array(9).fill(null).map(() => Array(9).fill(false)),
   highlightedAreas = Array(9).fill(null).map(() => Array(9).fill(false)), 
   mistakes = Array(9).fill(null).map(() => Array(9).fill(false)),
-  hintCells = new Set(),
+  hintHighlights = null,
   onCellClick 
 }) {
   const gridWrapperStyle = {
@@ -200,7 +208,7 @@ function SudokuGrid({
             const isHighlightedNumber = highlightedNumbers[rowIndex][colIndex]
             const isHighlightedArea = highlightedAreas[rowIndex][colIndex]
             const isMistake = mistakes[rowIndex][colIndex]
-            const isHint = false;
+            const isHint = hintHighlights && hintHighlights[rowIndex][colIndex];
 
             return (
               <SudokuCell
