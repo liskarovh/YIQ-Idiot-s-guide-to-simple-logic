@@ -6,6 +6,7 @@ import { useLoading } from './SudokuController';
 import { useSudokuNavigation } from './NavigationController';
 import { mapGridToReceive } from '../models/APIMappers';
 import { fetchNewGrid } from '../models/ServerCommunicationModel';
+import { useHistory } from '../models/HistoryModel';
 
 /**
  * SUDOKU CONTROLLER - MVC Structure
@@ -18,8 +19,9 @@ import { fetchNewGrid } from '../models/ServerCommunicationModel';
 export function useGameController() {
   // ==================== CONTEXTS ====================
   
-  const { options: gridData, clearCell,
+  const { options: gridData, clearCell, restoreCell,
     setCellValue, getConflicts, isFilled, getNumberCounts, getNumCells } = useGrid();
+  const { addHistoryItem, popHistoryItem } = useHistory();
   const { options: gameInfo, setOptions: setGameInfo, } = useGameInfo();
   const { options: gameOptions, updateOption: updateOption } = useGameOptions();
   
@@ -57,17 +59,69 @@ export function useGameController() {
     generalUpdateNumberHighlights()
     generalUpdateAreaHighlights()
   }, [gameOptions.selectedCell, gameOptions.selectedNumber, gameOptions.selectMethod, gameOptions.highlightNumbers, gameOptions.highlightAreas]);
+
+  // ==================== HELPER: CAPTURE STATE ====================
+
+  /**
+   * Captures the current state of a specific cell and pushes it to the stack
+   * effectively creating the "Inverse Operation" before we make a change.
+   */
+  function saveStateForUndo(row, col) {
+    const currentState = {
+      row: row,
+      col: col,
+      value: gridData.values[row][col],
+      type: gridData.types[row][col],
+      pencils: [...gridData.pencils[row][col]] // Clone array
+    };
+    addHistoryItem(currentState);
+  }
+
+  function shouldSaveState(row, col, isClearAction) {
+    const type = gridData.types[row][col];
+    const value = gridData.values[row][col];
+    const pencils = gridData.pencils[row][col];
+
+    // 1. Never save actions on "Given" (pre-filled) cells
+    if (type === "Given") return false;
+
+    // 2. If Clearing: Only save if there is actually something to remove
+    if (isClearAction) {
+        if (gameOptions.notes) return pencils && pencils.length > 0;
+        return value !== null || (pencils && pencils.length > 0);
+    }
+
+    // 3. If Inputting:
+    // We cannot add Notes to a cell that already has a main Value
+    if (gameOptions.notes && type === "Value") return false;
+
+    // All other inputs (Toggling numbers, adding notes to empty cells) always cause a change
+    return true;
+  }
   
   
-  // ==================== INPUT HANDLING ====================
+  /**
+   * Centralizes the logic for modifying the grid.
+   * Handles checking validity, saving to undo history, and executing the move.
+   */
+  const executeMove = (row, col, isClear, value = null) => {
+    
+    if (shouldSaveState(row, col, isClear)) {
+      saveStateForUndo(row, col);
+
+      if (isClear) {
+        clearCell(row, col, gameOptions.notes);
+      } else {
+        // Use the passed value (for Cell-First) or the globally selected number (for Number-First)
+        const numToSet = value || gameOptions.selectedNumber;
+        setCellValue(row, col, numToSet, gameOptions.notes);
+      }
+    }
+  };
 
   const NumberFirstStrategy = {
     cellClicked: (row, col) => {
-      if (gameOptions.clear) {
-        clearCell(row, col, gameOptions.notes);
-      } else {
-        setCellValue(row, col, gameOptions.selectedNumber, gameOptions.notes);
-      }
+      executeMove(row, col, gameOptions.clear);
     },
     numberClicked: (num) => {
       updateOption('selectedNumber', num)
@@ -88,13 +142,13 @@ export function useGameController() {
       updateOption('selectedCell', {row: row, col: col})
     },
     numberClicked: (num) => {
-      const cell = gameOptions.selectedCell
-      setCellValue(cell.row, cell.col, num, gameOptions.notes);
+      const { row, col } = gameOptions.selectedCell;
+      executeMove(row, col, false, num);
       
     },
     eraseClicked: () => {
-      const cell = gameOptions.selectedCell
-      clearCell(cell.row, cell.col, gameOptions.notes);
+      const { row, col } = gameOptions.selectedCell;
+      executeMove(row, col, true);
     },
     updateNumberHighlights: () => {
       const cell = gameOptions.selectedCell
@@ -157,7 +211,15 @@ export function useGameController() {
   }
 
   function undoClicked() {
-    // TODO
+    if (isComplete) return;
+
+    // 1. Pop the inverse operation
+    const lastState = popHistoryItem();
+
+    // 2. Execute restoration
+    if (lastState) {
+      restoreCell(lastState.row, lastState.col, lastState);
+    }
   }
 
   function notesClicked() {

@@ -9,6 +9,7 @@ import { GridProvider } from './models/GridModel';
 import { GameInfoProvider } from './models/GameInfoModel';
 import { useSetupSudoku, LoadingProvider } from './controllers/SudokuController';
 import Loading from './views/Loading';
+import { HistoryProvider } from './models/HistoryModel';
 
 
 function SudokuContent() {
@@ -39,13 +40,15 @@ export default function Sudoku() {
   return (
     <NavigationProvider>
       <GameOptionsProvider>
-        <GridProvider>
-          <GameInfoProvider>
-            <LoadingProvider>
-              <SudokuContent/>
-            </LoadingProvider>
-          </GameInfoProvider>
-        </GridProvider>
+        <HistoryProvider>
+          <GridProvider>
+            <GameInfoProvider>
+              <LoadingProvider>
+                <SudokuContent/>
+              </LoadingProvider>
+            </GameInfoProvider>
+          </GridProvider>
+        </HistoryProvider>
       </GameOptionsProvider>
     </NavigationProvider>
   )

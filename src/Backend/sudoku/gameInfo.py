@@ -2,16 +2,16 @@ from sudoku.sudokuEnums import GameModes
 from typing import List, Dict, Any, Optional
 class GameInfo:
     def __init__(self):
-        self.mode = GameModes.GENERATED
+        self.mode = None
         self.difficulty = 1
-        self.time = None
+        self.timer = None
         self.hintsUsed = 0
     
     def to_dict(self):
         return {
-            "mode": self.mode.value,
+            "mode": self.mode.value if self.mode else None,
             "difficulty": self.difficulty,
-            "time": self.time,
+            "timer": self.timer,
             "hints": self.hintsUsed
         }
     
@@ -19,7 +19,7 @@ class GameInfo:
         self.mode = GameModes(data.get("mode"))
         self.difficulty = data.get("difficulty")
         
-        self.time = data.get("time")
+        self.timer = data.get("timer")
         self.hintsUsed = data.get("hints", 0) # Default to 0 if 'hints' is missing
     
     @classmethod
@@ -32,6 +32,6 @@ class GameInfo:
         info = cls(mode, difficulty)
         
         # Set optional and state values
-        info.time = data.get("time")
+        info.timer = data.get("timer")
         info.hintsUsed = data.get("hints", 0) # Default to 0 if 'hints' is missing
         return info

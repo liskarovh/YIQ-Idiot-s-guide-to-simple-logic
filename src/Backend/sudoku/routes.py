@@ -16,6 +16,7 @@ def state():
     if request.method == "GET":
         board = ses.gameManager.currentBoard
         info = ses.gameInfo
+        history = ses.gameManager.operationStack.to_dict()
         
         print(f"Sending response to GET for sid {ses.sid}:")
         print("grid", board.to_dict() if board else None)
@@ -25,7 +26,8 @@ def state():
         resp = jsonify({
             "grid": board.to_dict() if board else None,
             "options": ses.settings.to_dict() if ses.settings else None,
-            "info": info.to_dict() if info else None
+            "info": info.to_dict() if info else None,
+            "history": history
         })
 
     elif request.method == "POST":
@@ -36,6 +38,8 @@ def state():
             ses.settings.update_from_dict(data["options"])
         if "info" in data and ses.gameInfo:
             ses.gameInfo.update_from_dict(data["info"])
+        if "history" in data:
+            ses.gameManager.operationStack.update_from_list(data["history"])
 
         print(f"Updating state on request for sid {ses.sid}:")
         print(data)

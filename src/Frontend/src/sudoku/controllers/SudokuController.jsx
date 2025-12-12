@@ -3,6 +3,7 @@ import { fetchState, sendState } from '../models/ServerCommunicationModel';
 import { useGrid } from '../models/GridModel';
 import { useGameInfo } from '../models/GameInfoModel';
 import { useGameOptions } from '../models/SettingsModel';
+import { useHistory } from '../models/HistoryModel';
 import { mapGridToReceive, mapGridToSend, mapInfoToReceive, mapInfoToSend, mapOptionsToReceive, mapOptionsToSend } from '../models/APIMappers';
 
 // Create a loading context
@@ -25,18 +26,20 @@ export function useSetupSudoku() {
     const { options: gridData, setOptions: setGridData } = useGrid();
     const { options: gameInfo, setOptions: setGameInfo } = useGameInfo();
     const { options: gameOptions, setOptions: setGameOptions } = useGameOptions();
+    const { history, setHistoryState } = useHistory();
     const { loading, setLoading } = useLoading();
 
     const hasData = useRef(false);
-    const dataRef = useRef({gridData, gameInfo, gameOptions})
+    const dataRef = useRef({gridData, gameInfo, gameOptions, history})
 
     useEffect(() => {
         dataRef.current = {
             gridData,
             gameInfo,
-            gameOptions
+            gameOptions,
+            history
         };
-    }, [gridData, gameInfo, gameOptions]);
+    }, [gridData, gameInfo, gameOptions, history]);
 
     useEffect(() => {
         let isMounted = true;
@@ -59,6 +62,10 @@ export function useSetupSudoku() {
                     setGameOptions(mapOptionsToReceive(response.options));
                     console.log("Updating options with: ", response.options)
                 }
+                if (response.history != null) {
+                    console.log("Updating history with: ", response.history);
+                    setHistoryState(response.history);
+                }
             } else {
                 console.error("Error fetching Sudoku state:", response.err);
             }
@@ -71,13 +78,14 @@ export function useSetupSudoku() {
         return () => {
             if (!hasData.current) return
 
-            const { gridData, gameInfo, gameOptions } = dataRef.current;
+            const { gridData, gameInfo, gameOptions, history } = dataRef.current;
             const stateToSend = {
                 grid: mapGridToSend(gridData),
                 info: mapInfoToSend(gameInfo),
                 options: mapOptionsToSend(gameOptions),
+                history
             };
-            console.log("SENDING THIS SHIT", gridData, gameInfo, gameOptions)
+            console.log("SENDING THIS", gridData, gameInfo, gameOptions, history)
             sendState(stateToSend).catch(err => console.error("Error sending Sudoku state:", err));
             isMounted = false;
         };

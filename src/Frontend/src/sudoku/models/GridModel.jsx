@@ -82,6 +82,23 @@ export const GridProvider = ({ children }) => {
     });
   }, []);
 
+  const restoreCell = useCallback((row, col, previousState) => {
+    setOptions(prev => {
+      const newGridData = {
+        ...prev,
+        values: prev.values.map(r => [...r]),
+        pencils: prev.pencils.map(r => r.map(cell => cell ? [...cell] : [])),
+        types: prev.types.map(r => [...r])
+      };
+
+      newGridData.values[row][col] = previousState.value;
+      newGridData.types[row][col] = previousState.type;
+      newGridData.pencils[row][col] = previousState.pencils ? [...previousState.pencils] : [];
+
+      return newGridData;
+    });
+  }, []);
+
   const getConflicts = useCallback(() => {
     const conflictCells = new Set();
     
@@ -188,7 +205,7 @@ export const GridProvider = ({ children }) => {
 
   return (
     <GridContext.Provider value={{ options, setOptions, updateOption, clearCell,
-      setCellValue, getConflicts, isFilled, getNumberCounts, getNumCells }}>
+      setCellValue, restoreCell, getConflicts, isFilled, getNumberCounts, getNumCells }}>
       {children}
     </GridContext.Provider>
   );

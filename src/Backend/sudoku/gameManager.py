@@ -2,6 +2,7 @@ from sudoku.grid import Grid
 from sudoku.gridCache import start_cache, get_grid
 from sudoku.sudokuEnums import GameModes
 from sudoku.sudokuEnums import CellValue as CV
+from sudoku.operationStack import OperationStack
 
 EXAMPLE_GRID = {
     "values": [[6,0,0,5,7,3,9,4,8],
@@ -71,9 +72,11 @@ class GameManager:
     def __init__(self):
         self.currentBoard: Grid = None
         self.solution: Grid = None
-        self.operationStack = None
+        self.operationStack = OperationStack()
 
     def newGrid(self, mode):
+        self.operationStack = OperationStack()
+        
         if mode == GameModes.PREBUILT:
             self.currentBoard = Grid()
             self.currentBoard.update_from_dict(EXAMPLE_GRID)
