@@ -260,7 +260,7 @@ export type Limits = {
 export type Features = {
     undo: boolean;
     hints: boolean;
-    replay: boolean;
+    timer: boolean;
 };
 
 export type CapabilitiesResponse = {

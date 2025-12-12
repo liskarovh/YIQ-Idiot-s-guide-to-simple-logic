@@ -164,8 +164,7 @@ export function buildCapabilitiesPayload(): CapabilitiesResponse {
     const features = {
         timer: true,
         undo: true,
-        hints: true,
-        replay: true
+        hints: true
     };
 
     // Compose final payload

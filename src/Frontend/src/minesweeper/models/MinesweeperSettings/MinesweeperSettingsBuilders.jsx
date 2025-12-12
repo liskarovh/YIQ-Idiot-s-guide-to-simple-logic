@@ -1,10 +1,10 @@
-export function buildCreatePayload({preset, rows, cols, mines, lives}) {
+export function buildCreatePayload({gameId, preset, rows, cols, mines, lives}) {
     if(preset && preset !== "Custom") {
-        return {preset, lives};
+        return {gameId, preset, lives};
     }
-    return {rows, cols, mines, lives};
+    return {gameId, rows, cols, mines, lives};
 }
 
-export function buildGameplayPrefs({showTimer, allowUndo, enableHints, captureReplay}) {
-    return {showTimer, allowUndo, enableHints, captureReplay};
+export function buildGameplayPrefs({gameId, showTimer, allowUndo, enableHints}) {
+    return {gameId, showTimer, allowUndo, enableHints};
 }

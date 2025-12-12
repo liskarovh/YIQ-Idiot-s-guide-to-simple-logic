@@ -4,7 +4,7 @@
  * - Root must be an object containing `presets`, `limits` and `features`.
  * - `presets` is an array of preset game configurations (name, rows, cols, mines).
  * - `limits` describes allowed ranges for rows, cols, mines and lives (each with min/max).
- * - `features` toggles optional server features (undo, hints, replay).
+ * - `features` toggles optional server features (undo, hints, timer).
  * - `additionalProperties: false` prevents unexpected top-level properties.
  */
 export const CapabilitiesResponseSchema = {
@@ -63,7 +63,7 @@ export const CapabilitiesResponseSchema = {
             properties: {
                 undo: {type: "boolean"},
                 hints: {type: "boolean"},
-                replay: {type: "boolean"}
+                timer: {type: "boolean"}
             }
         }
     }
@@ -83,7 +83,7 @@ export const CreateGameRequestSchema = {
     type: "object",
     oneOf: [
         {
-            required: ["preset"],
+            required: ["preset", "lives"],
             additionalProperties: false,
             properties: {
                 preset: {type: "string"},
@@ -91,8 +91,8 @@ export const CreateGameRequestSchema = {
             }
         },
         {
-            required: ["rows", "cols", "mines"],
-            additionalProperties: false,
+            required: ["rows", "cols", "mines", "lives"],
+            additionalProperties: true,
             properties: {
                 rows: {type: "integer", minimum: 1},
                 cols: {type: "integer", minimum: 1},

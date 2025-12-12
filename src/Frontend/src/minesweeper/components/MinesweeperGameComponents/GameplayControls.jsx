@@ -12,6 +12,7 @@ export function GameplayControls({
                                      quickFlag,
                                      cursor,
                                      onHint,
+                                     hintDisabled,
                                      onPauseToggle,
                                      onUndo,
                                      onToggleQuickFlag,
@@ -27,7 +28,7 @@ export function GameplayControls({
                         flexWrap: "wrap",
                     }}
             >
-                <BarBtn icon={IHint} label="Hint" disabled={!enableHints || !canUseActions} onClick={onHint} />
+                <BarBtn icon={IHint} label="Hint" disabled={!enableHints || !canUseActions || hintDisabled} onClick={onHint} />
                 <BarBtn
                         icon={paused ? IPlay : IPause}
                         label={paused ? "Resume" : "Pause"}

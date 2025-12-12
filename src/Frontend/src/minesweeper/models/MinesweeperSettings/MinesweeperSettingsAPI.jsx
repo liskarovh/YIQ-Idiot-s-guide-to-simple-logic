@@ -1,4 +1,5 @@
 import {MinesweeperApiController} from "../../controllers/MinesweeperApiController";
+import {LAST_CREATE_PAYLOAD_KEY, LAST_GAMEPLAY_PREFS_KEY} from "../MinesweeperStorageKeys";
 
 const ctrl = MinesweeperApiController();
 
@@ -20,10 +21,10 @@ export async function postCreateGame(createPayload, {signal} = {}) {
     return ctrl.postJson("game", createPayload, {signal});
 }
 
-export function persistGameplayPrefs(gameId, uiPrefs) {
-    localStorage.setItem(`minesweeper:gameplayPrefs:${gameId}`, JSON.stringify(uiPrefs));
+export function persistLastGameplayPrefs(gameplayPrefs) {
+    localStorage.setItem(LAST_GAMEPLAY_PREFS_KEY, JSON.stringify(gameplayPrefs));
 }
 
 export function persistLastCreatePayload(createPayload) {
-    localStorage.setItem("minesweeper:lastCreatePayload", JSON.stringify(createPayload));
+    localStorage.setItem(LAST_CREATE_PAYLOAD_KEY, JSON.stringify(createPayload));
 }

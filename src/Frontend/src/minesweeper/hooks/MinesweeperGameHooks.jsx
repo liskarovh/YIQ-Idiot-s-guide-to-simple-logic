@@ -3,12 +3,12 @@ import {useEffect, useMemo, useState} from "react";
 export function useGameTimer({view, showTimer, paused, isExploded, isGameOver}) {
     const [timerSec, setTimerSec] = useState(view?.elapsedTime ?? 0);
 
-    // Sync timer from server
+    // Sync timer from server only when NOT in preview mode
     useEffect(() => {
-        if(view?.elapsedTime !== undefined) {
+        if(view?.elapsedTime !== undefined && !view?.isPreview) {
             setTimerSec(view.elapsedTime);
         }
-    }, [view?.elapsedTime]);
+    }, [view?.elapsedTime, view?.isPreview]);
 
     // Run interval only when needed
     useEffect(() => {

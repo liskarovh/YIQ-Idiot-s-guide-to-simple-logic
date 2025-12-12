@@ -1,4 +1,3 @@
-import {useNavigate} from "react-router-dom";
 import GameBasicsPanel from "../components/MinesweeperSettingsComponents/GameBasicsPanel";
 import GameplayPanel from "../components/MinesweeperSettingsComponents/GameplayPanel";
 import SettingsLayout from "../components/MinesweeperSettingsComponents/SettingsLayout";
@@ -7,18 +6,13 @@ import {MinesweeperSettingsController} from "../controllers/MinesweeperSettingsC
 
 export default function MinesweeperSettingsView() {
     const ctrl = MinesweeperSettingsController();
-    const navigate = useNavigate();
 
     if(ctrl.capsLoading) {
         return (
                 <SettingsLayout
-                        onBack={() => navigate(-1)}
-                        leftPanel={
-                            <SettingsLoader />
-                        }
-                        rightPanel={
-                            <SettingsLoader />
-                        }
+                        onBack={ctrl.onBack}
+                        leftPanel={<SettingsLoader />}
+                        rightPanel={<SettingsLoader />}
                         onPlay={() => {}}
                         error={ctrl.submitError}
                         disabled={true}
@@ -58,12 +52,14 @@ export default function MinesweeperSettingsView() {
 
     return (
             <SettingsLayout
-                    onBack={() => navigate(-1)}
+                    onBack={ctrl.onBack}
                     leftPanel={leftPanel}
                     rightPanel={rightPanel}
-                    onPlay={ctrl.handlePlay}
-                    error={ctrl.submitError}
+                    onPlay={ctrl.onPlay}
                     disabled={ctrl.submitting}
+                    fromGame={ctrl.fromGame}
+                    changesDetected={ctrl.changesDetected}
+                    error={ctrl.submitError}
             />
     );
 }

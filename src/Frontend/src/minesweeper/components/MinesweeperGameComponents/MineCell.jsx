@@ -1,4 +1,4 @@
-import React, {useRef, useMemo, useState} from "react";
+import React, {useRef, useMemo, useState, memo} from "react";
 import colors from "../../../Colors";
 import {useImageUrl} from "../../../hooks/RenderImage";
 import {UnopenedCellTexture} from "../../../assets/minesweeper/UnopenedCellTexture";
@@ -18,20 +18,32 @@ const numberColors = {
 };
 
 function MineCell({
+                      // General parameters
                       row,
                       col,
                       adjacent = 0,
+                      size,
+
+                      // Cell state
                       isOpen = false,
                       isFlagged = false,
+                      isPermaFlagged = false,
                       isMine = false,
-                      lostOn = false,
+                      isLostOn = false,
+
+                      // Special states
                       isHighlighted = false,
-                      inHintRect = false,
-                      size,
-                      quickFlagEnabled = false,
+                      inHintRectangle = false,
+
+                      // Cell mutability
                       isFlaggable = true,
                       isRevealable = true,
-                      isPermaFlagged = false,
+                      isHoverable = true,
+
+                      // Action mode
+                      quickFlagEnabled = false,
+
+                      // Action hooks
                       onReveal,
                       onFlag,
                       onBeginHold,
@@ -39,6 +51,7 @@ function MineCell({
                       onFlagDragStart,
                       onFlagDrop
                   }) {
+
     const holdTimer = useRef(null);
     const hoverTimer = useRef(null);
     const [hovered, setHovered] = useState(false);
@@ -115,34 +128,37 @@ function MineCell({
         backgroundPosition: "center"
     };
 
-    // Effects
-    const hintRing = inHintRect ? {
-        boxShadow: "0 0 0 2px rgba(255,255,255,0.06), inset -1px -1px 0 rgba(0,0,0,0.45)"
+    // Special effect styles
+    const hintRectangleStyle = inHintRectangle ? {
+        boxShadow: "0 0 8px 3px rgba(96, 165, 250, 0.6), inset 0 0 8px rgba(96, 165, 250, 0.3)",
+        border: "2px solid rgba(96, 165, 250, 0.9)",
+    } : null; // TODO: change color when wifi is available to view pallete
+
+    const highlightingRectangleStyle = isHighlighted ? {
+        boxShadow: "0 0 8px 3px rgba(96, 165, 250, 0.6), inset 0 0 8px rgba(96, 165, 250, 0.3)",
+        border: "2px solid rgba(96, 165, 250, 0.9)",
     } : null;
 
-    const holdRing = isHighlighted ? {
-        boxShadow: "0 0 0 2px rgba(255,255,255,0.14), inset 0 0 0 2px rgba(255,255,255,0.08)"
-    } : null;
-
-    const lostOverlay = lostOn ? {
+    // Lost on cells have special border (ti signal, they are perma-flagged)
+    const lostOnStyle = isLostOn ? {
         background: "linear-gradient(180deg, rgba(255,33,33,0.12), rgba(255,33,33,0.04))",
         boxShadow: "inset 0 0 0 2px rgba(255,33,33,0.2)"
     } : null;
 
-    // Subtle hover effect (GPU accelerated)
-    const hoverEffect = (!isOpen && hovered) ? {
+    // Subtle hover effect
+    const hoverEffect = (!isOpen && hovered && isHoverable) ? {
         boxShadow: "0 6px 10px rgba(0,0,0,0.06)",
         transform: "translateZ(0) translateY(-0.5px)"
-    } : {};
+    } : null;
 
-    // Interaction handlers according to spec
-    function handleClick(e) {
-        e.preventDefault();
+    // Actiion handlers
+    function handleClick(event) {
+        event.preventDefault();
         if(isOpen) {
             return;
         }
 
-        // QuickFlag mode: only flagging (if allowed)
+        // QuickFlag mode: only flagging
         if(quickFlagEnabled) {
             if(!isPermaFlagged && isFlaggable) {
                 onFlag?.(row, col);
@@ -156,8 +172,8 @@ function MineCell({
         }
     }
 
-    function handleRightClick(e) {
-        e.preventDefault();
+    function handleRightClick(event) {
+        event.preventDefault();
 
         // Right click never works in QuickFlag mode or on opened cells
         if(quickFlagEnabled || isOpen || isPermaFlagged) {
@@ -177,8 +193,8 @@ function MineCell({
         }
     }
 
-    function handleMouseDown(e) {
-        if(e.button !== 0) {
+    function handleMouseDown(event) {
+        if(event.button !== 0) {
             return;
         }
         clearHoldTimer();
@@ -197,6 +213,7 @@ function MineCell({
     }
 
     function handleMouseUp() {
+
         if(holdTimer.current) {
             clearHoldTimer();
         }
@@ -258,8 +275,8 @@ function MineCell({
 
     // Final style (combine effects)
     const style = isOpen
-                  ? {...openedStyle, ...hintRing, ...holdRing, ...lostOverlay}
-                  : {...unopenedStyle, ...hintRing, ...holdRing, ...hoverEffect};
+                  ? {...openedStyle, ...lostOnStyle, ...hintRectangleStyle, ...highlightingRectangleStyle}
+                  : {...unopenedStyle, ...hintRectangleStyle, ...highlightingRectangleStyle, ...hoverEffect};
 
     // Cell content
     const content = (() => {
@@ -322,7 +339,7 @@ function areEqual(prev, next) {
             !!prev.lostOn === !!next.lostOn &&
             prev.quickFlagEnabled === next.quickFlagEnabled &&
             prev.isHighlighted === next.isHighlighted &&
-            prev.inHintRect === next.inHintRect &&
+            prev.inHintRectangle === next.inHintRectangle &&
             prev.size === next.size &&
             prev.isPermaFlagged === next.isPermaFlagged &&
             prev.isFlaggable === next.isFlaggable &&
@@ -330,4 +347,4 @@ function areEqual(prev, next) {
     );
 }
 
-export default React.memo(MineCell, areEqual);
+export default memo(MineCell, areEqual);

@@ -1,4 +1,4 @@
-import React, {useState} from "react";
+import {createElement, useState} from "react";
 import colors from "../Colors";
 
 /**
@@ -16,8 +16,8 @@ import colors from "../Colors";
 function BoxButton({
                        title,
                        icon = undefined,
-                       width = 170,
-                       height = 70,
+                       width,
+                       height,
                        background = colors.secondary,
                        color = colors.text_header,
                        disabled = false,
@@ -34,7 +34,7 @@ function BoxButton({
         alignItems: "center",
         gap: 14,
         borderRadius: "25px",
-        padding: "15px 25px",
+        padding: "15px 38px 15px 25px",
         background: background,
         border: "1px solid rgba(255,255,255,0.25)",
         boxShadow: "-4px 3px 4px rgba(255, 255, 255, 0.25)",
@@ -49,7 +49,7 @@ function BoxButton({
     };
 
     const iconElement = icon
-                        ? (typeof icon === 'function' ? React.createElement(icon) : icon)
+                        ? (typeof icon === 'function' ? createElement(icon) : icon)
                         : null;
 
     return (

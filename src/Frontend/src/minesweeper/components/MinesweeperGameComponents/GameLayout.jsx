@@ -1,35 +1,103 @@
 import Header from "../../../components/Header";
-import AutoScale from "../../../components/AutoScale";
-import MinesweeperSettingsStyles from "../../styles/MinesweeperSettingsStyles.jsx";
-import ErrorBanner from "../../components/MinesweeperSettingsComponents/ErrorBanner";
+import Banner from "../MinesweeperSettingsComponents/Banner";
+import MinesweeperGameStyles from "../../styles/MinesweeperGameStyles.jsx";
 
-function GameLayout({onBack, leftPanel, rightPanel, error}) {
-    return (
-            <div style={MinesweeperSettingsStyles.contentStyle}>
-                <Header showBack={true}
-                        onNavigate={onBack}
-                />
-                <div style={MinesweeperSettingsStyles.boxLayoutStyle}>
-                    <AutoScale
-                            baseWidth={MinesweeperSettingsStyles.boxAutoscaleWidth}
-                            baseHeight={MinesweeperSettingsStyles.boxAutoscaleHeight}
-                            maxScale={MinesweeperSettingsStyles.boxAutoscaleMaxScale}
-                            minScale={MinesweeperSettingsStyles.boxAutoscaleMinScale}
-                            center={MinesweeperSettingsStyles.boxAutoscaleCenter}
+function GameLayout({
+                        onSettings,
+                        statisticsArea,
+                        boardArea,
+                        actionsArea,
+                        error,
+                        isNarrow = false
+                    }) {
+    const statisticsAreaStyle = {
+        ...MinesweeperGameStyles.statisticsAreaLeft,
+        ...(isNarrow
+            ? {
+                            alignItems: "center",
+                            maxWidth: "100%",
+                            textAlign: "center",
+                            justifyContent: "flex-start"
+                        }
+            : {}
+        )
+    };
+
+    const hasLeft = !!statisticsArea;
+
+    const header = (
+            <Header
+                    rightLinkTitle={"Settings"}
+                    showBack={false}
+                    onNavigate={onSettings}
+            />
+    );
+
+    if(isNarrow || !hasLeft) {
+        return (
+                <div style={MinesweeperGameStyles.contentStyle}>
+                    {header}
+
+                    <div style={{
+                        ...MinesweeperGameStyles.boxLayoutStyle,
+                        gridTemplateColumns: "1fr",
+                        gridTemplateRows: "auto",
+                        rowGap: "clamp(1rem, 3vw, 2rem)",
+                        columnGap: 0,
+                        padding: "0rem 1rem",
+                        alignItems: "center"
+                    }}
                     >
-                        {leftPanel}
-                    </AutoScale>
-                    <AutoScale
-                            baseWidth={MinesweeperSettingsStyles.boxAutoscaleWidth}
-                            baseHeight={MinesweeperSettingsStyles.boxAutoscaleHeight}
-                            maxScale={MinesweeperSettingsStyles.boxAutoscaleMaxScale}
-                            minScale={MinesweeperSettingsStyles.boxAutoscaleMinScale}
-                            center={MinesweeperSettingsStyles.boxAutoscaleCenter}
-                    >
-                        {rightPanel}
-                    </AutoScale>
+                        <div style={MinesweeperGameStyles.rightPanel}>
+                            {boardArea}
+                            <div style={{padding: "12px 0", width: "100%", display: "flex", justifyContent: "center", alignItems: "center"}}>
+                                {actionsArea}
+                            </div>
+                        </div>
+                    </div>
+                    <div style={MinesweeperGameStyles.errorWrap}>
+                        <Banner
+                                error={error}
+                        />
+                    </div>
                 </div>
-                <ErrorBanner error={error} />
+        );
+    }
+
+    return (
+            <div style={MinesweeperGameStyles.contentStyle}>
+                {header}
+
+                <div style={{
+                    ...MinesweeperGameStyles.boxLayoutStyle,
+                    gridTemplateColumns: "clamp(280px, 22vw, 350px) minmax(0, 1fr)",
+                    gridTemplateRows: "auto auto",
+                    columnGap: "clamp(1rem, 4vw, 6rem)",
+                    rowGap: "1.5rem",
+                    padding: "0rem 0rem 0rem 2rem",
+                    alignItems: "center"
+                }}
+                >
+                    {/* Row 1, Column 1: Left panel */}
+                    <div style={{...statisticsAreaStyle, gridColumn: "1", gridRow: "1"}}>
+                        {statisticsArea}
+                    </div>
+
+                    {/* Row 1, Column 2: Board area */}
+                    <div style={{...MinesweeperGameStyles.rightPanel, gridColumn: "2", gridRow: "1"}}>
+                        {boardArea}
+                    </div>
+
+                    {/* Row 2: Actions span across both columns and are centered in their cell */}
+                    <div style={{gridColumn: "2", gridRow: "2", width: "100%", padding: "0 12px", display: "flex", justifyContent: "center", alignItems: "center"}}>
+                        {actionsArea}
+                    </div>
+                </div>
+                <div style={MinesweeperGameStyles.errorWrap}>
+                    <Banner
+                            error={error}
+                    />
+                </div>
             </div>
     );
 }

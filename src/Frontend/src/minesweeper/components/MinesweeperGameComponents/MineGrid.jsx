@@ -2,7 +2,6 @@ import React, {useMemo, useRef} from "react";
 import colors from "../../../Colors";
 import MineCell from "./MineCell";
 import HintOverlay from "./HintOverlay";
-import AutoScale from "../../../components/AutoScale";
 
 function MineGrid({
                       /* Coordinates */
@@ -17,10 +16,11 @@ function MineGrid({
                       mines = [],
 
                       /* Highlighting */
-                      hintRectangle,
+                      hintRectangle = null,
                       highlightCell = null,
 
                       /* Mutability */
+                      holdHighlight = true,
                       quickFlag = false,
                       isPaused = false,
                       beforeStart = false,
@@ -34,10 +34,12 @@ function MineGrid({
                       onFlag,
                       onMoveFlag,
                       onBeginHold,
-                      onEndHold,
-                      holdHighlight = true
+                      onEndHold
                   }) {
+    // References
+    const gridRef = useRef(null);
 
+    // Process the board state to render
     const openedMap = useMemo(() => {
         const map = new Map();
         for(const {row, col, adjacent} of opened) {
@@ -63,9 +65,10 @@ function MineGrid({
     }, [mines]);
 
     const highlightKeys = useMemo(() => {
-        if(!highlightCell || !holdHighlight) {
+        if(!highlightCell || !holdHighlight || isPaused) {
             return new Set();
         }
+
         const {row, col} = highlightCell;
         if(!openedMap.has(`${row},${col}`)) {
             return new Set();
@@ -83,9 +86,19 @@ function MineGrid({
         return keys;
     }, [highlightCell, openedMap, rows, cols, holdHighlight]);
 
+    // Game board styles
     const framePadding = 5;
 
-    const frameStyle = {
+    const outerFrameStyle = {
+        alignSelf: "center",
+        display: "inline-block",
+        border: `3px solid ${colors.text_header}`,
+        boxShadow: "inset 0 0 0 1px rgba(255,255,255,0.25)",
+        borderRadius: 5,
+        overflow: "hidden"
+    };
+
+    const innerFrameStyle = {
         position: "relative",
         display: "grid",
         placeItems: "center",
@@ -102,43 +115,28 @@ function MineGrid({
         gap
     };
 
-    const gridWidth = cols * cellSize + Math.max(0, cols - 1) * gap;
-    const gridHeight = rows * cellSize + Math.max(0, rows - 1) * gap;
-    const baseWidth = gridWidth + framePadding * 2;
-    const baseHeight = gridHeight + framePadding * 2;
 
-    const gridRef = useRef(null);
+    // Drag-a-Flag helpers
+    function onGridDrop(event) {
+        event.preventDefault();
+    }
 
-    function onGridDrop(e) { e.preventDefault(); }
-
-    function allowDrop(e) { e.preventDefault(); }
+    function allowDrop(event) {
+        event.preventDefault();
+    }
 
     return (
-            <AutoScale
-                    baseWidth={baseWidth}
-                    baseHeight={baseHeight}
-                    center={false}
-                    minScale={0.5}
-                    maxScale={1}
-                    style={{
-                        alignSelf: "flex-start",
-                        display: "inline-block",
-                        border: `3px solid ${colors.text_header}`,
-                        boxShadow: "inset 0 0 0 1px rgba(255,255,255,0.25)",
-                        borderRadius: 5,
-                        overflow: "hidden"
-                    }}
-            >
-                <div style={frameStyle}>
+            <div style={outerFrameStyle}>
+                <div style={innerFrameStyle}>
                     <div
                             ref={gridRef}
                             style={gridStyle}
                             onDragOver={allowDrop}
                             onDrop={onGridDrop}
-                            onContextMenu={(e) => e.preventDefault()}
+                            onContextMenu={(event) => event.preventDefault()}
                     >
                         <HintOverlay
-                                rect={hintRectangle}
+                                hintRectangle={hintRectangle}
                                 cellSize={cellSize}
                                 gap={gap}
                         />
@@ -153,51 +151,68 @@ function MineGrid({
                             const lostOnCell = !!(lostOn && lostOn.row === row && lostOn.col === col);
                             const isHighlighted = highlightKeys.has(key);
                             const isMine = mineSet.has(key);
-                            const inHint = !!hintRectangle && row >= hintRectangle.r0 && row <= hintRectangle.r1 && col >= hintRectangle.c0 && col <= hintRectangle.c1;
+                            const inHint = !!hintRectangle && row >= hintRectangle.rowStart && row <= hintRectangle.rowEnd && col >= hintRectangle.colStart && col <= hintRectangle.colEnd;
                             const isPermaFlagged = permanentFlags.has(key);
 
                             // Cell interactivity according to spec:
-                            let isFlaggable,
-                                    isRevealable;
+                            let isFlaggable;
+                            let isRevealable;
+                            let isHoverable;
 
+                            // Opened cells: cannot flag or reveal again and no hover effect
                             if(isOpen) {
-                                // Opened cells: cannot flag or reveal again
                                 isFlaggable = false;
                                 isRevealable = false;
+                                isHoverable = false;
                             }
+                            // During explosion (with lives remaining): all interactions blocked
                             else if(isPaused) {
-                                // During explosion (with lives remaining): all interactions blocked
                                 isFlaggable = false;
                                 isRevealable = false;
+                                isHoverable = false;
                             }
+                            // Before first reveal: can only reveal, cannot flag, hovering active
                             else if(beforeStart) {
-                                // Before first reveal: can only reveal, cannot flag
                                 isFlaggable = false;
                                 isRevealable = true;
+                                isHoverable = true;
                             }
+                            // Normal gameplay: all interactions allowed
                             else {
-                                // Normal gameplay: all interactions allowed
                                 isFlaggable = true;
                                 isRevealable = true;
+                                isHoverable = true;
                             }
 
                             return (
                                     <MineCell
+                                            // General parameters
                                             key={key}
                                             row={row}
                                             col={col}
-                                            isOpen={isOpen}
                                             adjacent={adjacent}
+                                            size={cellSize}
+
+                                            // Cell state
+                                            isOpen={isOpen}
                                             isFlagged={isFlagged}
                                             isPermaFlagged={isPermaFlagged}
                                             isMine={isMine}
-                                            lostOn={lostOnCell}
+                                            isLostOn={lostOnCell}
+
+                                            // Special states
                                             isHighlighted={isHighlighted}
-                                            inhintRectangle={inHint}
-                                            size={cellSize}
-                                            quickFlagEnabled={quickFlag}
+                                            inHintRectangle={inHint}
+
+                                            // Cell mutability
                                             isFlaggable={isFlaggable}
                                             isRevealable={isRevealable}
+                                            isHoverable={isHoverable}
+
+                                            // Action mode
+                                            quickFlagEnabled={quickFlag}
+
+                                            // Action hooks
                                             onReveal={onReveal}
                                             onFlag={onFlag}
                                             onBeginHold={onBeginHold}
@@ -208,7 +223,7 @@ function MineGrid({
                         })}
                     </div>
                 </div>
-            </AutoScale>
+            </div>
     );
 }
 

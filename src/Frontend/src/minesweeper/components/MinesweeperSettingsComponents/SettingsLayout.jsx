@@ -3,7 +3,7 @@ import AutoScale from "../../../components/AutoScale";
 import BoxButton from "../../../components/BoxButton";
 import {PlayIcon} from "../../../assets/icons/PlayIcon.jsx";
 import MinesweeperSettingsStyles from "../../styles/MinesweeperSettingsStyles.jsx";
-import ErrorBanner from "./ErrorBanner";
+import Banner from "./Banner";
 import {RestartIcon} from "../../../assets/icons/RestartIcon";
 
 function SettingsLayout({leftPanel, rightPanel, disabled, onBack, onPlay, fromGame, changesDetected, error}) {
@@ -47,10 +47,10 @@ function SettingsLayout({leftPanel, rightPanel, disabled, onBack, onPlay, fromGa
                             onClick={onPlay}
                     />
                 </div>
-                <ErrorBanner
+                <Banner
                         error={error}
                 />
-                <ErrorBanner
+                <Banner
                         error={changesDetected}
                 />
             </div>

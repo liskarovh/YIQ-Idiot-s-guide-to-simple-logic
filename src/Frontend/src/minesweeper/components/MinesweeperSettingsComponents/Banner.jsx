@@ -1,6 +1,6 @@
 import MinesweeperSettingsStyles from "../../styles/MinesweeperSettingsStyles.jsx";
 
-function ErrorBanner({error}) {
+function Banner({type = "warning", error, customMessage}) {
     if(!error) {
         return null;
     }
@@ -18,4 +18,4 @@ function ErrorBanner({error}) {
     );
 }
 
-export default ErrorBanner;
+export default Banner;

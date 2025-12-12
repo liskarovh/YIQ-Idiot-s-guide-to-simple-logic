@@ -17,11 +17,8 @@ import {getCachedImageUrl} from "./ImageUrlCache";
  */
 export function useRenderImage(image, alt = "", style = {}) {
     return useMemo(() => {
-        console.log('[useRenderImage] Input:', { image, alt, style, imageType: typeof image });
-
         // String URL
         if(typeof image === "string" && image) {
-            console.log('[useRenderImage] Rendering as tag img> with URL:', image);
             return <img
                     src={image}
                     alt={alt}
@@ -31,7 +28,6 @@ export function useRenderImage(image, alt = "", style = {}) {
 
         // React element --> clone and merge styles
         if(isValidElement(image)) {
-            console.log('[useRenderImage] Cloning React element:', image);
             return cloneElement(image, {
                 style: {
                     ...(image.props?.style || {}),
@@ -42,12 +38,10 @@ export function useRenderImage(image, alt = "", style = {}) {
 
         // Function component --> render with provided styles
         if(typeof image === "function") {
-            console.log("[useRenderImage] Rendering function component:", image.name || "Anonymous");
             const ImageComponent = image;
             return <ImageComponent style={style} />;
         }
 
-        console.warn("[useRenderImage] No valid image format detected, returning null");
         return null;
     }, [image, alt, style]);
 } // useRenderImage()
@@ -96,7 +90,6 @@ function convertImageToUrl(image) {
             }
         }
         catch(error) {
-            console.error("[useImageUrl] Error rendering component:", error);
             return null;
         }
     }

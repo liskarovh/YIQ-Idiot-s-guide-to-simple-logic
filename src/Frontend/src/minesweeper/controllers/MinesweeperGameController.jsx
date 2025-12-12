@@ -1,10 +1,11 @@
 import {useCallback, useEffect, useMemo, useRef, useState} from "react";
 import {useNavigate, useLocation} from "react-router-dom";
 import {getGame, postReveal, postFlag, postSetMode, postUndo, postSeek, postPreview, postRevive, getHint, isAbortLikeError} from "../models/MinesweeperGame/MinesweeperGameAPI.jsx";
-import {persistGameplayPrefs, persistLastCreatePayload, postCreateGame} from "../models/MinesweeperSettings/MinesweeperSettingsAPI.jsx";
+import {postCreateGame} from "../models/MinesweeperSettings/MinesweeperSettingsAPI.jsx";
 import {useGameTimer, useExplosionMode, useDerivedGameState} from "../hooks/MinesweeperGameHooks";
 import {buildCreatePayload, buildGameplayPrefs} from "../models/MinesweeperSettings/MinesweeperSettingsBuilders";
 import {normalizeView} from "../models/MinesweeperGame/MinesweeperGameRenderHelpers";
+import {LAST_CREATE_PAYLOAD_KEY, LAST_GAMEPLAY_PREFS_KEY, SETTINGS_PAUSE_STORAGE_KEY} from "../models/MinesweeperStorageKeys";
 
 export function useMinesweeperGameController() {
     const navigate = useNavigate();
@@ -36,26 +37,42 @@ export function useMinesweeperGameController() {
             detectPreviousCreateGame.current = abortCtrl;
 
             try {
-                // Try to reuse last payload or fallback to a sensible default
-                const createPayload = buildCreatePayload({preset: "Medium", rows: 16, cols: 16, mines: 40, lives: 3});
-                const gameplayPrefs = buildGameplayPrefs({showTimer: true, allowUndo: true, enableHints: true});
-
-                const {view, location} = await postCreateGame(createPayload,
+                // Create a new game with default settings
+                const {view, location} = await postCreateGame({preset: "Medium", rows: 16, cols: 16, mines: 40, lives: 3},
                                                               {signal: abortCtrl.signal});
+                const newGameId = view?.gameId;
 
-                // We save gameplay preferences and last create game payload
-                if(view?.gameId) {
-                    persistGameplayPrefs(view.gameId, gameplayPrefs);
+                if(!newGameId) {
+                    throw new Error("No gameId returned from server");
                 }
-                persistLastCreatePayload(createPayload);
+
+                // Create defaults for persistence
+                const gameplayPrefs = buildGameplayPrefs({
+                                                             gameId: newGameId,
+                                                             showTimer: true,
+                                                             allowUndo: true,
+                                                             enableHints: true
+                                                         });
+                const createPayload = buildCreatePayload({
+                                                             gameId: newGameId,
+                                                             preset: view?.preset || "Medium",
+                                                             rows: view?.rows || 16,
+                                                             cols: view?.cols || 16,
+                                                             mines: view?.mines || 40,
+                                                             lives: view.lives?.total || 3
+                                                         });
+
+                // Persist last used settings
+                localStorage.setItem(LAST_GAMEPLAY_PREFS_KEY, JSON.stringify(gameplayPrefs));
+                localStorage.setItem(LAST_CREATE_PAYLOAD_KEY, JSON.stringify(createPayload));
 
                 // We try to use "location" header if present to navigate to the game
                 if(location) {
                     try {
                         const url = new URL(location, window.location.origin);
-                        const gameId = view?.gameId || url.pathname.split("/").pop();
-                        if(gameId) {
-                            navigate("/minesweeper", {state: {id: gameId}});
+                        const extractedId = url.pathname.split("/").pop();
+                        if(extractedId) {
+                            navigate("/minesweeper", {state: {id: extractedId}});
                             return;
                         }
                     }
@@ -65,7 +82,7 @@ export function useMinesweeperGameController() {
                 }
 
                 // Fallback navigation
-                navigate("/minesweeper", {state: {id: view.gameId}});
+                navigate("/minesweeper", {state: {id: newGameId}});
             }
             catch(e) {
                 // Ignore aborted
@@ -85,18 +102,69 @@ export function useMinesweeperGameController() {
     // Load Gameplay preferences from localStorage
     const gameplayPrefs = useMemo(() => {
         try {
-            const rawPrefs = localStorage.getItem(`minesweeper:gameplayPrefs:${gameId}`);
+            const rawPrefs = localStorage.getItem(LAST_GAMEPLAY_PREFS_KEY);
             return JSON.parse(rawPrefs || "{}");
         }
         catch {
             return {};
         }
+    }, []);
+
+    // On mount, check if we have a saved paused state in sessionStorage
+    useEffect(() => {
+        if(!gameId) {
+            return;
+        }
+        try {
+            const raw = sessionStorage.getItem(SETTINGS_PAUSE_STORAGE_KEY);
+            if(!raw) {
+                return;
+            }
+            const saved = JSON.parse(raw);
+            if(saved?.gameId !== gameId) {
+                return;
+            }
+            sessionStorage.removeItem(SETTINGS_PAUSE_STORAGE_KEY);
+            if(typeof saved.wasPaused === "boolean") {
+                setPaused(saved.wasPaused);
+            }
+        }
+        catch {
+            sessionStorage.removeItem(SETTINGS_PAUSE_STORAGE_KEY);
+            setPaused(false);
+        }
     }, [gameId]);
+
+    // Gameplay preferences states
+    const showTimer = gameplayPrefs.showTimer ?? true;
+    const allowUndo = gameplayPrefs.allowUndo ?? true;
+    const enableHints = gameplayPrefs.enableHints ?? true;
+    const holdHighlight = gameplayPrefs.holdHighlight ?? true;
+
+    // Game statistics and feature states
+    const [hintsUsed, setHintsUsed] = useState(0);
+    const [hintRectangle, setHintRectangle] = useState(null);
+    const [highlightCell, setHighlightCell] = useState(null);
+    const [seekIndex, setSeekIndex] = useState(0);
+
+    // Game state states
+    const [paused, setPaused] = useState(false);
+    const [quickFlag, setQuickFlag] = useState(false);
+
+    // Derived game states hooks
+    const [explodedMode, setExplodedMode] = useExplosionMode(view);
+    const derived = useDerivedGameState({view, paused, busy, explodedMode});
+    const {beforeStart, isGameOver, isExploded, canReveal, canFlag, canUseActions, minesRemaining, permanentFlagsSet, hearts} = derived;
+    const [timerSec, setTimerSec] = useGameTimer({view, showTimer, paused, isExploded: explodedMode, isGameOver});
+
+    // Per-request AbortController set a hint timer
+    const controllersRef = useRef(new Set());
+    const hintTimerRef = useRef(null);
 
     // Load last used difficulty from localStorage
     const difficulty = useMemo(() => {
         try {
-            const rawDifficulty = localStorage.getItem("minesweeper:lastCreatePayload");
+            const rawDifficulty = localStorage.getItem(LAST_CREATE_PAYLOAD_KEY);
             if(!rawDifficulty) {
                 return null;
             }
@@ -149,38 +217,12 @@ export function useMinesweeperGameController() {
         })();
 
         return () => abortCtrl.abort();
-    }, [gameId]);
-
-    // Gameplay preferences states
-    const showTimer = gameplayPrefs.showTimer ?? true;
-    const allowUndo = gameplayPrefs.allowUndo ?? true;
-    const enableHints = gameplayPrefs.enableHints ?? true;
-    const holdHighlight = gameplayPrefs.holdHighlight ?? true;
-
-    // Game statistics and feature states
-    const [hintsUsed, setHintsUsed] = useState(0);
-    const [hintRectangle, setHintRectangle] = useState(null);
-    const [highlightCell, setHighlightCell] = useState(null);
-    const [seekIndex, setSeekIndex] = useState(0);
-
-    // Game state states
-    const [paused, setPaused] = useState(false);
-    const [quickFlag, setQuickFlag] = useState(false);
-
-    // Derived game states hooks
-    const [explodedMode, setExplodedMode] = useExplosionMode(view);
-    const derived = useDerivedGameState({view, paused, busy, explodedMode});
-    const {beforeStart, isGameOver, isExploded, canReveal, canFlag, canUseActions, minesRemaining, permanentFlagsSet, hearts} = derived;
-    const [timerSec, setTimerSec] = useGameTimer({view, showTimer, paused, isExploded: explodedMode, isGameOver});
+    }, [setTimerSec, gameId]);
 
     // Helper to check if a cell is opened
     const isOpened = useCallback((row, col) => {
-        view?.board?.opened?.some((cell) => cell.row === row && cell.col === col);
+        return view?.board?.opened?.some((cell) => cell.row === row && cell.col === col);
     }, [view?.board?.opened]);
-
-    // Per-request AbortController set a hint timer
-    const controllersRef = useRef(new Set());
-    const hintTimerRef = useRef(null);
 
     // Cleanup on unmount
     useEffect(() => {
@@ -209,7 +251,6 @@ export function useMinesweeperGameController() {
             }
             setView(normalizedData);
             setSeekIndex(normalizedData.cursor ?? 0);
-            setTimerSec(normalizedData.elapsedTime ?? 0);
             setQuickFlag(!!normalizedData.quickFlag);
             return true;
         }
@@ -219,7 +260,7 @@ export function useMinesweeperGameController() {
             setQuickFlag(!!payload.quickFlagEnabled);
         }
         return true;
-    }, [setTimerSec]);
+    }, []);
 
     // Safe setter for view that checks for abort signal
     const safeSetView = useCallback((data, signal) => {
@@ -234,45 +275,45 @@ export function useMinesweeperGameController() {
     }, [applyViewPayload]);
 
     // Request wrapper that applies view automatically
-    const wrapRequest = async(apiFunction) => {
-        const abortCtrl = new AbortController();
-        controllersRef.current.add(abortCtrl);
-        const signal = abortCtrl.signal;
+    const wrapRequest = useCallback(async(apiFunction) => {
+            const abortCtrl = new AbortController();
+            controllersRef.current.add(abortCtrl);
+            const signal = abortCtrl.signal;
 
-        setBusy(true);
-        setError(null);
+            setBusy(true);
+            setError(null);
 
-        // Execute the API function and update the view
-        try {
-            const data = await apiFunction({signal});
+            // Execute the API function and update the view
+            try {
+                const data = await apiFunction({signal});
 
-            // If aborted, do nothing
-            if(signal.aborted) {
-                return null;
+                // If aborted, do nothing
+                if(signal.aborted) {
+                    return null;
+                }
+
+                // Update the view safely
+                safeSetView(data, signal);
+                return data;
             }
+            catch(e) {
+                if(isAbortLikeError(e)) {
+                    return null;
+                }
 
-            // Update the view safely
-            safeSetView(data, signal);
-            return data;
-        }
-        catch(e) {
-            if(isAbortLikeError(e)) {
-                return null;
+                setError(String(e?.message || e));
+                throw e;
             }
-
-            setError(String(e?.message || e));
-            throw e;
-        }
-        finally {
-            controllersRef.current.delete(abortCtrl);
-            if(!signal.aborted) {
-                setBusy(false);
+            finally {
+                controllersRef.current.delete(abortCtrl);
+                if(!signal.aborted) {
+                    setBusy(false);
+                }
             }
-        }
-    };
+    }, [safeSetView]);
 
     // Wapper that doesn't auto-apply view (for small utils like getHint, ...)
-    const wrapRequestNoUpdate = useCallback(async(apiFn) => {
+    const wrapRequestNoUpdate = useCallback(async(apiFunction) => {
         const ctrl = new AbortController();
         controllersRef.current.add(ctrl);
         const signal = ctrl.signal;
@@ -281,7 +322,7 @@ export function useMinesweeperGameController() {
         setError(null);
 
         try {
-            const data = await apiFn({signal});
+            const data = await apiFunction({signal});
             if(signal.aborted) {
                 return null;
             }
@@ -309,7 +350,7 @@ export function useMinesweeperGameController() {
         }
 
         await wrapRequest((opts) => postReveal(gameId, row, col, opts));
-    }, [gameId, view, canReveal]);
+    }, [wrapRequest, gameId, view, canReveal]);
 
     const doFlag = useCallback(async(row, col, set) => {
         if(!view || !canFlag) {
@@ -317,7 +358,7 @@ export function useMinesweeperGameController() {
         }
 
         await wrapRequest((opts) => postFlag(gameId, row, col, set, opts));
-    }, [gameId, view, canFlag]);
+    }, [wrapRequest, gameId, view, canFlag]);
 
     // TODO: implement doMoveFlag properly
     const doMoveFlag = useCallback(async(fromRow, fromCol, toRow, toCol) => {
@@ -328,7 +369,7 @@ export function useMinesweeperGameController() {
             await postFlag(gameId, fromRow, fromCol, false, opts);
             return postFlag(gameId, toRow, toCol, true, opts);
         });
-    }, [gameId, view, canFlag]);
+    }, [wrapRequest, gameId, view, canFlag]);
 
     const doQuickFlagMode = useCallback(async() => {
         if(!view || !canUseActions) {
@@ -347,7 +388,7 @@ export function useMinesweeperGameController() {
         catch {
             // Error already set in wrapper
         }
-    }, [gameId, quickFlag, view, canUseActions]);
+    }, [wrapRequest, gameId, quickFlag, view, canUseActions]);
 
     const doUndo = useCallback(async() => {
         if(!allowUndo || !view || (view.cursor ?? 0) === 0 || !canUseActions) {
@@ -355,22 +396,28 @@ export function useMinesweeperGameController() {
         }
 
         await wrapRequest((opts) => postUndo(gameId, 1, opts));
-    }, [gameId, view, canUseActions]);
+    }, [wrapRequest, allowUndo, gameId, view, canUseActions]);
 
+
+    const [hintCooldown, setHintCooldown] = useState(false);
     const doHint = useCallback(async() => {
-        if(!enableHints || !view || !canUseActions) {
+        if(!enableHints || !view || !canUseActions || hintCooldown) {
             return;
         }
+
+        setHintCooldown(true);
 
         try {
             const data = await wrapRequestNoUpdate((opts) => getHint(gameId, opts));
             if(!data) {
+                setHintCooldown(false);
                 return;
             }
             if(data?.type === "mine-area") {
                 setHintRectangle(data.hintRectangle);
                 setHintsUsed((hintsTotal) => (hintsTotal + 1));
 
+                // Clear any existing timer
                 if(hintTimerRef.current) {
                     clearTimeout(hintTimerRef.current);
                 }
@@ -378,13 +425,18 @@ export function useMinesweeperGameController() {
                 hintTimerRef.current = setTimeout(() => {
                     hintTimerRef.current = null;
                     setHintRectangle(null);
-                }, 2500);
+                    setHintCooldown(false);
+                }, 5000);
+            }
+            else {
+                setHintCooldown(false);
             }
         }
         catch {
-            // Error handled in wrapper
+            setHintCooldown(false);
         }
-    }, [gameId, view, canUseActions, wrapRequestNoUpdate]);
+    }, [wrapRequestNoUpdate, gameId, view, canUseActions, hintCooldown, enableHints]);
+
 
     const doUndoAndRevive = useCallback(async() => {
         if(!view || paused || busy) {
@@ -394,7 +446,7 @@ export function useMinesweeperGameController() {
         if(result) {
             setExplodedMode(false);
         }
-    }, [gameId, paused, busy, view, setExplodedMode]);
+    }, [wrapRequest, gameId, paused, busy, view, setExplodedMode]);
 
     const doReviveFromMove = useCallback(async() => {
         if(!view || paused || busy) {
@@ -404,7 +456,7 @@ export function useMinesweeperGameController() {
         if(result) {
             setExplodedMode(false);
         }
-    }, [gameId, seekIndex, paused, busy, view, setExplodedMode]);
+    }, [wrapRequest, gameId, seekIndex, paused, busy, view, setExplodedMode]);
 
     const handleSliderChange = useCallback(async(v) => {
         if(busy) {
@@ -414,35 +466,50 @@ export function useMinesweeperGameController() {
         const endpoint = isExploded || isGameOver ? "preview" : "seek";
 
         try {
-            const data = await wrapRequest((opts) => endpoint === "preview"
-                                                     ? postPreview(gameId, v, opts)
-                                                     : postSeek(gameId, v, opts)
+            await wrapRequest((opts) => endpoint === "preview"
+                                        ? postPreview(gameId, v, opts)
+                                        : postSeek(gameId, v, opts)
             );
-
-            if(!data) {
-                return;
-            }
 
             if(endpoint === "preview") {
                 setSeekIndex(v);
             }
-
-            setView(data);
         }
         catch {
             // Error handled in wrapper
         }
-    }, [gameId, isExploded, isGameOver, busy]);
+    }, [wrapRequest, gameId, isExploded, isGameOver, busy]);
 
-    const handleBeginHold = useCallback((r, c) => {
-        if(holdHighlight && isOpened(r, c)) {
-            setHighlightCell({r, c});
+    const handleBeginHold = useCallback((row, col) => {
+        if(holdHighlight && isOpened(row, col)) {
+            setHighlightCell({row, col});
         }
-    }, [isOpened]);
+    }, [isOpened, holdHighlight]);
 
     const handleEndHold = useCallback(() => {
         setHighlightCell(null);
     }, []);
+
+    const onSettings = useCallback(() => {
+        const wasPaused = paused;
+        if(!paused) {
+            setPaused(true);
+        }
+
+        try {
+            sessionStorage.setItem(SETTINGS_PAUSE_STORAGE_KEY, JSON.stringify({gameId, wasPaused}));
+        }
+        catch {
+            // ignore
+        }
+
+        navigate("/minesweeper/settings", {
+            state: {
+                existingGameId: gameId,
+                fromGame: true
+            }
+        });
+    }, [gameId, paused, navigate]);
 
     return {
         view,
@@ -464,6 +531,7 @@ export function useMinesweeperGameController() {
         beforeStart,
         isGameOver,
         timerSec,
+        hintCooldown,
 
         hearts,
         difficulty,
@@ -483,6 +551,7 @@ export function useMinesweeperGameController() {
         doReviveFromMove,
         handleSliderChange,
         handleBeginHold,
-        handleEndHold
+        handleEndHold,
+        onSettings
     };
 }
