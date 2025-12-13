@@ -195,9 +195,11 @@ export default function StrategyPage() {
                         showBack
                         backLabel="Back"
                         onNavigate={(arg) => {
+                            console.log('[StrategyPage] Header onNavigate arg =', arg);
                             if (arg === 'back') {
                                 return safeBack();
                             }
+                            console.log("špatně");
                             navigate(String(arg || '/'));
                         }}
                 />
