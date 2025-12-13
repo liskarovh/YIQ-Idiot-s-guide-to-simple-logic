@@ -171,21 +171,7 @@ curl -sS -X POST "$BASE/api/tictactoe/play" \
   -d '{"board":[[".",".","."],[".",".","."],[".",".","."]],"player":"X","move":[0,0],"size":3,"kToWin":3}'
 ```
 
-> `BASE` je kořen vaší App Service (např. `https://…azurewebsites.net`).
-
----
-
-## 9) Co je implementačně „naše“ vs. „převzaté“
-
-- **Naše (malé, testovatelné):**  
-  `rules.py` (validace, legální tah, aplikace tahu, výhra/remíza),  
-  `routes.py` (HTTP kontrakty + JSON chyby),  
-  `config.py` (obtížnosti, limity, timeout),  
-  `__init__.py` (Blueprint).
-
-- **Převzaté:**  
-  MCTS AI a `Board(size, n_in_row)` z `Omega_Gomoku_AI` (submodule).  
-  My jen mapujeme náš `board` na jejich struktury a zavoláme `select_action()`.
+> `BASE` je kořen App Service (např. `https://…azurewebsites.net`).
 
 ---
 

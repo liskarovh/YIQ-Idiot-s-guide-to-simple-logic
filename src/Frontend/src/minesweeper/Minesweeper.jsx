@@ -1,16 +1,16 @@
 import React, { useState, useEffect } from 'react';
 
 /**
- * TIC_TAC_TOE COMPONENT
+ * MINESWEEPER COMPONENT
  * 
- * Similar structure to Sudoku, but for Tic_Tac_Toe.
- * Developer 2 works in this file independently.
+ * Similar structure to Game 1 and Game 2.
+ * Developer 3 works in this file independently.
  * 
- * This demonstrates how each game can be developed separately
- * with the same patterns but different game logic.
+ * Each game can have completely different logic and UI
+ * while using the same communication patterns with the backend.
  */
 
-function Tic_Tac_Toe() {
+function Minesweeper() {
   // STATE
   const [score, setScore] = useState(null);
   const [playerName, setPlayerName] = useState('');
@@ -28,7 +28,7 @@ function Tic_Tac_Toe() {
 
   const fetchScore = async () => {
     try {
-      const response = await fetch(`${apiUrl}/api/tic_tac_toe/score`);
+      const response = await fetch(`${apiUrl}/api/minesweeper/score`);
       
       if (!response.ok) {
         throw new Error('Failed to fetch score');
@@ -54,7 +54,7 @@ function Tic_Tac_Toe() {
     }
 
     try {
-      const response = await fetch(`${apiUrl}/api/tic_tac_toe/score`, {
+      const response = await fetch(`${apiUrl}/api/minesweeper/score`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -68,7 +68,7 @@ function Tic_Tac_Toe() {
       const data = await response.json();
       
       if (data.success) {
-        setMessage(`Success! Score ${data.saved_score} saved for Tic_Tac_Toe!`);
+        setMessage(`Success! Score ${data.saved_score} saved for Minesweeper!`);
         fetchScore();
         setPlayerName('');
         setNewScore('');
@@ -79,7 +79,7 @@ function Tic_Tac_Toe() {
     }
   };
 
-  // STYLES
+  // STYLES (Different color scheme for Minesweeper)
   const styles = {
     container: {
       maxWidth: '800px',
@@ -87,7 +87,7 @@ function Tic_Tac_Toe() {
     },
     title: {
       fontSize: '2.5rem',
-      color: '#ff6b9d',
+      color: '#9d6bff',
       marginBottom: '2rem'
     },
     section: {
@@ -98,7 +98,7 @@ function Tic_Tac_Toe() {
     },
     subtitle: {
       fontSize: '1.5rem',
-      color: '#ff6b9d',
+      color: '#9d6bff',
       marginBottom: '1rem'
     },
     scoreInfo: {
@@ -114,14 +114,14 @@ function Tic_Tac_Toe() {
       padding: '0.75rem',
       fontSize: '1rem',
       borderRadius: '4px',
-      border: '2px solid #ff6b9d',
+      border: '2px solid #9d6bff',
       backgroundColor: '#282c34',
       color: 'white'
     },
     button: {
       padding: '0.75rem 1.5rem',
       fontSize: '1rem',
-      backgroundColor: '#ff6b9d',
+      backgroundColor: '#9d6bff',
       color: '#282c34',
       border: 'none',
       borderRadius: '4px',
@@ -131,13 +131,13 @@ function Tic_Tac_Toe() {
     message: {
       padding: '1rem',
       borderRadius: '4px',
-      backgroundColor: '#5f4a4a',
-      color: '#f0a0a0',
+      backgroundColor: '#4a4a5f',
+      color: '#c0a0f0',
       marginTop: '1rem'
     },
     loading: {
       fontSize: '1.5rem',
-      color: '#ff6b9d',
+      color: '#9d6bff',
       textAlign: 'center'
     },
     error: {
@@ -151,7 +151,7 @@ function Tic_Tac_Toe() {
   if (loading) {
     return (
       <div style={styles.container}>
-        <p style={styles.loading}>Loading Tic_Tac_Toe...</p>
+        <p style={styles.loading}>Loading Minesweeper...</p>
       </div>
     );
   }
@@ -167,7 +167,7 @@ function Tic_Tac_Toe() {
   // MAIN RENDER
   return (
     <div style={styles.container}>
-      <h1 style={styles.title}>Tic_Tac_Toe</h1>
+      <h1 style={styles.title}>Minesweeper</h1>
 
       {/* Current Score Section */}
       <div style={styles.section}>
@@ -208,13 +208,13 @@ function Tic_Tac_Toe() {
 
       {/* Game-specific content here */}
       <div style={styles.section}>
-        <h2 style={styles.subtitle}>Tic_Tac_Toe Specific Features</h2>
+        <h2 style={styles.subtitle}>Minesweeper Specific Features</h2>
         <p style={styles.scoreInfo}>
-          Developer 2: Add your game-specific UI and logic here!
+          Developer 3: Add your game-specific UI and logic here!
         </p>
       </div>
     </div>
   );
 }
 
-export default Tic_Tac_Toe;
+export default Minesweeper;
