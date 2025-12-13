@@ -61,34 +61,40 @@ export default function Toolbar({
                     <button
                             style={{
                                 ...toolbarButton,
-                                ...(paused ? dimmed : null),
-                                ...(bestMoveActive
+                                ...((paused || isSpectator) ? dimmed : null),
+                                ...(bestMoveActive && !(paused || isSpectator)
                                         ? {
                                             filter:
                                                     'drop-shadow(0 0 8px rgba(45,193,45,0.7))',
                                         }
                                         : null),
                             }}
-                            onClick={onBestMove}
+                            onClick={(paused || isSpectator) ? undefined : onBestMove}
                             aria-label="Best move"
-                            aria-disabled={paused}
-                            disabled={paused}
-                            title="Show best move"
+                            aria-disabled={paused || isSpectator}
+                            disabled={paused || isSpectator}
+                            title={
+                                isSpectator
+                                        ? 'Best move is not available in spectator mode'
+                                        : 'Show best move'
+                            }
                     >
                         <BestMoveIcon
                                 style={{
                                     ...toolbarIcon,
-                                    ...(bestMoveActive ? { color: colors.win } : null),
+                                    ...(bestMoveActive && !(paused || isSpectator)
+                                            ? { color: colors.win }
+                                            : null),
                                 }}
                         />
                     </button>
                     <div
                             style={{
                                 ...toolbarLabel,
-                                ...(bestMoveActive
+                                ...(bestMoveActive && !(paused || isSpectator)
                                         ? { color: colors.win, opacity: 1 }
                                         : null),
-                                ...(paused ? { opacity: 0.45 } : null),
+                                ...((paused || isSpectator) ? { opacity: 0.45 } : null),
                             }}
                     >
                         Best move
