@@ -110,7 +110,7 @@ export function normalizeCreatePayload(createPayload: CreatePayload, limits: Lim
     let lives: number;
 
     // If a named preset is provided, use preset defaults
-    if("preset" in createPayload && createPayload.preset) {
+    if("preset" in createPayload && createPayload.preset && createPayload.preset !== "Custom") {
         const preset = createPayload.preset as Preset;
         const mapParameters = detectMapParametersFromPreset(preset);
         rows = mapParameters.rows;
