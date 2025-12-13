@@ -4,15 +4,20 @@ import AutoScale from "./AutoScale";
 import {useRenderImage} from "../hooks/RenderImage";
 
 /**
- * GAME CARD COMPONENT - Displays a game option
+ * @brief Clickable game card with several options.
+ * @details Displays a game's title, description and image and provides action handlers.
  *
- * Props:
- * - title: string - Game title
- * - description: string - Game description
- * - image: string - Path to game icon/image
- * - onCardClick: function - Callback when card is clicked
+ * @param baseWidth Design/base width in pixels used by AutoScale (default: 400).
+ * @param baseHeight Design/base height in pixels used by AutoScale (default: 260).
+ * @param title Main title text shown on the card.
+ * @param description Short description text shown under the title.
+ * @param image Image source URL or React element used as the card icon.
+ * @param onCardClick Callback invoked when the card body is clicked.
+ * @param onPlayNowClick Callback invoked when the "Play now" action is triggered.
+ * @param onSettingsClick Callback invoked when the "Settings" action is triggered.
+ * @param onStrategyClick Callback invoked when the "Strategy" action is triggered.
+ * @param isStacked Whether the card is displayed in a stacked (vertical) layout; affects AutoScale fit/offset.
  */
-
 function GameCard({
                       baseWidth = 400,
                       baseHeight = 260,
@@ -22,7 +27,8 @@ function GameCard({
                       onCardClick,
                       onPlayNowClick,
                       onSettingsClick,
-                      onStrategyClick
+                      onStrategyClick,
+                      isStacked
                   }) {
     const [playNowHovered, setPlayNowHovered] = useState(false);
     const [settingsHovered, setSettingsHovered] = useState(false);
@@ -108,10 +114,6 @@ function GameCard({
     };
 
     const autoScaleStyle = {
-        display: "inline-block",
-        width: baseWidth,
-        height: baseHeight,
-        boxSizing: "border-box",
         overflow: "visible"
     };
 
@@ -121,9 +123,11 @@ function GameCard({
             <AutoScale
                     baseWidth={baseWidth}
                     baseHeight={baseHeight}
-                    minScale={0.5}
                     maxScale={1}
+                    minScale={0.5}
                     center={true}
+                    fit={isStacked ? "width" : "contain"}
+                    offset={isStacked ? {width: 1, height: 0, unit: "rem"} : undefined}
                     style={autoScaleStyle}
             >
                 <div
