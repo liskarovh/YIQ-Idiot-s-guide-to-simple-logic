@@ -396,16 +396,40 @@ export function useGame() {
                 });
 
                 es.onerror = () => {
-                    // SSE failed - fallback to polling
-                    try {
-                        es.close();
-                    } catch {
-                        // ignore
-                    }
-                    esRef.current = null;
+                    (async () => {
+                        try {
+                            es.close();
+                        } catch {
+                            // ignore
+                        }
+                        esRef.current = null;
 
-                    const gidNow = spectatorGameIdRef.current;
-                    startSpectatorPolling(gidNow);
+                        const gidNow = spectatorGameIdRef.current;
+                        if (!gidNow) return;
+                        try {
+                            const st = await ttt._fetch(`/spectator/state?gameId=${encodeURIComponent(gidNow)}`);
+                            const g = st?.game || st;
+
+                            if (g) {
+                                setGame(g);
+                                if (g?.players) setPlayers(extractPlayers(g.players));
+                            }
+
+                            const statusStr = String(st?.status || g?.status || 'running').toLowerCase();
+                            setSpecStatus(statusStr || null);
+
+                            if ('winner' in (st || {})) setSpecWinner(st.winner);
+                            else if ('winner' in (g || {})) setSpecWinner(g.winner);
+
+                            if (Array.isArray(st?.winningSequence)) setSpecWinningSequence(st.winningSequence);
+                            else if (Array.isArray(st?.winning_sequence)) setSpecWinningSequence(st.winning_sequence);
+
+                            if (statusStr && statusStr !== 'running') return;
+                        } catch {
+                        }
+
+                        startSpectatorPolling(gidNow);
+                    })();
                 };
             } catch {
                 // EventSource construction failed - polling fallback in case - SHOULDNT HAPPEN
@@ -542,7 +566,7 @@ export function useGame() {
             try {
                 const urlObj = new URL(window.location.href);
                 urlObj.searchParams.set('gameId', gid);
-                window.history.replaceState({}, '', urlObj.toString());
+                window.history.replaceState(window.history.state, '', urlObj.toString());
             } catch {
                 // ignore
             }
@@ -697,6 +721,31 @@ export function useGame() {
                                                         });
                     } else {
                         spectatorGameIdRef.current = gid;
+                        try {
+                            const st = await ttt._fetch(`/spectator/state?gameId=${encodeURIComponent(gid)}`);
+                            const g = st?.game || st;
+
+                            if (g) {
+                                setGame(g);
+                                if (g?.players) setPlayers(extractPlayers(g.players));
+                            }
+
+                            const statusStr = String(st?.status || g?.status || 'running').toLowerCase();
+                            setSpecStatus(statusStr || null);
+
+                            if ('winner' in (st || {})) setSpecWinner(st.winner);
+                            else if ('winner' in (g || {})) setSpecWinner(g.winner);
+
+                            if (Array.isArray(st?.winningSequence)) setSpecWinningSequence(st.winningSequence);
+                            else if (Array.isArray(st?.winning_sequence)) setSpecWinningSequence(st.winning_sequence);
+
+                            // If ended, DO NOT reopen SSE
+                            if (statusStr && statusStr !== 'running') {
+                                closeSpectatorStreams();
+                                return;
+                            }
+                        } catch {
+                        }
                     }
 
                     if (gid) {
@@ -786,8 +835,18 @@ export function useGame() {
                     }
 
                     // Game is finished
-                    sessionStorage.removeItem('ttt.lastGameId');
-                    startFresh();
+                    setGame(g);
+                    if (g?.id) sessionStorage.setItem('ttt.lastGameId', g.id);
+
+                    setMode(g?.mode || Mode.PVP);
+                    setStartMark(g?.startMark || StartMark.X);
+                    setDifficulty(g?.difficulty || Difficulty.EASY);
+
+                    if (g?.players) setPlayers(extractPlayers(g.players));
+
+                    setHint(null);
+                    setPendingMove(null);
+                    setLastAi(null);
                 } catch (e) {
                     console.warn('[useGame] resume/status ×', e);
                     sessionStorage.removeItem('ttt.lastGameId');
