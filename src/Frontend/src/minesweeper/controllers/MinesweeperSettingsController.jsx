@@ -15,6 +15,7 @@ export function MinesweeperSettingsController() {
 
     // Track original values to detect changes
     const [originalValues, setOriginalValues] = useState(null);
+    const [originalFeatures, setOriginalFeatures] = useState(null);
     const [changesDetected, setChangesDetected] = useState(null);
 
     // Lifecycle of Capabilities
@@ -80,9 +81,21 @@ export function MinesweeperSettingsController() {
             if(lastGameplayPrefs) {
                 const parsed = JSON.parse(lastGameplayPrefs);
 
-                setShowTimer(parsed.showTimer ?? true);
-                setAllowUndo(parsed.allowUndo ?? true);
-                setEnableHints(parsed.enableHints ?? true);
+                if(parsed.gameId === existingGameId) {
+                    const features = {
+                        showTimer: parsed.showTimer ?? true,
+                        allowUndo: parsed.allowUndo ?? true,
+                        enableHints: parsed.enableHints ?? true
+                    };
+
+                    setShowTimer(parsed.showTimer ?? true);
+                    setAllowUndo(parsed.allowUndo ?? true);
+                    setEnableHints(parsed.enableHints ?? true);
+
+                    if(fromGame && originalFeatures == null) {
+                        setOriginalFeatures(features);
+                    }
+                }
             }
 
             if(lastCreatePayload) {
@@ -159,13 +172,24 @@ export function MinesweeperSettingsController() {
             customDimsChanged = false;
         }
 
-        const hasChanges =
+        // Check feature toggles compared to originalFeatures (if available)
+        const featuresChanged = !!originalFeatures && (
+                (!!originalFeatures.showTimer !== !!showTimer) ||
+                (!!originalFeatures.allowUndo !== !!allowUndo) ||
+                (!!originalFeatures.enableHints !== !!enableHints)
+        );
+
+        const hasWarningChanges =
                 Number(originalValues.lives) !== Number(lives) ||
                 originalValues.preset !== preset ||
                 customDimsChanged;
 
-        setChangesDetected(hasChanges ? "🚨 Changing the board dimensions or the number of mines will result in the loss of the game in progress. 🚨" : null);
-    }, [originalValues, preset, rows, cols, mines, lives, fromGame]);
+        const changesWarning = hasWarningChanges ? "🚨 Changing the board dimensions or the number of mines will result in the loss of the game in progress. 🚨"
+                                                 : featuresChanged ? true
+                                                                   : null;
+
+        setChangesDetected(changesWarning);
+    }, [originalValues, originalFeatures, preset, rows, cols, mines, lives, showTimer, allowUndo, enableHints, fromGame]);
 
     // Load initial capabilities if not already loaded or not coming from existing game
     useEffect(() => {
@@ -370,7 +394,8 @@ export function MinesweeperSettingsController() {
             return;
         }
 
-        const {preset: oPreset, rows: oRows, cols: oCols, mines: oMines, lives: oLives} = originalValues;
+        const {preset: oPreset, rows: oRows, cols: oCols, mines: oMines, lives: oLives} = originalValues || {};
+        const {showTimer: oShowTimer, allowUndo: oAllowUndo, enableHints: oEnableHints} = originalFeatures || {};
 
         const dimsOrLivesChanged =
                 (oPreset !== preset) ||
@@ -379,7 +404,13 @@ export function MinesweeperSettingsController() {
                 Number(oMines) !== Number(mines) ||
                 Number(oLives) !== Number(lives);
 
-        if(!dimsOrLivesChanged) {
+        console.log({oShowTimer, showTimer, oAllowUndo, allowUndo, oEnableHints, enableHints});
+        const featuresChanged =
+                (!!oShowTimer !== !!showTimer) ||
+                (!!oAllowUndo !== !!allowUndo) ||
+                (!!oEnableHints !== !!enableHints);
+
+        if(!dimsOrLivesChanged && !featuresChanged) {
             return;
         }
 
@@ -389,10 +420,13 @@ export function MinesweeperSettingsController() {
         setCols(Number(oCols));
         setMines(Number(oMines));
         setLives(Number(oLives));
+        setShowTimer(!!oShowTimer);
+        setAllowUndo(!!oAllowUndo);
+        setEnableHints(!!oEnableHints);
 
         // Cancel changes detected warning
         setChangesDetected(null);
-    }, [fromGame, originalValues, preset, rows, cols, mines, lives, setPreset, setRows, setCols, setMines, setLives, setChangesDetected]);
+    }, [fromGame, originalValues, originalFeatures, preset, rows, cols, mines, lives, showTimer, allowUndo, enableHints, setPreset, setRows, setCols, setMines, setLives, setChangesDetected, setShowTimer, setAllowUndo, setEnableHints]);
 
 
     const onBack = useCallback(() => {

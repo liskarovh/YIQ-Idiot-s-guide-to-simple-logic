@@ -20,11 +20,11 @@ function SettingsLayout({
                         }) {
 
     // Play button style
-    const playButtonTitle = (fromGame && changesDetected) ? "Start new game"
-                                                          : fromGame ? "Continue"
-                                                                     : "Play";
+    const playButtonTitle = (fromGame && typeof changesDetected === "string") ? "Start new game"
+                                                                              : fromGame ? "Continue"
+                                                                                         : "Play";
 
-    const playButtonIcon = (fromGame && changesDetected) ?
+    const playButtonIcon = (fromGame && typeof changesDetected === "string") ?
                            <RestartIcon /> :
                            <PlayIcon />;
 
@@ -94,7 +94,8 @@ function SettingsLayout({
 
     return (
             <div style={MinesweeperSettingsStyles.contentStyle}>
-                <Header showBack={true}
+                <Header showBack={false}
+                        rightLinkTitle={playButtonTitle}
                         onNavigate={onBack}
                 />
 
@@ -140,7 +141,7 @@ function SettingsLayout({
                 />
 
                 <Banner type={"warning"}
-                        customMessage={changesDetected}
+                        customMessage={typeof changesDetected === "string" ? changesDetected : undefined}
                         style={MinesweeperSettingsStyles.warningBanner}
                 />
             </div>
