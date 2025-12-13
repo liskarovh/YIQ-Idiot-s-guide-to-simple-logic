@@ -26,20 +26,18 @@ export default function StrategyPage() {
 
     const safeBack = () => {
         const current = `${location.pathname}${location.search || ''}`;
-        const from = location.state?.from;
 
-        if (typeof from === 'string' && from && from !== current) {
-            return navigate(from);
+        const fromState = location.state?.from;
+        const fromStore = sessionStorage.getItem('ttt_strategy_from');
+
+        const from =
+                (typeof fromState === 'string' && fromState) ||
+                (typeof fromStore === 'string' && fromStore) ||
+                null;
+
+        if (from && from !== current) {
+            return navigate(from, { replace: true });
         }
-
-        const idx =
-                typeof window !== 'undefined' &&
-                window.history?.state &&
-                typeof window.history.state.idx === 'number'
-                        ? window.history.state.idx
-                        : 0;
-
-        if (idx > 0) return navigate(-1);
 
         return navigate('/tic-tac-toe', { replace: true });
     };

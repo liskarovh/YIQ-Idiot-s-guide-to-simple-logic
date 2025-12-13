@@ -791,7 +791,10 @@ export default function GamePage() {
                                                 <AfterGameToolbar
                                                         onPlayAgain={isSpectator ? spectatorPlayAgain : restart}
                                                         onNewGame={() => navigate('/tic-tac-toe/settings')}
-                                                        onStrategy={() => navigate('/tic-tac-toe/strategy', { state: { from: fromHere } })}
+                                                        onStrategy={useCallback(() => {
+                                                            sessionStorage.setItem('ttt_strategy_from', fromHere);
+                                                            navigate('/tic-tac-toe/strategy', { state: { from: fromHere } });
+                                                        }, [navigate, fromHere])}
                                                         onBack={() => navigate('/')}
                                                 />
                                         ) : (
@@ -801,7 +804,10 @@ export default function GamePage() {
                                                         onRestart={restart}
                                                         onPause={() => setPaused((p) => !p)}
                                                         onPower={() => navigate('/')}
-                                                        onStrategy={() => navigate('/tic-tac-toe/strategy', { state: { from: fromHere } })}
+                                                        onStrategy={useCallback(() => {
+                                                            sessionStorage.setItem('ttt_strategy_from', fromHere);
+                                                            navigate('/tic-tac-toe/strategy', { state: { from: fromHere } });
+                                                        }, [navigate, fromHere])}
                                                         bestMoveActive={!isSpectator && bestOpen && !ended}
                                                         onSettings={() => navigate('/tic-tac-toe/settings')}
                                                         isSpectator={isSpectator}
