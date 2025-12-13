@@ -1,11 +1,11 @@
 import Header from "../../components/Header";
 import SudokuGrid from "../components/Grid";
 import { useSudokuNavigation } from "../controllers/NavigationController";
-import { useGameController } from "../controllers/GameController";
+import { useGameController, useNewGame } from "../controllers/GameController"; //
 import NumberSelector from "../components/NumberSelect";
 import Box from "../../components/Box"
 import IconButton from "../../components/IconButton";
-import { Eye, Sparkles, Undo, Eraser, StickyNote, BookOpen, Settings, Pointer } from "lucide-react";
+import { Eye, Sparkles, Undo, Eraser, StickyNote, BookOpen, Settings, Pointer, Play, Home } from "lucide-react"; // Added Play, Home
 import useMeasure from "react-use-measure";
 import colors from "../../Colors";
 import { useMemo } from "react";
@@ -34,8 +34,8 @@ const mobileGridStyle = {
   display: 'grid',
   gridTemplateColumns: '1fr',
   gridTemplateRows: 'auto 1fr auto auto', 
-  gap: '2rem', // Increased gap for separation between Info and Game
-  padding: '7rem 2rem 2rem 2rem', // Increased side padding
+  gap: '2rem', 
+  padding: '7rem 2rem 2rem 2rem', 
   flex: 1,
   minHeight: 0,
 };
@@ -54,7 +54,7 @@ const gameInfoStyle = {
   color: colors.text,
   fontSize: '15cqmin',
   fontWeight: 'bold',
-  marginBottom: '2cqh', // Reduced margin to shift things up
+  marginBottom: '2cqh', 
 };
 
 const whiteTextStyle = {
@@ -145,12 +145,17 @@ function Game() {
   const [ref, bounds] = useMeasure();
   const [gridRef, gridBounds] = useMeasure();
   const { setRelativeView, goBack } = useSudokuNavigation();
+  const { newGame } = useNewGame(); // Import newGame function
+  
   const {
     gridData, selectedCell, selectedNumber, eraseOn, notesOn, inputMethod,
     mode, difficulty, timer, mistakes, completedNumbers, highlightNumbers, highlightAreas,
     gameStatus, hintHighlights,
     cellClicked, numberClicked, smartHintClicked, revealHintClicked, dismissStatus, undoClicked, eraseClicked, notesClicked, inputClicked,
   } = useGameController()
+
+  // Determine if game is won
+  const isVictory = gameStatus?.type === 'completed';
 
   // Determine if mobile layout based on aspect ratio
   const isMobile = useMemo(() => {
@@ -317,50 +322,43 @@ function Game() {
 
     // --- DESKTOP LAYOUT (Responsive cqi units) ---
     const desktopBoxStyle = {
-      padding: '2rem', // Slightly larger padding
+      padding: '2rem', 
       boxSizing: 'border-box',
       height: gridSize,
       width: infoWidth,
       flexShrink: 0,
       display: 'flex',
       flexDirection: 'column',
-      containerType: 'inline-size', // <--- CRITICAL: Allows cqi units to work
+      containerType: 'inline-size', 
     };
     
-    // cqi = 1% of the container's width. 
-    // If width is 400px, 10cqi = 40px.
     const desktopTitleStyle = { ...gameInfoStyle, fontSize: '12cqi', marginBottom: 0, textAlign: 'center' };
     const desktopLabelStyle = { ...whiteTextStyle, fontSize: '7cqi', margin: '0.5cqi' };
     const desktopTimerStyle = { ...timeStyle, fontSize: '15cqi', marginTop: 0, marginBottom: 0 };
-    const statusLabelStyle = { color: colors.text, fontSize: '4cqi', fontWeight: 'bold', textAlign: 'left' };
-
+    
     return (
       <Box width={infoWidth} height={gridSize} style={desktopBoxStyle}>
           
-          {/* Top Section: Distributed with spacers */}
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', flex: 1 }}>
             
-            {/* Spacer */}
             <div style={{ flex: 1 }} /> 
 
             <span style={desktopTitleStyle}>Game Info</span>
             
-            <div style={{ flex: 0.5 }} /> {/* Small Spacer */}
+            <div style={{ flex: 0.5 }} /> 
 
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
               <span style={desktopLabelStyle}>Mode: {mode}</span>
               <span style={desktopLabelStyle}>Difficulty: {difficulty}</span>
             </div>
 
-            <div style={{ flex: 0.5 }} /> {/* Small Spacer */}
+            <div style={{ flex: 0.5 }} /> 
             
             <Timer customStyle={desktopTimerStyle}/>
 
-            {/* Spacer */}
             <div style={{ flex: 1 }} /> 
           </div>
 
-          {/* Bottom Section: Status / Hints */}
           <div style={statusContainerStyle}>
             <div style={{
               flex: 1,
@@ -376,6 +374,41 @@ function Game() {
       </Box>
     )
   }
+
+  // --- CONTROLS COMPONENT ---
+  // Decides whether to show Gameplay buttons or Victory buttons
+  function Controls() {
+    if (isVictory) {
+      return (
+        <div style={{ 
+          display: 'flex', 
+          justifyContent: 'center', 
+          width: '100%', 
+          gap: '2rem' 
+        }}>
+          <IconButton size={iconSize} fontSize={buttonFontSize} icon={Home} description="Menu" onClick={goBack}/>
+          <IconButton size={iconSize} fontSize={buttonFontSize} icon={Play} description="New Game" onClick={newGame}/>
+          <IconButton size={iconSize} fontSize={buttonFontSize} icon={Settings} description="Settings" onClick={() => setRelativeView("Settings")}/>
+            <IconButton size={iconSize} fontSize={buttonFontSize} icon={BookOpen} description="Strategy" onClick={() => setRelativeView("Strategy")}/>
+        </div>
+      );
+    }
+
+    return (
+      <>
+        <IconButton size={iconSize} fontSize={buttonFontSize} icon={Eye} description="Reveal Cell" onClick={revealHintClicked}/>
+        <IconButton size={iconSize} fontSize={buttonFontSize} icon={Sparkles} description="Smart Hint" onClick={smartHintClicked}/>
+        <IconButton size={iconSize} fontSize={buttonFontSize} icon={Undo} description="Undo" onClick={undoClicked}/>
+        <IconButton size={iconSize} fontSize={buttonFontSize} icon={Eraser} description={getDescriptions().erase} onClick={eraseClicked}/>
+        <IconButton size={iconSize} fontSize={buttonFontSize} icon={StickyNote} description={getDescriptions().notes} onClick={notesClicked}/>
+        <IconButton size={iconSize} fontSize={buttonFontSize} icon={BookOpen} description="Strategy" onClick={() => setRelativeView("Strategy")}/>
+        <IconButton size={iconSize} fontSize={buttonFontSize} icon={Settings} description="Settings" onClick={() => setRelativeView("Settings")}/>
+        <IconButton size={iconSize} fontSize={buttonFontSize} icon={Pointer} description={getDescriptions().inputMethod} onClick={inputClicked}/>
+      </>
+    );
+  }
+
+  // --- MAIN RENDER ---
 
   if (isMobile) {
     const actualGridHeight = gridBounds.width || 0;
@@ -415,29 +448,25 @@ function Game() {
               </div>
             </div>
             
-            <NumberSelector
-              selectedNumber={selectedNumber}
-              onNumberSelect={numberClicked}
-              isColumn={true}
-              completedNumbers={completedNumbers}
-              style={{ 
-                height: `${actualGridHeight}px`, 
-                width: `${gridBounds.width * 0.25}px`, 
-                maxWidth: '16vw', 
-                maxHeight: '100%' 
-              }}
-            />
+            {/* Conditional Rendering: Only show Selector if NOT victory */}
+            {!isVictory && (
+              <NumberSelector
+                selectedNumber={selectedNumber}
+                onNumberSelect={numberClicked}
+                isColumn={true}
+                completedNumbers={completedNumbers}
+                style={{ 
+                  height: `${actualGridHeight}px`, 
+                  width: `${gridBounds.width * 0.25}px`, 
+                  maxWidth: '16vw', 
+                  maxHeight: '100%' 
+                }}
+              />
+            )}
           </div>
           
           <div style={{ gridRow: '3', display: 'flex', justifyContent: 'space-between', width: '100%' }}>
-            <IconButton size={iconSize} fontSize={buttonFontSize} icon={Eye} description="Reveal Cell" onClick={revealHintClicked}/>
-            <IconButton size={iconSize} fontSize={buttonFontSize} icon={Sparkles} description="Smart Hint" onClick={smartHintClicked}/>
-            <IconButton size={iconSize} fontSize={buttonFontSize} icon={Undo} description="Undo" onClick={undoClicked}/>
-            <IconButton size={iconSize} fontSize={buttonFontSize} icon={Eraser} description={getDescriptions().erase} onClick={eraseClicked}/>
-            <IconButton size={iconSize} fontSize={buttonFontSize} icon={StickyNote} description={getDescriptions().notes} onClick={notesClicked}/>
-            <IconButton size={iconSize} fontSize={buttonFontSize} icon={BookOpen} description="Strategy" onClick={() => setRelativeView("Strategy")}/>
-            <IconButton size={iconSize} fontSize={buttonFontSize} icon={Settings} description="Settings" onClick={() => setRelativeView("Settings")}/>
-            <IconButton size={iconSize} fontSize={buttonFontSize} icon={Pointer} description={getDescriptions().inputMethod} onClick={inputClicked}/>
+            <Controls />
           </div>
         </div>
       </div>
@@ -468,26 +497,22 @@ function Game() {
         </div>
         
         <div style={numberSelectorCellStyle}>
-          <NumberSelector
-            selectedNumber={selectedNumber}
-            onNumberSelect={numberClicked}
-            isColumn={true}
-            completedNumbers={completedNumbers}
-            style={{ height: gridSize, width: numberSelectorWidth }}
-          />
+          {/* Conditional Rendering: Only show Selector if NOT victory */}
+          {!isVictory && (
+            <NumberSelector
+              selectedNumber={selectedNumber}
+              onNumberSelect={numberClicked}
+              isColumn={true}
+              completedNumbers={completedNumbers}
+              style={{ height: gridSize, width: numberSelectorWidth }}
+            />
+          )}
         </div>
         
         <div style={{ gridColumn: '1 / 5', gridRow: '2', minHeight: 0 }}></div>
         
         <div style={buttonsCellStyle}>
-          <IconButton size={iconSize} fontSize={buttonFontSize} icon={Eye} description="Reveal Cell" onClick={revealHintClicked}/>
-          <IconButton size={iconSize} fontSize={buttonFontSize} icon={Sparkles} description="Smart Hint" onClick={smartHintClicked}/>
-          <IconButton size={iconSize} fontSize={buttonFontSize} icon={Undo} description="Undo" onClick={undoClicked}/>
-          <IconButton size={iconSize} fontSize={buttonFontSize} icon={Eraser} description={getDescriptions().erase} onClick={eraseClicked}/>
-          <IconButton size={iconSize} fontSize={buttonFontSize} icon={StickyNote} description={getDescriptions().notes} onClick={notesClicked}/>
-          <IconButton size={iconSize} fontSize={buttonFontSize} icon={BookOpen} description="Strategy" onClick={() => setRelativeView("Strategy")}/>
-          <IconButton size={iconSize} fontSize={buttonFontSize} icon={Settings} description="Settings" onClick={() => setRelativeView("Settings")}/>
-          <IconButton size={iconSize} fontSize={buttonFontSize} icon={Pointer} description={getDescriptions().inputMethod} onClick={inputClicked}/>
+          <Controls />
         </div>
       </div>
     </div>

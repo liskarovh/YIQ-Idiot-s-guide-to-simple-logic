@@ -63,12 +63,24 @@ export function useGameController() {
 
   useEffect(() => {
     updateAll();
-  }, [gridData.values, gameOptions.highlightCompleted, gameOptions.checkMistakes]);
+  }, [gridData.values,
+    gameOptions.highlightCompleted,
+    gameOptions.checkMistakes,
+    getConflicts,
+    isFilled,
+    status?.type
+  ]);
 
   useEffect(() => {
     generalUpdateNumberHighlights()
     generalUpdateAreaHighlights()
-  }, [gameOptions.selectedCell, gameOptions.selectedNumber, gameOptions.selectMethod, gameOptions.highlightNumbers, gameOptions.highlightAreas, gameOptions.explainSmartHints]);
+  }, [gameOptions.selectedCell,
+    gameOptions.selectedNumber,
+    gameOptions.selectMethod,
+    gameOptions.highlightNumbers,
+    gameOptions.highlightAreas,
+    gameOptions.explainSmartHints
+  ]);
 
   // ==================== HELPER: CAPTURE STATE ====================
 
@@ -297,7 +309,7 @@ export function useGameController() {
     clearHints();
 
     // 1. Fetch from Python API
-    const response = await fetchHint();
+    const response = await fetchHint(gridData);
 
     if (response.err === 0) {
         
@@ -424,7 +436,12 @@ export function useGameController() {
   }
 
   function updatePuzzleCompletion(conflicts) {
+    console.log("Checking copleted")
+    if (status?.type === 'completed') return;
+    console.log("Checking copleted after return")
+
     if (isFilled() && (conflicts.length === 0)) {
+      console.log("Checking copleted inside")
       // Set the global status to Completed
       // This will set isLocked = true
       setStatus({
@@ -433,8 +450,7 @@ export function useGameController() {
         text: 'Congratulations! You have successfully solved the Sudoku.',
         dismissText: null // Hides the dismiss button
       });
-      // Clear any remaining hints on completion
-      clearHints();
+      setHintHighlights(Array(9).fill(null).map(() => Array(9).fill(false)));
     }
   }
 

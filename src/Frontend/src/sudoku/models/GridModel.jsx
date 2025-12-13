@@ -155,9 +155,9 @@ export const GridProvider = ({ children }) => {
       const [row, col] = key.split(',').map(Number);
       return [row, col];
     });
-  });
+  }, [options]);
 
-  const isFilled = () => {
+  const isFilled = useCallback(() => {
     for (let row = 0; row < 9; row++) {
       for (let col = 0; col < 9; col++) {
         const value = options.values[row][col];
@@ -167,18 +167,15 @@ export const GridProvider = ({ children }) => {
       }
     }
     return true;
-  };
+  }, [options]);
 
-  const getNumberCounts = () => {
-    // Initialize counts array with 0 for each number 1-9
+  const getNumberCounts = useCallback(() => {
     const counts = [0, 0, 0, 0, 0, 0, 0, 0, 0];
     
-    // Iterate through all cells
     for (let row = 0; row < 9; row++) {
       for (let col = 0; col < 9; col++) {
         const value = options.values[row][col];
         if (value === null) continue
-        // If value is between 1-9, increment its count
         if (value >= 1 && value <= 9) {
           counts[value - 1]++;
         }
@@ -186,12 +183,11 @@ export const GridProvider = ({ children }) => {
     }
     
     return counts;
-  };
+  }, [options]);
 
-  const getNumCells = (num) => {
+  const getNumCells = useCallback((num) => {
     const cells = [];
     
-    // Iterate through all cells
     for (let row = 0; row < 9; row++) {
       for (let col = 0; col < 9; col++) {
         if (options.values[row][col] === num) {
@@ -201,7 +197,7 @@ export const GridProvider = ({ children }) => {
     }
     
     return cells;
-  };
+  }, [options]);
 
   return (
     <GridContext.Provider value={{ options, setOptions, updateOption, clearCell,

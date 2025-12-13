@@ -71,8 +71,12 @@ export async function fetchNewGrid() {
     }
 }
 
-export async function fetchHint() {
+export async function fetchHint(currentGrid) {
     try {
+        // Send current state first to ensure server is synced
+        const gridPayload = { grid: mapGridToSend(currentGrid) };
+        await sendState(gridPayload);
+
         console.log("Sending GET to /hint");
         const response = await fetch(`${apiUrl}/api/sudoku/hint`, {
             method: 'GET',
@@ -114,7 +118,6 @@ export async function fetchReveal(row, col) {
 export async function fetchMistakes(currentGrid) {
     try {
         // 1. Send current state first to ensure server is synced
-        // We only need to send the grid for mistake checking
         const gridPayload = { grid: mapGridToSend(currentGrid) };
         await sendState(gridPayload);
 
