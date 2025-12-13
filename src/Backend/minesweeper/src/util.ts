@@ -186,6 +186,18 @@ export function buildMaxMinesPayload(rows: number, cols: number): number {
     return maxMines;
 } // buildMaxMinesPayload()
 
+// Source: https://stackoverflow.com/questions/66009048/how-do-i-shuffle-an-array-in-typescript-with-the-fisher-yates-shuffle
+export function fisherYatesShuffle<T>(items: T[]): T[] {
+    const arr = items.slice();
+    for(let i = arr.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        const tmp = arr[i]!;
+        arr[i] = arr[j]!;
+        arr[j] = tmp;
+    }
+    return arr;
+} // fisherYatesShuffle()
+
 function clamp(value: number, min: number, max: number) {
     return Math.max(min, Math.min(max, value));
 } // clamp()

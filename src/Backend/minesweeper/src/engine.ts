@@ -1,5 +1,5 @@
 import {randomUUID} from "crypto";
-import {maskGameViewForClient} from "./util.js";
+import {maskGameViewForClient, fisherYatesShuffle} from "./util.js";
 import type {ComputedCell, GameOptions, GameSession, GameView, Snapshot} from "./types.js";
 
 const map = new Map<string, GameSession>();
@@ -305,7 +305,24 @@ function stepToSnapshot(gameSession: GameSession, uptoAction: number): Snapshot 
     // Check win condition
     const totalCells = gameSession.rows * gameSession.cols;
     const totalMines = gameSession.minePositions.length;
-    if(opened.size === totalCells - totalMines && !lostOn) {
+
+    // Build set of mine keys for exact-match check
+    const mineSet = new Set(gameSession.minePositions.map(([row, col]) => `${row},${col}`));
+
+    // Require that flagged set exactly equals mine set (no extra or missing flags)
+    let allMinesFlagged = false;
+    if(mineSet.size === flagged.size) {
+        allMinesFlagged = true;
+        for(const m of mineSet) {
+            if(!flagged.has(m)) {
+                allMinesFlagged = false;
+                break;
+            }
+        }
+    }
+
+    // Win only when all non-mine cells are opened and all mines are correctly flagged
+    if(opened.size === totalCells - totalMines && !lostOn && allMinesFlagged) {
         cleared = true;
     }
 
@@ -378,28 +395,52 @@ function ensureFirstClickSafe(gameSession: GameSession, clickRow: number, clickC
         }
     }
 
-    if(available.length < gameSession.mines) {
-        console.error("[engine] ensureFirstClickSafe - not enough space for mines outside forbidden zone");
-        throw new Error("Cannot place all mines outside first click area");
-    }
+    const needMines = gameSession.mines;
+    const maxZeroRegion = Math.min(Math.max(1, Math.floor((gameSession.rows * gameSession.cols) * 0.10)), 128); // 10% of board, capped
+    const attempts = 12;
 
-    // Randomly select positions for mines
-    const shuffled = available.sort(() => Math.random() - 0.5);
-    const newPositions = shuffled.slice(0, gameSession.mines);
-
-    gameSession.minePositions = newPositions;
-    gameSession.solutionGrid = computeSolutionGrid(gameSession.rows, gameSession.cols, newPositions);
-
-    // Verify clicked cell has adjacentMines === 0
-    const clickedCell = getSolutionCell(gameSession, clickRow, clickCol);
-    if(!clickedCell || clickedCell.adjacentMines !== 0) {
-        console.warn("[engine] ensureFirstClickSafe - clicked cell still has adjacent mines", {
-            clickRow,
-            clickCol,
-            adjacent: clickedCell?.adjacentMines
+    // If not enough space outside forbidden zone, fall back to global placement excluding clicked cell
+    if(available.length < needMines) {
+        console.warn("[engine] ensureFirstClickSafe - not enough space for mines outside forbidden zone, falling back to global placement excluding clicked cell", {
+            availableOutside: available.length,
+            mines: needMines
         });
+
+        const allExceptClicked: Array<[number, number]> = [];
+        for(let iRow = 0; iRow < gameSession.rows; iRow++) {
+            for(let iCol = 0; iCol < gameSession.cols; iCol++) {
+                if(iRow === clickRow && iCol === clickCol) {
+                    continue;
+                }
+                allExceptClicked.push([iRow, iCol]);
+            }
+        }
+
+        const chosen = pickPlacement(allExceptClicked, needMines, gameSession.rows, gameSession.cols, clickRow, clickCol, maxZeroRegion, attempts);
+        if(chosen) {
+            applyPlacement(gameSession, chosen, clickRow, clickCol, "fallback-limited-zero-region");
+            logEnd("ensureFirstClickSafe", start, {minesPlaced: chosen.length, fallback: true, heuristic: "limited-zero-region"});
+            return;
+        }
+
+        // Final random fallback
+        const newPositionsFallback = fisherYatesShuffle(allExceptClicked).slice(0, needMines);
+        applyPlacement(gameSession, newPositionsFallback, clickRow, clickCol, "final-fallback");
+        logEnd("ensureFirstClickSafe", start, {minesPlaced: newPositionsFallback.length, fallback: true});
+        return;
     }
 
+    // Try several random placements and pick one that keeps flood-fill region small
+    const chosen = pickPlacement(available, needMines, gameSession.rows, gameSession.cols, clickRow, clickCol, maxZeroRegion, attempts);
+    if(chosen) {
+        applyPlacement(gameSession, chosen, clickRow, clickCol, "limited-zero-region");
+        logEnd("ensureFirstClickSafe", start, {minesPlaced: chosen.length, heuristic: "limited-zero-region"});
+        return;
+    }
+
+    // If heuristic failed after attempts, fall back to previous simple behavior
+    const newPositions = fisherYatesShuffle(available).slice(0, needMines);
+    applyPlacement(gameSession, newPositions, clickRow, clickCol, "heuristic-failed");
     logEnd("ensureFirstClickSafe", start, {minesPlaced: newPositions.length});
 }
 
@@ -960,4 +1001,43 @@ export function resumeGameSession(id: string): GameView {
     const view = summarize(gameSession);
     logEnd("resumeGameSession", start, {gameId: id, resumed: true, pausedIntervalMs: pausedInterval});
     return view;
+}
+
+function pickPlacement(pool: Array<[number, number]>, needMines: number, rows: number,
+                       cols: number, clickRow: number, clickCol: number, maxZeroRegion: number,
+                       attemptsCount: number): Array<[number, number]> | null {
+    for(let iAttempt = 0; iAttempt < attemptsCount; iAttempt++) {
+        const copy = fisherYatesShuffle(pool);
+        const candidate = copy.slice(0, needMines);
+        const grid = computeSolutionGrid(rows, cols, candidate);
+
+        try {
+            const opened = new Set<string>();
+            const openedCells = floodFillOpen(grid, clickRow, clickCol, opened);
+            if(openedCells.length <= maxZeroRegion) {
+                return candidate;
+            }
+        }
+        catch {
+            // ignore and retry
+        }
+    }
+
+    return null;
+}
+
+function applyPlacement(gameSession: GameSession, positions: Array<[number, number]>,
+                        clickRow: number, clickCol: number, warnPrefix = ""): void {
+    gameSession.minePositions = positions;
+    gameSession.solutionGrid = computeSolutionGrid(gameSession.rows, gameSession.cols, positions);
+
+    const clickedCell = getSolutionCell(gameSession, clickRow, clickCol);
+    if(!clickedCell || clickedCell.adjacentMines !== 0) {
+        console.warn("[engine] ensureFirstClickSafe - clicked cell has adjacent mines", {
+            note: warnPrefix || undefined,
+            clickRow,
+            clickCol,
+            adjacent: clickedCell?.adjacentMines
+        });
+    }
 }
