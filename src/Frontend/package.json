@@ -12,7 +12,8 @@
     "axios": "^1.13.2",
     "@heroicons/react": "^2.2.0",
     "@dnd-kit/core": "^6.1.0",
-    "@dnd-kit/utilities": "^3.2.2"
+    "@dnd-kit/utilities": "^3.2.2",
+    "@dnd-kit/modifiers": "^7.0.0"
   },
   "scripts": {
     "start": "react-scripts start",
