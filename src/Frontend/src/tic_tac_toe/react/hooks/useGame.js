@@ -874,7 +874,7 @@ export function useGame() {
                 return;
             }
 
-            setPendingMove({ row, col, player: game.player });
+            setPendingMove({ row, col, mark: String(game.player ?? 'X').toUpperCase() });
             setLoading(true);
             setError(null);
 
