@@ -1,21 +1,23 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useGrid } from '../models/GridModel';
 import { useGameInfo } from '../models/GameInfoModel';
 import { useGameOptions } from '../models/SettingsModel';
 import { useLoading } from './SudokuController';
 import { useSudokuNavigation } from './NavigationController';
+import { useStatus } from '../models/StatusModel'; // <--- NEW IMPORT
 import { mapGridToReceive } from '../models/APIMappers';
-import { fetchNewGrid } from '../models/ServerCommunicationModel';
+import {
+  fetchNewGrid,
+  fetchHint,
+  fetchReveal,
+  fetchMistakes } from '../models/ServerCommunicationModel';
 import { useHistory } from '../models/HistoryModel';
-import { fetchHint } from '../models/ServerCommunicationModel';
 
 /**
  * SUDOKU CONTROLLER - MVC Structure
- * 
- * This hook manages the game state and logic for Sudoku
- * Uses GridContext and GameOptionsContext for state management
+ * * This hook manages the game state and logic for Sudoku
+ * Uses GridContext, GameOptionsContext, and StatusContext for state management
  */
-
 
 export function useGameController() {
   // ==================== CONTEXTS ====================
@@ -25,10 +27,10 @@ export function useGameController() {
   const { addHistoryItem, popHistoryItem } = useHistory();
   const { options: gameInfo, setOptions: setGameInfo, } = useGameInfo();
   const { options: gameOptions, updateOption: updateOption } = useGameOptions();
+  const { status, setStatus, hintHighlights, setHintHighlights, clearHints } = useStatus();
   
   // ==================== LOCAL STATE ====================
   
-  const [isComplete, setIsComplete] = useState(false);
   const [mistakes, setMistakes] = useState(
     Array(9).fill(null).map(() => Array(9).fill(false))
   );
@@ -39,13 +41,16 @@ export function useGameController() {
   const [highlightAreas, setHighlightAreas] = useState(
     Array(9).fill(null).map(() => Array(9).fill(false))
   )
-  const [activeHint, setActiveHint] = useState(null); 
-  const [hintHighlights, setHintHighlights] = useState(
-      Array(9).fill(null).map(() => Array(9).fill(false))
-  );
+
+  // Helper to check if game is locked
+  const isLocked = status?.type === 'completed';
+  const isRevealing = status?.type === 'revealWaiting';
+
+  // Prevent fast mistake checking through server API
+  const checkingMistakesRef = useRef(false);
 
   useEffect(() => {
-          if (gameInfo.timer === null || isComplete) return;
+          if (gameInfo.timer === null || isLocked) return;
           const interval = setInterval(() => {
               setGameInfo(prev => ({
                   ...prev,
@@ -53,7 +58,7 @@ export function useGameController() {
               }));
           }, 1000);
           return () => clearInterval(interval);
-      }, [gameInfo.timer, setGameInfo, isComplete]);
+      }, [gameInfo.timer, setGameInfo, isLocked]);
 
 
   useEffect(() => {
@@ -63,7 +68,6 @@ export function useGameController() {
   useEffect(() => {
     generalUpdateNumberHighlights()
     generalUpdateAreaHighlights()
-    softDismissHint()
   }, [gameOptions.selectedCell, gameOptions.selectedNumber, gameOptions.selectMethod, gameOptions.highlightNumbers, gameOptions.highlightAreas, gameOptions.explainSmartHints]);
 
   // ==================== HELPER: CAPTURE STATE ====================
@@ -174,7 +178,12 @@ export function useGameController() {
   
 
   function cellClicked(row, col) {
-    if (isComplete) return;
+    if (isLocked) return;
+
+    if (isRevealing) {
+      performReveal(row, col);
+      return; 
+    }
 
     let strategy
     if (gameOptions.selectMethod === "Number") {
@@ -187,7 +196,11 @@ export function useGameController() {
   }
 
   function numberClicked(num) {
-    if (isComplete) return;
+    if (isLocked) return;
+
+    if (isRevealing) {
+        setStatus(null);
+    }
 
     let strategy
     if (gameOptions.selectMethod === "Number") {
@@ -200,7 +213,11 @@ export function useGameController() {
   }
 
   function eraseClicked() {
-    if (isComplete) return;
+    if (isLocked) return;
+
+    if (isRevealing) {
+        setStatus(null);
+    }
 
     let strategy
     if (gameOptions.selectMethod === "Number") {
@@ -213,7 +230,12 @@ export function useGameController() {
   }
 
   function undoClicked() {
-    if (isComplete) return;
+    if (isLocked) return;
+
+    if (isRevealing) {
+        setStatus(null);
+        return;
+    }
 
     // 1. Pop the inverse operation
     const lastState = popHistoryItem();
@@ -226,63 +248,134 @@ export function useGameController() {
 
   function notesClicked() {
     updateOption('notes', !gameOptions.notes)
+
+    setStatus(null);
   }
 
   function inputClicked() {
     let newOpt
     if (gameOptions["selectMethod"] === "Number") {newOpt="Cell"} else {newOpt="Number"}
+
+    setStatus(null);
+
     updateOption('selectMethod', newOpt)
   }
 
   // ==================== HINT LOGIC ====================
 
   async function smartHintClicked() {
-    if (isComplete) return;
+    if (isLocked) return;
 
     // 1. Fetch from Python API
     const response = await fetchHint();
 
     if (response.err === 0) {
-        // 2. Update UI State
-        setActiveHint({
-            title: response.title,
-            text: response.explanation 
-        });
         
-        // 3. Apply the Matrix from the server
+        // 2. Always apply the Matrix (visuals)
         if (response.matrix) {
-            setHintHighlights(response.matrix);
+          setHintHighlights(response.matrix);
         }
+
+        // 3. Logic for Status/Text
+        // If explanations are OFF, we force status to null (clearing any old status)
+        // If ON, we show the hint status
+        if (!gameOptions.explainSmartHints) {
+           setStatus(null);
+        } else {
+           setStatus({
+              type: 'hint',
+              title: response.title,
+              text: response.explanation,
+              dismissText: 'Got it'
+           });
+        }
+
     } else {
         console.error("Failed to get hint:", response.message);
+        setStatus({
+          type: 'error',
+          title: "Error",
+          text: "Could not fetch hint from server.",
+          dismissText: "Close"
+        });
     }
   }
 
   function revealHintClicked() {
-    // [Keep previous Reveal logic or implement fetchReveal if needed]
-    if (gameOptions.selectMethod === "Cell" && !gameOptions.selectedCell) {
-        // Show local warning using the hint UI
-        setActiveHint({
-            title: "Select a Cell",
-            text: "Please select a cell first to use the Reveal feature."
+    if (isLocked) return;
+
+    // Strategy 1: Cell First
+    if (gameOptions.selectMethod === "Cell") {
+        performReveal(gameOptions.selectedCell.row, gameOptions.selectedCell.col);
+    } 
+    // Strategy 2: Number First
+    else {
+        // Enter "Selection Mode"
+        setStatus({
+            type: 'revealWaiting',
+            title: "Reveal Cell",
+            text: "Select any cell on the board to reveal its value.",
+            dismissText: "Cancel" 
         });
-        // No highlights for this warning
-        setHintHighlights(Array(9).fill(null).map(() => Array(9).fill(false)));
+    }
+  }
+
+  async function performReveal(row, col) {
+    // Basic validation
+    if (gridData.values[row][col] !== null) {
+        setStatus({
+            type: 'error',
+            title: "Cannot Reveal",
+            text: "This cell already has a value.",
+            dismissText: "Okay"
+        });
         return;
     }
-    // Logic for revealing cell...
-  }
 
-  function softDismissHint() {
-    if (!gameOptions.explainSmartHints) {
-      dismissHint();
+    // 1. Fetch value
+    const response = await fetchReveal(row, col);
+
+    if (response.err === 0) {
+        // 2. Update Grid
+        saveStateForUndo(row, col);
+        
+        // Force set the value (disabling notes mode for this specific action)
+        setCellValue(row, col, response.value, false); 
+        
+        // 3. Clear States
+        setStatus(null);
+    } else {
+        setStatus({
+            type: 'error',
+            title: "Error",
+            text: "Could not get cell value.",
+            dismissText: "Close"
+        });
     }
   }
 
-  function dismissHint() {
-    setActiveHint(null);
-    // Clear hint highlights
-    setHintHighlights(Array(9).fill(null).map(() => Array(9).fill(false)));
+  function dismissStatus() {
+    if (!status) return;
+
+    // Reaction based on Type
+    switch (status.type) {
+      case 'hint':
+        // For hints: Clear text AND clear highlights
+        clearHints(); 
+        break;
+      
+      case 'error':
+        // For errors: Just clear text
+        setStatus(null);
+        break;
+
+      case 'completed':
+        // TODO New game or something
+        break;
+        
+      default:
+        setStatus(null);
+    }
   }
 
   // ==================== UPDATE STATE ====================
@@ -294,12 +387,18 @@ export function useGameController() {
     updateMistakes(conflicts)
     generalUpdateNumberHighlights()
     generalUpdateAreaHighlights()
-    softDismissHint()
   }
 
   function updatePuzzleCompletion(conflicts) {
     if (isFilled() && (conflicts.length === 0)) {
-      setIsComplete(true)
+      // Set the global status to Completed
+      // This will set isLocked = true
+      setStatus({
+        type: 'completed',
+        title: 'Complete!',
+        text: 'Congratulations! You have successfully solved the Sudoku.',
+        dismissText: null // Hides the dismiss button
+      });
     }
   }
 
@@ -308,8 +407,6 @@ export function useGameController() {
 
     const completed = [];
     const counts = getNumberCounts();
-
-    console.log("Counts:", counts);
 
     for (let num = 1; num <= 9; num++) {
       if (counts[num - 1] === 9) {
@@ -328,13 +425,11 @@ export function useGameController() {
         }
       }
     }
-
-    console.log("Completed:", completed);
     setCompletedNumbers(completed);
   }
 
 
-  function updateMistakes(conflicts) {
+  async function updateMistakes(conflicts) {
     
     if (gameOptions.checkMistakes === "OFF") return;
     if (gameOptions.checkMistakes === "Conflict") {
@@ -347,7 +442,18 @@ export function useGameController() {
       }
       setMistakes(mistakes)
     } else {
-      // TODO call REST
+      if (checkingMistakesRef.current) return; 
+      checkingMistakesRef.current = true;
+
+      const response = await fetchMistakes(gridData);
+      
+      if (response.err === 0 && response.mistakes) {
+         setMistakes(response.mistakes);
+      } else {
+         console.error("Failed to check mistakes:", response.message);
+      }
+      
+      checkingMistakesRef.current = false;
     }
   }
 
@@ -451,23 +557,19 @@ export function useGameController() {
     mode: gameInfo.mode,
     difficulty: gameInfo.difficulty,
     timer: gameInfo.timer,
-    hintsUsed: gameInfo.hintsUsed,
-    isComplete,
     mistakes: mistakes,
     completedNumbers,
     highlightNumbers,
     highlightAreas,
     hintHighlights,
-    activeHint,
-    showExplanations: gameOptions.explainSmartHints ?? true,
-
+    gameStatus: status,
     
     // Actions
     cellClicked,
     numberClicked,
     smartHintClicked,
     revealHintClicked,
-    dismissHint,
+    dismissStatus,
     undoClicked,
     eraseClicked,
     notesClicked,
@@ -481,9 +583,13 @@ export function useNewGame() {
   const { options: gameOptions } = useGameOptions();
   const { setLoading } = useLoading();
   const { setRelativeView } = useSudokuNavigation();
+  const { clearHints } = useStatus(); // Use this to clear hints on new game
 
   async function newGame() {
         setLoading(true);
+
+        // Reset hints when starting new game
+        clearHints();
 
         let difficulty;
         if (gameOptions.mode === "Prebuilt") {

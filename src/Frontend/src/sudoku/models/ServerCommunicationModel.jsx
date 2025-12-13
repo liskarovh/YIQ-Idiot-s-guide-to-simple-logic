@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { mapGridToSend } from './APIMappers';
 
 const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:5000';
 
@@ -85,6 +86,50 @@ export async function fetchHint() {
         
         const data = await response.json();
         console.log("Got response for GET request to /hint");
+        return { ...data, err: 0 };
+    } catch (err) {
+        return { err: -1, message: err.message || 'Network error' };
+    }
+}
+
+export async function fetchReveal(row, col) {
+    try {
+        console.log(`Sending GET to /get_value for (${row}, ${col})`);
+        const response = await fetch(`${apiUrl}/api/sudoku/get_value?row=${row}&col=${col}`, {
+            method: 'GET',
+            credentials: 'include',
+        });
+
+        if (!response.ok) {
+            return { err: response.status, message: `HTTP error ${response.status}` };
+        }
+
+        const data = await response.json(); // Expected: { value: 5, err: 0 }
+        return { ...data, err: 0 };
+    } catch (err) {
+        return { err: -1, message: err.message || 'Network error' };
+    }
+}
+
+export async function fetchMistakes(currentGrid) {
+    try {
+        // 1. Send current state first to ensure server is synced
+        // We only need to send the grid for mistake checking
+        const gridPayload = { grid: mapGridToSend(currentGrid) };
+        await sendState(gridPayload);
+
+        // 2. Request mistakes
+        console.log("Sending GET to /mistakes");
+        const response = await fetch(`${apiUrl}/api/sudoku/mistakes`, {
+            method: 'GET',
+            credentials: 'include',
+        });
+
+        if (!response.ok) {
+            return { err: response.status, message: `HTTP error ${response.status}` };
+        }
+
+        const data = await response.json(); // Expected: { mistakes: [[bool...]], err: 0 }
         return { ...data, err: 0 };
     } catch (err) {
         return { err: -1, message: err.message || 'Network error' };

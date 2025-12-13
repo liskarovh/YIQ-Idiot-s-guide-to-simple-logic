@@ -54,22 +54,22 @@ const gameInfoStyle = {
   color: colors.text,
   fontSize: '15cqmin',
   fontWeight: 'bold',
-  marginBottom: '5cqh',
+  marginBottom: '2cqh', // Reduced margin to shift things up
 };
 
 const whiteTextStyle = {
   color: "#FFFFFF",
   fontSize: '8cqmin',
   fontWeight: 'bold',
-  margin: '2cqmin', 
+  margin: '1cqmin', 
 };
 
 const timeStyle = {
   color: "#FFFFFF",
   fontSize: '20cqmin',
   fontWeight: 'bold',
-  marginTop: '5cqh', 
-  marginBottom: '10cqh',
+  marginTop: '2cqh', 
+  marginBottom: '5cqh',
 };
 
 const hintTitleStyle = {
@@ -147,9 +147,9 @@ function Game() {
   const { setRelativeView, goBack } = useSudokuNavigation();
   const {
     gridData, selectedCell, selectedNumber, eraseOn, notesOn, inputMethod,
-    mode, difficulty, timer, hintsUsed, mistakes, completedNumbers, highlightNumbers, highlightAreas,
-    activeHint, hintHighlights, showExplanations,
-    cellClicked, numberClicked, smartHintClicked, revealHintClicked, dismissHint, undoClicked, eraseClicked, notesClicked, inputClicked,
+    mode, difficulty, timer, mistakes, completedNumbers, highlightNumbers, highlightAreas,
+    gameStatus, hintHighlights,
+    cellClicked, numberClicked, smartHintClicked, revealHintClicked, dismissStatus, undoClicked, eraseClicked, notesClicked, inputClicked,
   } = useGameController()
 
   // Determine if mobile layout based on aspect ratio
@@ -166,7 +166,6 @@ function Game() {
     const iSize = Math.max(12, Math.min(28, bounds.width / 22));
     
     // Font Size Calculation
-    // Scales from ~12px (0.75rem) at mobile widths to 20px (1.25rem) at 1000px+ width
     const fSizeRaw = Math.max(12, Math.min(20, bounds.width / 50));
     
     return { 
@@ -177,12 +176,10 @@ function Game() {
 
   // Calculate responsive sizes based on grid actual size
   const { infoWidth, infoHeight, numberSelectorWidth, gridSize } = useMemo(() => {
-    // If we haven't measured yet, return safe defaults
     if (!gridBounds.width || !gridBounds.height) {
       return { infoWidth: 400, infoHeight: 600, numberSelectorWidth: 150, gridSize: 0 };
     }
     
-    // logic to keep the grid square and fit within the measured container
     const gridSize = Math.min(gridBounds.width, gridBounds.height);
     const infoHeight = gridSize;
     const infoWidth = Math.min(400, Math.max(200, gridSize * 0.9));
@@ -215,129 +212,172 @@ function Game() {
     return <span style={customStyle || timeStyle}>{timeStr}</span>;
   }
 
+  const statusContainerStyle = {
+    width: '100%',
+    paddingTop: '1rem',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '0.5rem',
+    height: '50%', 
+    overflow: 'hidden',
+  };
+
+  const statusTextStyle = {
+    color: "rgba(255, 255, 255, 0.9)",
+    lineHeight: '1.4',
+    textAlign: 'center',
+    whiteSpace: 'pre-wrap',
+  };
+
   function Info() {
-    // MOBILE LAYOUT
+    // --- STATUS LOGIC (Shared) ---
+    const renderStatusContent = (fontSize) => {
+      // Helper to apply dynamic font size
+      const dynamicTextStyle = { ...statusTextStyle, fontSize: fontSize };
+
+      if (gameStatus) {
+        return (
+          <>
+            <div style={{...hintTitleStyle, fontSize: `calc(${fontSize} * 1.2)`, textAlign: 'center', marginBottom: '0.25rem'}}>
+              {gameStatus.title}
+            </div>
+            <div style={{...dynamicTextStyle, flex: 1, overflowY: 'auto', padding: '0 0.5rem'}}>
+              {gameStatus.text}
+            </div>
+            {gameStatus.dismissText && (
+              <button 
+                onClick={dismissStatus} 
+                style={{...hintButtonStyle, marginTop: '0.5rem', padding: '6px', fontSize: fontSize, width: 'auto', alignSelf: 'center'}}
+              >
+                {gameStatus.dismissText}
+              </button>
+            )}
+          </>
+        );
+      }
+      
+      // Default State
+      return (
+        <></>
+      );
+    };
+
+    // --- MOBILE LAYOUT (Preserved) ---
     if (isMobile) {
       const mobileBoxStyle = {
         padding: '0.75rem 1.5rem',
         display: 'flex',
-        flexDirection: 'row',
-        justifyContent: 'space-between',
+        flexDirection: 'column',
+        justifyContent: 'flex-start',
         alignItems: 'center',
         width: '100%',
         margin: 0, 
         boxSizing: 'border-box', 
         height: 'auto', 
-        minHeight: '60px',
+        minHeight: '80px',
         borderRadius: '15px',
+        gap: '0.5rem'
       };
       
-      const mobileLabelStyle = {
-        color: colors.text,
-        fontSize: '0.8rem',
-        fontWeight: 'bold',
-        opacity: 0.8,
-        marginRight: '0.5rem'
+      const mobileStatsRowStyle = {
+        display: 'flex',
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        width: '100%',
       };
 
-      const mobileValueStyle = {
-        color: "#FFFFFF",
-        fontSize: '1rem',
-        fontWeight: 'bold',
-      };
-
-      const mobileTimerStyle = {
-        color: "#FFFFFF",
-        fontSize: '1.8rem',
-        fontWeight: 'bold',
-        fontVariantNumeric: 'tabular-nums',
-      };
+      const mobileLabelStyle = { color: colors.text, fontSize: '0.8rem', fontWeight: 'bold', opacity: 0.8, marginRight: '0.5rem' };
+      const mobileValueStyle = { color: "#FFFFFF", fontSize: '1rem', fontWeight: 'bold' };
+      const mobileTimerStyle = { color: "#FFFFFF", fontSize: '1.5rem', fontWeight: 'bold', fontVariantNumeric: 'tabular-nums' };
 
       return (
         <Box width="100%" height="auto" style={mobileBoxStyle}>
-          <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: '2px' }}>
-             <div style={{ display: 'flex', alignItems: 'baseline' }}>
-                <span style={mobileLabelStyle}>Mode:</span>
-                <span style={mobileValueStyle}>{mode}</span>
-             </div>
-             <div style={{ display: 'flex', alignItems: 'baseline' }}>
-                <span style={mobileLabelStyle}>Difficulty:</span>
-                <span style={mobileValueStyle}>{difficulty}</span>
-             </div>
+          <div style={mobileStatsRowStyle}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+               <div style={{ display: 'flex', alignItems: 'baseline' }}>
+                  <span style={mobileLabelStyle}>Mode:      </span>
+                  <span style={mobileValueStyle}>{mode}</span>
+               </div>
+               <div style={{ display: 'flex', alignItems: 'baseline' }}>
+                  <span style={mobileLabelStyle}>Difficulty:</span>
+                  <span style={mobileValueStyle}>{difficulty}</span>
+               </div>
+            </div>
+            <Timer customStyle={mobileTimerStyle}/>
           </div>
-          <Timer customStyle={mobileTimerStyle}/>
+          {(gameStatus) && (
+            <div style={{ width: '100%', paddingTop: '0.5rem', borderTop: '1px solid rgba(255,255,255,0.1)', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+               {renderStatusContent('0.9rem')}
+            </div>
+          )}
         </Box>
       )
     }
 
-    // DESKTOP LAYOUT
+    // --- DESKTOP LAYOUT (Responsive cqi units) ---
     const desktopBoxStyle = {
-      padding: '2rem',
+      padding: '2rem', // Slightly larger padding
       boxSizing: 'border-box',
       height: gridSize,
       width: infoWidth,
       flexShrink: 0,
+      display: 'flex',
+      flexDirection: 'column',
+      containerType: 'inline-size', // <--- CRITICAL: Allows cqi units to work
     };
     
+    // cqi = 1% of the container's width. 
+    // If width is 400px, 10cqi = 40px.
+    const desktopTitleStyle = { ...gameInfoStyle, fontSize: '12cqi', marginBottom: 0, textAlign: 'center' };
+    const desktopLabelStyle = { ...whiteTextStyle, fontSize: '7cqi', margin: '0.5cqi' };
+    const desktopTimerStyle = { ...timeStyle, fontSize: '15cqi', marginTop: 0, marginBottom: 0 };
+    const statusLabelStyle = { color: colors.text, fontSize: '4cqi', fontWeight: 'bold', textAlign: 'left' };
+
     return (
       <Box width={infoWidth} height={gridSize} style={desktopBoxStyle}>
-        {activeHint && showExplanations ? (
-            <div style={{
-              height: '100%', 
-              display: 'flex', 
-              flexDirection: 'column'
-            }}>
-                <span style={{...gameInfoStyle, marginBottom: '1rem'}}>Hint</span>
-                
-                <div style={{
-                  flex: 1, 
-                  overflowY: 'auto', 
-                  paddingRight: '0.5rem',
-                  display: 'flex', 
-                  flexDirection: 'column', 
-                  gap: '1rem'
-                }}>
-                    {/* Title */}
-                    <div style={hintTitleStyle}>
-                      {activeHint.title}
-                    </div>
-                    
-                    {/* Explanation */}
-                    {showExplanations && (
-                         <div style={hintTextStyle}>
-                           {activeHint.text}
-                         </div>
-                    )}
-                </div>
-                
-                <button 
-                  onClick={dismissHint} 
-                  style={hintButtonStyle}
-                  onMouseDown={(e) => e.target.style.transform = "scale(0.98)"}
-                  onMouseUp={(e) => e.target.style.transform = "scale(1)"}
-                  onMouseLeave={(e) => e.target.style.transform = "scale(1)"}
-                >
-                  Got it
-                </button>
-            </div>
-        ) : (
-          <div style={boxContentStyle}>
-            <span style={gameInfoStyle}>Game Info</span>
+          
+          {/* Top Section: Distributed with spacers */}
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', flex: 1 }}>
             
-            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center' }}>
-              <span style={whiteTextStyle}>Mode: {mode}</span>
-              <span style={whiteTextStyle}>Difficulty: {difficulty}</span>
-            </div>
+            {/* Spacer */}
+            <div style={{ flex: 1 }} /> 
+
+            <span style={desktopTitleStyle}>Game Info</span>
             
-            <Timer customStyle={timeStyle}/>
+            <div style={{ flex: 0.5 }} /> {/* Small Spacer */}
+
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+              <span style={desktopLabelStyle}>Mode: {mode}</span>
+              <span style={desktopLabelStyle}>Difficulty: {difficulty}</span>
+            </div>
+
+            <div style={{ flex: 0.5 }} /> {/* Small Spacer */}
+            
+            <Timer customStyle={desktopTimerStyle}/>
+
+            {/* Spacer */}
+            <div style={{ flex: 1 }} /> 
           </div>
-        )}
+
+          {/* Bottom Section: Status / Hints */}
+          <div style={statusContainerStyle}>
+            <div style={{
+              flex: 1,
+              display: 'flex',
+              flexDirection: 'column',
+              justifyContent: 'center',
+              alignItems: 'center',
+              minHeight: 0
+            }}>
+              {renderStatusContent('4.5cqi')}
+            </div>
+          </div>
       </Box>
     )
   }
 
   if (isMobile) {
-    // Calculate actual grid height based on its width (since it's square)
     const actualGridHeight = gridBounds.width || 0;
     
     return (
@@ -349,7 +389,6 @@ function Game() {
           </div>
           
           <div style={{ gridRow: '2', ...mobileGameAreaStyle }}>
-            {/* Container that flexes and shrinks */}
             <div ref={gridRef} style={{ 
               flex: '1 1 0', 
               minWidth: 0, 
@@ -358,7 +397,6 @@ function Game() {
               justifyContent: 'flex-start',
               alignItems: 'flex-start'
             }}>
-              {/* Grid wrapper that maintains square aspect ratio and shrinks with container */}
               <div style={{ 
                 width: '100%',
                 aspectRatio: '1',
