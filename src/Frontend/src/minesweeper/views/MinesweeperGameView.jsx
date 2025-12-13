@@ -3,7 +3,7 @@ import {useNavigate} from "react-router-dom";
 import MineGrid from "../components/MinesweeperGameComponents/MineGrid";
 import {useMinesweeperGameController} from "../controllers/MinesweeperGameController.jsx";
 import {GameInfoPanel} from "../components/MinesweeperGameComponents/GameInfoPanel.jsx";
-import {GameplayControls} from "../components/MinesweeperGameComponents/GameplayControls.jsx";
+import {ActionPanel} from "../components/MinesweeperGameComponents/ActionPanel.jsx";
 import {ReviewControls} from "../components/MinesweeperGameComponents/ReviewControls.jsx";
 import {GameOverControls} from "../components/MinesweeperGameComponents/GameOverControls.jsx";
 import GameLayout from "../components/MinesweeperGameComponents/GameLayout.jsx";
@@ -77,7 +77,7 @@ function MinesweeperGameView() {
 
     // Determine which action controls to show
     const actionArea = (!ctrl.isGameOver && !ctrl.isExploded) ? (
-            <GameplayControls
+            <ActionPanel
                     enableHints={ctrl.enableHints}
                     allowUndo={ctrl.allowUndo}
                     canUseActions={ctrl.canUseActions}
@@ -85,6 +85,7 @@ function MinesweeperGameView() {
                     beforeStart={ctrl.beforeStart}
                     quickFlag={ctrl.quickFlag}
                     cursor={ctrl.view.cursor ?? 0}
+                    onStrategy={() => navigate("/minesweeper/strategy")} // TODO: Implement strategy view and add controller function
                     onHint={ctrl.doHint}
                     hintDisabled={ctrl.hintCooldown}
                     onPauseToggle={() => ctrl.setPaused((p) => !p)}
