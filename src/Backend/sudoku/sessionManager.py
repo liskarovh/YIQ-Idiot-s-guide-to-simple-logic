@@ -2,6 +2,7 @@ import os
 import json
 import uuid
 import time
+import tempfile  # Import needed for atomic writes
 from pathlib import Path
 from sudoku.session import SudokuSession
 
@@ -13,9 +14,9 @@ MAX_SESSIONS = 100
 SESSION_DIR.mkdir(parents=True, exist_ok=True)
 
 # 🧠 In-memory cache
-_session_cache = {}  # {sid: (session_obj, last_access_time)}
+_session_cache = {}
 _last_cleanup = 0
-CLEANUP_INTERVAL = 600  # Run cleanup every 10 minutes instead of every call
+CLEANUP_INTERVAL = 600
 
 def _session_path(sid):
     return SESSION_DIR / f"{sid}.json"
@@ -24,13 +25,11 @@ def _cleanup_old_sessions():
     global _last_cleanup
     now = time.time()
     
-    # Skip cleanup if we ran it recently
     if now - _last_cleanup < CLEANUP_INTERVAL:
         return
     
     _last_cleanup = now
 
-    # Clean memory cache (1 hour lifetime)
     expired_sids = [
         sid for sid, (_, last_used) in _session_cache.items()
         if now - last_used > MEMORY_CACHE_LIFETIME
@@ -38,17 +37,14 @@ def _cleanup_old_sessions():
     for sid in expired_sids:
         del _session_cache[sid]
 
-    # Clean disk sessions (1 week lifetime)
     for file in SESSION_DIR.glob("*.json"):
         try:
-            # Use stat for faster timestamp check
             mtime = file.stat().st_mtime
             if now - mtime > FILE_SESSION_LIFETIME:
                 file.unlink(missing_ok=True)
         except Exception:
             file.unlink(missing_ok=True)
 
-    # Enforce max file limit
     files = list(SESSION_DIR.glob("*.json"))
     if len(files) > MAX_SESSIONS:
         files.sort(key=lambda f: f.stat().st_mtime)
@@ -60,13 +56,11 @@ def get_or_create_session(sid=None) -> SudokuSession:
 
     now = time.time()
     
-    # Check memory cache first
     if sid and sid in _session_cache:
         ses, _ = _session_cache[sid]
         _session_cache[sid] = (ses, now)
         return ses
 
-    # Check disk if sid provided
     if sid:
         path = _session_path(sid)
         if path.exists():
@@ -77,8 +71,9 @@ def get_or_create_session(sid=None) -> SudokuSession:
                 ses.sid = sid
                 _session_cache[sid] = (ses, now)
                 return ses
-            except Exception:
-                # Corrupted file, will create new session
+            except Exception as e:
+                print(f"Error loading session {sid}: {e}")
+                # Pass through to create a new session
                 pass
 
     # Create new session
@@ -96,5 +91,15 @@ def save_session(ses):
         "timestamp": now,
         "session": ses.to_dict(),
     }
-    with open(_session_path(ses.sid), "w") as f:
-        json.dump(data, f)
+    
+    # Create a temp file in the same directory to ensure atomic rename works across filesystems
+    fd, tmp_path = tempfile.mkstemp(dir=SESSION_DIR, text=True)
+    
+    try:
+        with os.fdopen(fd, 'w') as f:
+            json.dump(data, f)
+        # Rename is atomic on POSIX (and Windows with recent Python versions)
+        os.replace(tmp_path, _session_path(ses.sid))
+    except Exception as e:
+        print(f"Error saving session {ses.sid}: {e}")
+        os.remove(tmp_path) # Clean up temp file on failure
