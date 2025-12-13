@@ -1,12 +1,35 @@
+/**
+ * @file    useGame.js
+ * @brief   Central Tic-Tac-Toe game hook.
+ *
+ * Encapsulates ALL game-side logic:
+ *  - wraps the HTTP client (ttt.client.js) for /new, /status, /play, /best-move, /restart, /timeout-lose
+ *  - manages `game` DTO in React state
+ *  - exposes helpers for hints (best move), last AI move, and pending move
+ *  - restores unfinished games from sessionStorage (`ttt.lastGameId`)
+ *  - initializes new games from saved settings (`ttt.settings`)
+ *  - implements spectator mode (AI vs AI) via SSE with a polling fallback - doesnt work
+ *  - provides a safe frontend-only timeout fallback when backend call fails
+ *
+ * @author  Hana Liškařová xliskah00
+ * @date    2025-12-13
+ */
+
 // src/tic_tac_toe/react/hooks/useGame.js
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ttt } from '../../javascript/ttt.client.js';
 import { Difficulty, Mode, StartMark } from '../../javascript/constants.js';
 import { useLocation } from 'react-router-dom';
 
+/**
+ * Normalize mode value into a stable string: "pve" or "pvp".
+ */
 const normMode = (v) =>
     String(v ?? '').toLowerCase().includes('pve') ? 'pve' : 'pvp';
 
+/**
+ * Normalize difficulty field into "easy" | "medium" | "hard".
+ */
 const normDiff = (v) => {
     const s = String(v ?? '').toLowerCase();
     if (s.includes('hard')) return 'hard';
@@ -14,15 +37,25 @@ const normDiff = (v) => {
     return 'easy';
 };
 
+/**
+ * Normalize start mark into "X" | "O".
+ * Defaults to "X" for invalid or missing values.
+ */
 const normStart = (v) =>
     String(v).toUpperCase() === 'O' ? 'O' : 'X';
 
+/**
+ * Extract X/O player nicknames from backend DTO
+ */
 function extractPlayers(playersDto) {
     const X = playersDto?.X || playersDto?.x;
     const O = playersDto?.O || playersDto?.o;
     return { x: X?.nickname ?? null, o: O?.nickname ?? null };
 }
 
+/**
+ * Helper for /new payload
+ */
 function computePlayersForNew({ mode, players, playerName }) {
     const m = normMode(mode);
     const px =
@@ -41,24 +74,36 @@ function computePlayersForNew({ mode, players, playerName }) {
     return { X: { nickname: String(px) }, O: { nickname: String(po) } };
 }
 
+/**
+ * Main game hook.
+ *
+ * Exposes:
+ *  - primary game DTO (`game`)
+ *  - loading / error flags
+ *  - move & hint helpers (play, bestMove, restart, timeoutLose, endAsTimeout)
+ *  - newGame, initFromSettings (for settings page / resume)
+ *  - spectator state + spectatorPlayAgain for AI vs AI mode
+ */
 export function useGame() {
     const [game, setGame] = useState(null);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
     const [pendingMove, setPendingMove] = useState(null);
-
-    // HINT = /best-move(HARD) result (including explainRich/stats)
     const [hint, setHint] = useState(null); // { move, explain, explainRich, stats, analysis }
-    // Last server-side autoplay (PvE) from /play (including explainRich, if BE returns it)
+
+    // Last server-side autoplay (PvE) from /play
     const [lastAi, setLastAi] = useState(null);
 
     const location = useLocation();
     const didInitRef = useRef(false);
 
-    // Spectator infrastructure
+    // ───────────────────────── Spectator infrastructure ─────────────────────────
+    // Live EventSource instance for SSE-based spectator mode.
     const esRef = useRef(null);
     const pollRef = useRef(null);
     const spectatorGameIdRef = useRef(null);
+
+    // Remember last spectator configuration to support "Play again"
     const lastSpectatorCfgRef = useRef({
                                            size: 3,
                                            kToWin: 3,
@@ -69,14 +114,14 @@ export function useGame() {
     const [difficulty, setDifficulty] = useState(Difficulty.EASY);
     const [mode, setMode] = useState(Mode.PVP);
     const [startMark, setStartMark] = useState(StartMark.X);
-
-    // Player nicknames are stored only as runtime state derived from the backend
     const [players, setPlayers] = useState({ x: null, o: null });
 
-    // Spectator-specific state
+    // Detect spectator route (/tic-tac-toe/spectate) from current location.
     const isSpectator = String(location?.pathname || '').includes(
         '/tic-tac-toe/spectate',
     );
+
+    // Spectator-specific dynamic state
     const [specLastMove, setSpecLastMove] = useState(null); // { player,row,col }
     const [specExplain, setSpecExplain] = useState(null);
     const [specExplainRich, setSpecExplainRich] = useState(null);
@@ -87,17 +132,21 @@ export function useGame() {
     const [specWinner, setSpecWinner] = useState(null); // "X" | "O" | null
     const [specWinningSequence, setSpecWinningSequence] = useState(null); // [[r,c], ...]
 
-    // Build SSE URL – always target the backend (Flask / App Service)
-    // with fallbacks for missing env config.
+    /**
+     * Build absolute SSE URL for spectator events.
+     *
+     * Behavior:
+     *  - Takes REACT_APP_API_URL (if present) and uses only its origin.
+     *  - Falls back to `window.location.origin` if env is not configured.
+     *  - Resolves ttt.baseUrl (which may be relative or absolute) against the origin.
+     *  - Returns `<base>/spectator/events?gameId=...`.
+     */
     const buildSpectatorSseUrl = useCallback((gid) => {
         const envBase = process.env.REACT_APP_API_URL || '';
 
         let baseOrigin = '';
 
-        // 1) If REACT_APP_API_URL is a full URL, take its origin.
-        //    Examples:
-        //      http://127.0.0.1:5000
-        //      https://itu-backend-xxxx.azurewebsites.net
+        // REACT_APP_API_URL is a full URL
         if (envBase && envBase.startsWith('http')) {
             try {
                 baseOrigin = new URL(envBase).origin;
@@ -106,23 +155,19 @@ export function useGame() {
             }
         }
 
-        // 2) If env is missing or invalid, fallback to the FE origin.
+        // Env is missing or invalid, fallback to the FE origin.
         if (!baseOrigin) {
             if (typeof window !== 'undefined') {
                 baseOrigin = window.location.origin;
             } else {
-                // SSR / emergency fallback – spectator mode would not run there anyway.
                 baseOrigin = 'http://localhost';
             }
         }
 
-        // 3) This is the client base URL – typically "/api/tictactoe"
-        //    or already an absolute URL from createTttClient.
+        // Client base URL
         const rawBaseUrl = ttt.baseUrl || '/api/tictactoe';
 
-        // 4) new URL:
-        //    - if rawBaseUrl is absolute, baseOrigin is ignored,
-        //    - if rawBaseUrl is relative, it is resolved against baseOrigin.
+        // new URL:
         let fullBase;
         try {
             fullBase = new URL(rawBaseUrl, baseOrigin).toString();
@@ -136,14 +181,17 @@ export function useGame() {
         )}`;
 
         if (typeof window !== 'undefined') {
-            // Small debug to see where EventSource connects
-            // eslint-disable-next-line no-console
             console.log('[useGame] spectator SSE URL =', url);
         }
 
         return url;
     }, []);
 
+    /**
+     * Close all active spectator streams:
+     *  - EventSource (SSE)
+     *  - polling interval (if any)
+     */
     const closeSpectatorStreams = useCallback(() => {
         if (esRef.current) {
             try {
@@ -159,6 +207,9 @@ export function useGame() {
         }
     }, []);
 
+    /**
+     * Start periodic polling as a resilient fallback when SSE is not available. - SHOULDNT HAPPEN, KEPT JUST FOR FUTURE IMPROVEMENT (doesnt work properly)
+     */
     const startSpectatorPolling = useCallback((gid) => {
         if (!gid) return;
         if (pollRef.current) return;
@@ -196,11 +247,20 @@ export function useGame() {
                     pollRef.current = null;
                 }
             } catch {
-                // polling error – next iteration will try again
+                // polling error
             }
         }, 1200);
     }, []);
 
+    /**
+     * Open SSE stream for spectator mode.
+     *
+     * Behavior:
+     *  - closes previous streams
+     *  - subscribes to "state", "move" and "end" events
+     *  - keeps `game` and spectator state in sync
+     *  - if SSE fails, falls back to polling on the same gameId
+     */
     const openSpectatorStream = useCallback(
         (gid) => {
             if (!gid) return;
@@ -212,6 +272,7 @@ export function useGame() {
                 const es = new EventSource(buildSpectatorSseUrl(gid));
                 esRef.current = es;
 
+                // Full state snapshot
                 es.addEventListener('state', (e) => {
                     try {
                         const data = JSON.parse(e.data);
@@ -243,7 +304,7 @@ export function useGame() {
                     }
                 });
 
-                // Spectator mode is pure server-push.
+                // Incremental updates
                 es.addEventListener('move', (e) => {
                     try {
                         const data = JSON.parse(e.data);
@@ -258,8 +319,7 @@ export function useGame() {
                                        : g.moves,
                             };
 
-                            // If backend ever sends status/winner in move events
-                            // (e.g. last move), apply them so the info panel can react.
+                            //  status/winner in move events
                             if (data?.status) {
                                 next.status = data.status;
                             }
@@ -290,16 +350,15 @@ export function useGame() {
                                             col: data?.col,
                                         });
 
-                        // If BE sends explain/stats in SSE, just adopt them.
                         setSpecExplain(data?.explain ?? null);
                         setSpecExplainRich(data?.explainRich ?? null);
                         setSpecStats(data?.stats ?? null);
                     } catch (err) {
-                        // eslint-disable-next-line no-console
                         console.warn('[useGame] SSE move parse ×', err);
                     }
                 });
 
+                // End event: final status and winner, then detach from SSE
                 es.addEventListener('end', (e) => {
                     try {
                         const data = JSON.parse(e.data);
@@ -337,7 +396,7 @@ export function useGame() {
                 });
 
                 es.onerror = () => {
-                    // SSE failed → fallback to polling
+                    // SSE failed - fallback to polling
                     try {
                         es.close();
                     } catch {
@@ -349,13 +408,18 @@ export function useGame() {
                     startSpectatorPolling(gidNow);
                 };
             } catch {
-                // EventSource construction failed → fallback to polling
+                // EventSource construction failed - polling fallback in case - SHOULDNT HAPPEN
                 startSpectatorPolling(gid);
             }
         },
         [buildSpectatorSseUrl, closeSpectatorStreams, startSpectatorPolling],
     );
 
+    /**
+     * Create a new spectator match on backend and initialize local state.
+     *
+     * Used both on first entry to /spectate and for "Play again"
+     */
     const createSpectatorGame = useCallback(
         async ({ size, kToWin, difficulty: diff, moveDelayMs }) => {
             const payload = {
@@ -371,7 +435,6 @@ export function useGame() {
             const url = `${base}/spectator/new`;
 
             // Debug – request
-            // eslint-disable-next-line no-console
             console.log('[useGame] POST spectator/new →', url, payload);
 
             let init = {};
@@ -390,7 +453,6 @@ export function useGame() {
                     const err = new Error(
                         `Spectator /new failed: ${res.status} ${res.statusText} ${text}`,
                     );
-                    // eslint-disable-next-line no-console
                     console.warn('[useGame] spectator /new HTTP ×', err);
                     throw err;
                 }
@@ -400,7 +462,6 @@ export function useGame() {
                     try {
                         init = await res.json();
                     } catch (e) {
-                        // eslint-disable-next-line no-console
                         console.warn(
                             '[useGame] spectator/new JSON parse ×',
                             e,
@@ -408,7 +469,6 @@ export function useGame() {
                         init = {};
                     }
                 } else {
-                    // eslint-disable-next-line no-console
                     console.warn(
                         '[useGame] spectator/new: non-JSON response, ct =',
                         ct,
@@ -416,30 +476,26 @@ export function useGame() {
                     init = {};
                 }
 
-                // eslint-disable-next-line no-console
                 console.log('[useGame] spectator/new response =', init);
             } catch (err) {
-                // eslint-disable-next-line no-console
                 console.warn('[useGame] spectator /new network ×', err);
                 throw err;
             }
 
             const st = init?.state || {};
 
-            // robustně najdi gameId z různých tvarů
+            // Robustly extract gameId
+            //  { gameId }, { id }, { state: { ... } }, { state: { game: { ... } } }, etc.
             const gid =
                 init?.gameId ??
-                init?.game_id ??
                 init?.id ??
                 st?.gameId ??
-                st?.game_id ??
                 st?.id ??
                 st?.game?.id ??
                 st?.game?.gameId ??
-                st?.game?.game_id ??
                 null;
 
-            // reset spectator stavů (ať nezůstane stará 8×8 hra)
+            // Reset spectator
             setSpecLastMove(null);
             setSpecExplain(null);
             setSpecExplainRich(null);
@@ -470,12 +526,11 @@ export function useGame() {
                     setSpecWinningSequence(st.winning_sequence);
                 }
             } else {
-                // Backend neposlal state.game → neukazuj starou PVP hru
+                // Backend did not send state.game
                 setGame(null);
             }
 
             if (!gid) {
-                // eslint-disable-next-line no-console
                 console.warn(
                     '[useGame] spectator/new: missing gameId in response, init =',
                     init,
@@ -483,7 +538,7 @@ export function useGame() {
                 return null;
             }
 
-            // zapiš gameId do URL (?gameId=...)
+            // Reflect new gameId in the browser URL
             try {
                 const urlObj = new URL(window.location.href);
                 urlObj.searchParams.set('gameId', gid);
@@ -497,7 +552,13 @@ export function useGame() {
         [],
     );
 
-    // ───────────────────────── /new ─────────────────────────
+    // ───────────────────────── /new (standard game) ─────────────────────────
+    /**
+     * Create a brand new game (non-spectator).
+     *
+     * Normalizes payload for backend, updates global mode/difficulty/startMark,
+     * resets transient state and persists lastGameId for resume-on-home.
+     */
     const newGame = useCallback(
         async (p) => {
             const payload = {
@@ -508,7 +569,6 @@ export function useGame() {
                 difficulty: normDiff(p?.difficulty ?? difficulty),
                 humanMark: p?.humanMark,
                 turnTimerSec: Number(p?.turnTimerSec) || 0,
-                // Safety: always send at least one of: players | playerName
                 players: computePlayersForNew({
                                                   mode: p?.mode ?? mode,
                                                   players: p?.players,
@@ -517,6 +577,7 @@ export function useGame() {
                 playerName: p?.playerName ?? undefined,
             };
 
+            // Mirror current config
             setMode(payload.mode);
             setStartMark(payload.startMark);
             setDifficulty(payload.difficulty);
@@ -533,7 +594,6 @@ export function useGame() {
                 sessionStorage.setItem('ttt.lastGameId', g.id);
                 if (g?.players) setPlayers(extractPlayers(g.players));
             } catch (e) {
-                // eslint-disable-next-line no-console
                 console.warn('[useGame] newGame() ×', e);
                 setError(e?.message || 'New game failed');
             } finally {
@@ -544,6 +604,12 @@ export function useGame() {
     );
 
     // ───────────────────────── init-from-settings ─────────────────────────
+    /**
+     * Initialize a game based on previously saved settings (`ttt.settings`),
+     * Returns:
+     *  - true  if a new game was successfully started from settings.
+     *  - false if there was no saved config or parsing failed.
+     */
     const initFromSettings = useCallback(
         () => {
             if (game) return true;
@@ -581,7 +647,6 @@ export function useGame() {
                              });
                 return true;
             } catch (e) {
-                // eslint-disable-next-line no-console
                 console.warn('[useGame] initFromSettings ×', e);
                 sessionStorage.removeItem('ttt.settings');
                 return false;
@@ -590,6 +655,11 @@ export function useGame() {
         [game, newGame],
     );
 
+    /**
+     *  - If  on /spectate, set up spectator mode.
+     *  - Otherwise (GamePage), resume from lastGameId if possible,
+     *    or create a fresh game
+     */
     useEffect(() => {
         // ───────── 1) Spectator init (AI vs AI, SSE) ─────────
         if (isSpectator) {
@@ -633,14 +703,13 @@ export function useGame() {
                         openSpectatorStream(gid);
                     }
                 } catch (e) {
-                    // eslint-disable-next-line no-console
                     console.warn('[useGame] spectator init ×', e);
                 } finally {
                     setLoading(false);
                 }
             })();
 
-            // cleanup při odchodu ze /spectate
+            // Clean up when navigating away from /spectate
             return () => {
                 closeSpectatorStreams();
             };
@@ -659,6 +728,9 @@ export function useGame() {
         const storedLastId = sessionStorage.getItem('ttt.lastGameId');
         const lastId = gid || storedLastId;
 
+        /**
+         * Helper: start a brand new game using settings or default values.
+         */
         const startFresh = () => {
             const ok = initFromSettings();
             if (ok) return;
@@ -672,12 +744,14 @@ export function useGame() {
                          });
         };
 
+        // Query parameter ?fresh=1 (from Home or Settings) forces a new game
         if (forceFresh) {
             sessionStorage.removeItem('ttt.lastGameId');
             startFresh();
             return;
         }
 
+        // Try to resume the last running game
         if (lastId) {
             (async () => {
                 try {
@@ -696,17 +770,17 @@ export function useGame() {
                         }
                         setMode(g?.mode || Mode.PVP);
                         setStartMark(
-                            g?.start_mark || g?.startMark || StartMark.X,
+                            g?.startMark || StartMark.X,
                         );
                         setDifficulty(g?.difficulty || Difficulty.EASY);
                         if (g?.players) setPlayers(extractPlayers(g.players));
                         return;
                     }
 
+                    // Game is finished
                     sessionStorage.removeItem('ttt.lastGameId');
                     startFresh();
                 } catch (e) {
-                    // eslint-disable-next-line no-console
                     console.warn('[useGame] resume/status ×', e);
                     sessionStorage.removeItem('ttt.lastGameId');
                     startFresh();
@@ -717,16 +791,18 @@ export function useGame() {
         } else {
             startFresh();
         }
-        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [location.search, isSpectator]);
 
-    // Public: start a new spectator game (for Play Again)
+    /**
+     * Public: start a new spectator game with the last used configuration.
+     */
     const spectatorPlayAgain = useCallback(
         async () => {
             if (!isSpectator) return;
 
             closeSpectatorStreams();
 
+            // Reset transient spectator state.
             setSpecLastMove(null);
             setSpecExplain(null);
             setSpecExplainRich(null);
@@ -755,7 +831,6 @@ export function useGame() {
                     openSpectatorStream(gid);
                 }
             } catch (e) {
-                // eslint-disable-next-line no-console
                 console.warn('[useGame] spectatorPlayAgain ×', e);
             }
         },
@@ -768,6 +843,15 @@ export function useGame() {
     );
 
     // ───────────────────────── /play ─────────────────────────
+    /**
+     * Perform a player move (row, col).
+     *
+     * Steps:
+     *  1) Validate game is running and the cell is inside the board + empty.
+     *  2) Mark `pendingMove` so the UI can show a ghost move while waiting.
+     *  3) Call backend /play and adopt the returned game DTO.
+     *  4) Store AI autoplay metadata
+     */
     const play = useCallback(
         async ({ row, col }) => {
             if (!game) return;
@@ -795,19 +879,14 @@ export function useGame() {
             setError(null);
 
             try {
-                // Backend may immediately return bot autoplay + explainRich (PvE)
-                const played = await ttt.play({
-                                                  gameId: game.id,
-                                                  row,
-                                                  col,
-                                              });
+                // Backend may immediately return bot autoplay + explainRich
+                const played = await ttt.play({gameId: game.id, row, col, });
                 const g1 = played?.game ?? played;
                 setGame(g1);
                 if (g1?.players) setPlayers(extractPlayers(g1.players));
                 setHint(null);
                 setLastAi(played?.ai || null);
             } catch (e) {
-                // eslint-disable-next-line no-console
                 console.warn('[useGame] play() ×', e);
                 setError(e?.message || 'Play failed');
             } finally {
@@ -819,6 +898,10 @@ export function useGame() {
     );
 
     // ───────────────────────── /best-move (HARD helper) ─────────────────────────
+    /**
+     * Internal helper: request best move from backend (HARD difficulty),
+     * update hint state and return the parsed payload.
+     */
     const requestBestMove = useCallback(
         async () => {
             if (!game) throw new Error('No active game');
@@ -844,6 +927,9 @@ export function useGame() {
 
     const getBestMove = requestBestMove;
 
+    /**
+     * Public wrapper around requestBestMove
+     */
     const bestMove = useCallback(
         async () => {
             if (!game) return null;
@@ -852,7 +938,6 @@ export function useGame() {
             try {
                 return await requestBestMove();
             } catch (e) {
-                // eslint-disable-next-line no-console
                 console.warn('[useGame] bestMove() ×', e);
                 setError(e?.message || 'Best-move failed');
                 throw e;
@@ -864,6 +949,10 @@ export function useGame() {
     );
 
     // ───────────────────────── /restart ─────────────────────────
+    /**
+     * Restart game on backend, resetting the board but keeping configuration
+     * (size, K, mode, etc.).
+     */
     const restart = useCallback(
         async () => {
             if (!game) return;
@@ -879,7 +968,6 @@ export function useGame() {
                 if (g?.players) setPlayers(extractPlayers(g.players));
                 sessionStorage.setItem('ttt.lastGameId', g.id);
             } catch (e) {
-                // eslint-disable-next-line no-console
                 console.warn('[useGame] restart() ×', e);
                 setError(e?.message || 'Restart failed');
             } finally {
@@ -889,7 +977,10 @@ export function useGame() {
         [game],
     );
 
-    // ───────────────────────── Timeout (backend + safe fallback) ─────────────────────────
+    // ───────────────────────── Timeout ─────────────────────────
+    /**
+     * Pure frontend timeout resolution.
+     */
     const endAsTimeout = useCallback((whoTimedOut) => {
         setGame((g) => {
             if (!g) return g;
@@ -905,6 +996,9 @@ export function useGame() {
         });
     }, []);
 
+    /**
+     * Backend timeout handler:
+     */
     const timeoutLose = useCallback(
         async () => {
             if (!game) return;
@@ -922,13 +1016,13 @@ export function useGame() {
                     }
                 }
             } catch (e) {
-                // eslint-disable-next-line no-console
                 console.warn(
                     '[useGame] timeoutLose() BE × → fallback FE',
                     e,
                 );
             }
 
+            // Purely local timeout
             setGame((g) => {
                 if (!g) return g;
                 if (
