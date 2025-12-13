@@ -744,9 +744,17 @@ export function useGame() {
                          });
         };
 
-        // Query parameter ?fresh=1 (from Home or Settings) forces a new game
         if (forceFresh) {
             sessionStorage.removeItem('ttt.lastGameId');
+            try {
+                const u = new URL(window.location.href);
+                u.searchParams.delete('fresh');
+                u.searchParams.delete('gid');
+                window.history.replaceState(window.history.state, '', u.toString());
+            } catch {
+                // ignore
+            }
+
             startFresh();
             return;
         }

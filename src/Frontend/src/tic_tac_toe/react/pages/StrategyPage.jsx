@@ -175,10 +175,15 @@ export default function StrategyPage() {
                         backLabel="Back"
                         onNavigate={(arg) => {
                             if (arg === 'back') {
-                                // Navigate back to Tic-Tac-Toe settings and keep resume flags
-                                return navigate('/tic-tac-toe', {
-                                    state: { resume: true, from: 'strategy' },
-                                });
+                                const idx =
+                                        typeof window !== 'undefined' &&
+                                        window.history?.state &&
+                                        typeof window.history.state.idx === 'number'
+                                                ? window.history.state.idx
+                                                : 0;
+
+                                if (idx > 0) return navigate(-1);
+                                return navigate('/', { replace: true }); // fallback pro direct-open
                             }
                             navigate(String(arg || '/'));
                         }}
