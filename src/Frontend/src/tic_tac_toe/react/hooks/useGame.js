@@ -216,12 +216,42 @@ export function useGame() {
 
         pollRef.current = setInterval(async () => {
             try {
-                const st = await ttt._fetch(
-                    `/spectator/state?gameId=${encodeURIComponent(gid)}`,
-                );
+                const st = await ttt._fetch(`/spectator/state?gameId=${encodeURIComponent(gid)}`);
                 const g = st?.game || st;
+
                 if (g) {
-                    setGame(g);
+                    setGame((prev) => {
+                        const prevId = prev?.id ?? prev?.gameId;
+                        const gId = g?.id ?? g?.gameId;
+                        const same = prevId && gId && String(prevId) === String(gId);
+
+                        const next = same ? { ...prev, ...g } : { ...g };
+
+                        if (same) {
+                            if (!Array.isArray(g.board) && Array.isArray(prev?.board)) {
+                                next.board = prev.board;
+                            }
+                            if (!Number.isFinite(Number(g.size)) && Number.isFinite(Number(prev?.size))) {
+                                next.size = prev.size;
+                            }
+                        }
+
+                        if (typeof st?.status === 'string') next.status = st.status;
+                        if ('winner' in (st || {})) next.winner = st.winner;
+
+                        const seq =
+                            Array.isArray(st?.winningSequence) ? st.winningSequence :
+                            Array.isArray(st?.winning_sequence) ? st.winning_sequence :
+                            null;
+
+                        if (seq) {
+                            next.winningSequence = seq;
+                            next.winning_sequence = seq;
+                        }
+
+                        return next;
+                    });
+
                     if (g?.players) setPlayers(extractPlayers(g.players));
                 }
 
@@ -272,89 +302,53 @@ export function useGame() {
                 const es = new EventSource(buildSpectatorSseUrl(gid));
                 esRef.current = es;
 
-                // Full state snapshot
                 es.addEventListener('state', (e) => {
                     try {
                         const data = JSON.parse(e.data);
                         const g = data?.game || null;
+
                         if (g) {
-                            setGame(g);
+                            setGame((prev) => {
+                                const prevId = prev?.id ?? prev?.gameId;
+                                const gId = g?.id ?? g?.gameId;
+                                const same = prevId && gId && String(prevId) === String(gId);
+
+                                const next = same ? { ...prev, ...g } : { ...g };
+
+                                if (same) {
+                                    if (!Array.isArray(g.board) && Array.isArray(prev?.board)) next.board = prev.board;
+                                    if (!Number.isFinite(Number(g.size)) && Number.isFinite(Number(prev?.size))) next.size = prev.size;
+                                }
+
+                                if (typeof data?.status === 'string') next.status = data.status;
+                                if ('winner' in (data || {})) next.winner = data.winner;
+
+                                const seq =
+                                    Array.isArray(data?.winningSequence) ? data.winningSequence :
+                                    Array.isArray(data?.winning_sequence) ? data.winning_sequence :
+                                    null;
+
+                                if (seq) {
+                                    next.winningSequence = seq;
+                                    next.winning_sequence = seq;
+                                }
+
+                                return next;
+                            });
+
                             if (g?.players) setPlayers(extractPlayers(g.players));
                         }
 
-                        if (typeof data?.status === 'string') {
-                            setSpecStatus(data.status.toLowerCase());
-                        } else if (g?.status) {
-                            setSpecStatus(String(g.status).toLowerCase());
-                        }
+                        const statusStr = String(data?.status || g?.status || '').toLowerCase();
+                        if (statusStr) setSpecStatus(statusStr);
 
-                        if ('winner' in (data || {})) {
-                            setSpecWinner(data.winner);
-                        } else if ('winner' in (g || {})) {
-                            setSpecWinner(g.winner);
-                        }
+                        if ('winner' in (data || {})) setSpecWinner(data.winner);
+                        else if ('winner' in (g || {})) setSpecWinner(g.winner);
 
-                        if (Array.isArray(data?.winningSequence)) {
-                            setSpecWinningSequence(data.winningSequence);
-                        } else if (Array.isArray(data?.winning_sequence)) {
-                            setSpecWinningSequence(data.winning_sequence);
-                        }
+                        if (Array.isArray(data?.winningSequence)) setSpecWinningSequence(data.winningSequence);
+                        else if (Array.isArray(data?.winning_sequence)) setSpecWinningSequence(data.winning_sequence);
                     } catch {
-                        // ignore parse error
-                    }
-                });
-
-                // Incremental updates
-                es.addEventListener('move', (e) => {
-                    try {
-                        const data = JSON.parse(e.data);
-
-                        setGame((g) => {
-                            if (!g) return g;
-                            const next = {
-                                ...g,
-                                board: data?.board || g.board,
-                                moves: Number.isFinite(data?.moves)
-                                       ? data.moves
-                                       : g.moves,
-                            };
-
-                            //  status/winner in move events
-                            if (data?.status) {
-                                next.status = data.status;
-                            }
-                            if ('winner' in data) {
-                                next.winner = data.winner;
-                            }
-                            if (Array.isArray(data?.winningSequence)) {
-                                next.winning_sequence = data.winningSequence;
-                                next.winningSequence = data.winningSequence;
-                            }
-
-                            return next;
-                        });
-
-                        if (data?.status) {
-                            setSpecStatus(String(data.status).toLowerCase());
-                        }
-                        if ('winner' in (data || {})) {
-                            setSpecWinner(data.winner);
-                        }
-                        if (Array.isArray(data?.winningSequence)) {
-                            setSpecWinningSequence(data.winningSequence);
-                        }
-
-                        setSpecLastMove({
-                                            player: data?.player,
-                                            row: data?.row,
-                                            col: data?.col,
-                                        });
-
-                        setSpecExplain(data?.explain ?? null);
-                        setSpecExplainRich(data?.explainRich ?? null);
-                        setSpecStats(data?.stats ?? null);
-                    } catch (err) {
-                        console.warn('[useGame] SSE move parse ×', err);
+                        // ignore
                     }
                 });
 
@@ -411,7 +405,38 @@ export function useGame() {
                             const g = st?.game || st;
 
                             if (g) {
-                                setGame(g);
+                                setGame((prev) => {
+                                    const prevId = prev?.id ?? prev?.gameId;
+                                    const gId = g?.id ?? g?.gameId;
+                                    const same = prevId && gId && String(prevId) === String(gId);
+
+                                    const next = same ? { ...prev, ...g } : { ...g };
+
+                                    if (same) {
+                                        if (!Array.isArray(g.board) && Array.isArray(prev?.board)) {
+                                            next.board = prev.board;
+                                        }
+                                        if (!Number.isFinite(Number(g.size)) && Number.isFinite(Number(prev?.size))) {
+                                            next.size = prev.size;
+                                        }
+                                    }
+
+                                    if (typeof st?.status === 'string') next.status = st.status;
+                                    if ('winner' in (st || {})) next.winner = st.winner;
+
+                                    const seq =
+                                        Array.isArray(st?.winningSequence) ? st.winningSequence :
+                                        Array.isArray(st?.winning_sequence) ? st.winning_sequence :
+                                        null;
+
+                                    if (seq) {
+                                        next.winningSequence = seq;
+                                        next.winning_sequence = seq;
+                                    }
+
+                                    return next;
+                                });
+
                                 if (g?.players) setPlayers(extractPlayers(g.players));
                             }
 
@@ -689,7 +714,6 @@ export function useGame() {
     useEffect(() => {
         // ───────── 1) Spectator init (AI vs AI, SSE) ─────────
         if (isSpectator) {
-            didInitRef.current = false;
             (async () => {
                 try {
                     setLoading(true);
@@ -729,7 +753,38 @@ export function useGame() {
                             const g = st?.game || st;
 
                             if (g) {
-                                setGame(g);
+                                setGame((prev) => {
+                                    const prevId = prev?.id ?? prev?.gameId;
+                                    const gId = g?.id ?? g?.gameId;
+                                    const same = prevId && gId && String(prevId) === String(gId);
+
+                                    const next = same ? { ...prev, ...g } : { ...g };
+
+                                    if (same) {
+                                        if (!Array.isArray(g.board) && Array.isArray(prev?.board)) {
+                                            next.board = prev.board;
+                                        }
+                                        if (!Number.isFinite(Number(g.size)) && Number.isFinite(Number(prev?.size))) {
+                                            next.size = prev.size;
+                                        }
+                                    }
+
+                                    if (typeof st?.status === 'string') next.status = st.status;
+                                    if ('winner' in (st || {})) next.winner = st.winner;
+
+                                    const seq =
+                                        Array.isArray(st?.winningSequence) ? st.winningSequence :
+                                        Array.isArray(st?.winning_sequence) ? st.winning_sequence :
+                                        null;
+
+                                    if (seq) {
+                                        next.winningSequence = seq;
+                                        next.winning_sequence = seq;
+                                    }
+
+                                    return next;
+                                });
+
                                 if (g?.players) setPlayers(extractPlayers(g.players));
                             }
 
@@ -745,7 +800,6 @@ export function useGame() {
                             // If ended, DO NOT reopen SSE
                             if (statusStr && statusStr !== 'running') {
                                 closeSpectatorStreams();
-                                setGame(null);
                                 return;
                             }
                         } catch {
@@ -771,6 +825,10 @@ export function useGame() {
         // ───────── 2) Standard init (home = GamePage) ─────────
         if (didInitRef.current) return;
         didInitRef.current = true;
+        const path = String(location?.pathname || '');
+        const isMainGameRoute = path === '/tic-tac-toe' || path === '/tic-tac-toe/';
+
+        if (!isMainGameRoute) return;
 
         const search = new URLSearchParams(location.search);
         const forceFresh =
@@ -862,7 +920,7 @@ export function useGame() {
         } else {
             startFresh();
         }
-    }, [location.search, isSpectator]);
+    }, [location.search, location.pathname, isSpectator]);
 
     /**
      * Public: start a new spectator game with the last used configuration.

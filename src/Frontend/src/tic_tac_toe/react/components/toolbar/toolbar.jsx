@@ -43,6 +43,7 @@ export default function Toolbar({
     };
 
     const handleStrategy = (e) => {
+        if (isSpectator) return;
         if (typeof onStrategy === 'function') {
             onStrategy(e);
         }
@@ -190,19 +191,23 @@ export default function Toolbar({
                 {/* Strategy */}
                 <div style={toolbarItem}>
                     <button
-                            style={{ ...toolbarButton, ...(paused ? dimmed : null) }}
-                            onClick={handleStrategy}
+                            style={{ ...toolbarButton, ...((paused || isSpectator) ? dimmed : null) }}
+                            onClick={(paused || isSpectator) ? undefined : handleStrategy}
                             aria-label="Strategy"
-                            aria-disabled={paused}
-                            disabled={paused}
-                            title="Show strategy"
+                            aria-disabled={paused || isSpectator}
+                            disabled={paused || isSpectator}
+                            title={
+                                isSpectator
+                                        ? 'Strategy is not available in spectator mode'
+                                        : 'Show strategy'
+                            }
                     >
                         <InfoIcon style={toolbarIcon} />
                     </button>
                     <div
                             style={{
                                 ...toolbarLabel,
-                                ...(paused ? { opacity: 0.45 } : null),
+                                ...((paused || isSpectator) ? { opacity: 0.45 } : null),
                             }}
                     >
                         Strategy
