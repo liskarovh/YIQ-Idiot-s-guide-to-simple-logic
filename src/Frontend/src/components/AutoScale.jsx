@@ -1,10 +1,6 @@
-import React from "react";
+import React, {useRef} from "react";
 import useAutoScale from "../hooks/UseAutoScale";
 
-/**
- * Wrapper, který „zvětšuje/zmenšuje“ vnitřek pomocí CSS transform.
- * Vnější box má fyzickou velikost = (base * scale), takže layout kolem funguje správně.
- */
 function AutoScale({
                        baseWidth = 1920,
                        baseHeight = 1080,
@@ -12,29 +8,38 @@ function AutoScale({
                        minScale = 0.5,
                        maxScale = 1,
                        center = true,
+                       targetRef = null,
+                       offset = undefined,
                        style = {},
                        children
                    }) {
-    const scale = useAutoScale(baseWidth, baseHeight, {fit, minScale, maxScale});
+    // Refs and scale calculation
+    const outerRef = useRef(null);
+    const scale = useAutoScale(baseWidth, baseHeight, {fit, minScale, maxScale, targetRef, offset, selfRef: outerRef});
 
-    const outer = {
-        width: Math.round(baseWidth * scale),
-        height: Math.round(baseHeight * scale),
+    // Styles
+    const outerStyle = {
+        width: Math.ceil(baseWidth * scale) + 1,
+        height: Math.ceil(baseHeight * scale) + 1,
         ...(center ? {display: "grid", placeItems: "center"} : {}),
         overflow: "hidden",
+        boxSizing: "border-box",
         ...style
     };
 
-    const inner = {
+    const innerStyle = {
         width: baseWidth,
         height: baseHeight,
         transform: `scale(${scale})`,
-        transformOrigin: "top left"
+        transformOrigin: "top left",
+        willChange: "transform"
     };
 
     return (
-            <div style={outer}>
-                <div style={inner}>{children}</div>
+            <div style={outerStyle}
+                 ref={outerRef}
+            >
+                <div style={innerStyle}>{children}</div>
             </div>
     );
 }

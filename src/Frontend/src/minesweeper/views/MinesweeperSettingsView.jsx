@@ -11,8 +11,10 @@ export default function MinesweeperSettingsView() {
         return (
                 <SettingsLayout
                         onBack={ctrl.onBack}
-                        leftPanel={<SettingsLoader />}
-                        rightPanel={<SettingsLoader />}
+                        leftPanel={
+                            <SettingsLoader />}
+                        rightPanel={
+                            <SettingsLoader />}
                         onPlay={() => {}}
                         error={ctrl.submitError}
                         disabled={true}
@@ -56,6 +58,7 @@ export default function MinesweeperSettingsView() {
                     leftPanel={leftPanel}
                     rightPanel={rightPanel}
                     onPlay={ctrl.onPlay}
+                    onResetOriginalSettings={ctrl.onResetOriginalSettings}
                     disabled={ctrl.submitting}
                     fromGame={ctrl.fromGame}
                     changesDetected={ctrl.changesDetected}

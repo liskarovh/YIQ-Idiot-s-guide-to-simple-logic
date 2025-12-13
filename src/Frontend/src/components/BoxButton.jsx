@@ -2,16 +2,17 @@ import {createElement, useState} from "react";
 import colors from "../Colors";
 
 /**
- * BoxButton — configurable button with optional icon.
+ * @brief Configurable button with optional icon.
  *
- * Props:
- * - style: custom styles to merge with default button style
- * - icon: React element to display as icon (defaults to play icon)
- * - width: button width (auto by default)
- * - height: button height (auto by default)
- * - title: button text content
- * - disabled: disables interaction and reduces opacity
- * - onClick: click handler
+ * @param title Button title text.
+ * @param icon Optional icon component or JSX element.
+ * @param width Button width (default: "auto").
+ * @param height Button height (default: "auto").
+ * @param background Button background color (default: colors.secondary).
+ * @param color Button text color (default: colors.text_header).
+ * @param disabled If true, button is disabled (default: false).
+ * @param onClick Click event handler.
+ * @param style Additional CSS styles to apply.
  */
 function BoxButton({
                        title,
@@ -45,11 +46,11 @@ function BoxButton({
         opacity: disabled ? 0.5 : (isHovered ? 0.8 : 1),
         transform: isHovered && !disabled ? "translateY(-2px)" : "translateY(0)",
         transition: "all 0.2s",
-        ...style,
+        ...style
     };
 
     const iconElement = icon
-                        ? (typeof icon === 'function' ? createElement(icon) : icon)
+                        ? (typeof icon === "function" ? createElement(icon) : icon)
                         : null;
 
     return (

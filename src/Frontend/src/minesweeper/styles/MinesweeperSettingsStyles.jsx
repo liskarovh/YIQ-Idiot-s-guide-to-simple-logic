@@ -9,8 +9,8 @@ const MinesweeperSettingsStyles = {
     // Autoscale preset
     boxAutoscaleWidth: boxWidth + 100,
     boxAutoscaleHeight: boxHeight + 100,
-    boxAutoscaleMaxScale: 0.8,
-    boxAutoscaleMinScale: 0.5,
+    boxAutoscaleMaxScale: 1,
+    boxAutoscaleMinScale: 0,
 
     // Settings row sizes and flags
     boxAutoscaleCenter: true,
@@ -20,6 +20,12 @@ const MinesweeperSettingsStyles = {
     numberFieldMaxDigits: 3,
 
     // Object styles
+    contentStyle: {
+        padding: "7rem 2rem 2rem 2rem",
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center"
+    },
     boxLayoutStyle: {
         display: "flex",
         flexDirection: "row",
@@ -36,12 +42,6 @@ const MinesweeperSettingsStyles = {
         maxHeight: boxHeight,
         gap: "1.75rem"
     },
-    contentStyle: {
-        padding: "7rem 2rem 2rem 2rem",
-        display: "flex",
-        flexDirection: "column",
-        alignItems: "center"
-    },
     sliderAndNumberFieldStyle: {
         display: "flex",
         alignItems: "center",
@@ -49,20 +49,25 @@ const MinesweeperSettingsStyles = {
     },
     footer: {
         display: "flex",
+        flexWrap: "wrap",
         justifyContent: "center",
-        marginTop: "2rem",
+        alignItems: "center",
+        gap: "1rem",
+        marginTop: "1rem",
         width: "100%"
     },
     infoText: {
         fontSize: 12,
         opacity: 0.8
     },
-    errorBanner: {
-        border: "1px solid #f44",
-        background: "#fee",
-        color: "#900",
-        borderRadius: 8,
-        padding: 12
+    warningBanner: {
+        marginTop: "1rem",
+        textAlign: "center"
+    },
+    resetButton: {
+        fontSize: 16,
+        padding: "6px 12px",
+        height: 34
     }
 };
 

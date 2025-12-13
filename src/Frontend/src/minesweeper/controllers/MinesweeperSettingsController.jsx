@@ -14,7 +14,7 @@ export function MinesweeperSettingsController() {
     const fromGame = location?.state?.fromGame;
 
     // Track original values to detect changes
-    const originalValues = useRef(null);
+    const [originalValues, setOriginalValues] = useState(null);
     const [changesDetected, setChangesDetected] = useState(null);
 
     // Lifecycle of Capabilities
@@ -89,7 +89,11 @@ export function MinesweeperSettingsController() {
                 const parsed = JSON.parse(lastCreatePayload);
 
                 if(parsed.gameId === existingGameId) {
-                    let newPreset, newRows, newCols, newMines, newLives;
+                    let newPreset,
+                            newRows,
+                            newCols,
+                            newMines,
+                            newLives;
 
                     if(parsed.preset && parsed.preset !== "Custom") {
                         const presetDef = findPresetDims(parsed.preset);
@@ -101,7 +105,8 @@ export function MinesweeperSettingsController() {
                             newMines = presetDef.mines;
                             newLives = parsed.lives;
                         }
-                    } else {
+                    }
+                    else {
                         newPreset = "Custom";
                         newRows = parsed.rows;
                         newCols = parsed.cols;
@@ -124,8 +129,8 @@ export function MinesweeperSettingsController() {
                     setMines(snapshot.mines);
                     setLives(snapshot.lives);
 
-                    if(fromGame && originalValues.current == null) {
-                        originalValues.current = snapshot;
+                    if(fromGame && originalValues == null) {
+                        setOriginalValues(snapshot);
                     }
                 }
             }
@@ -133,34 +138,34 @@ export function MinesweeperSettingsController() {
         catch {
             // ignore
         }
-    }, [findPresetDims, existingGameId, capsLoading, fromGame]);
+    }, [findPresetDims, existingGameId, capsLoading, fromGame, cols, lives, mines, originalValues, preset, rows]);
 
     // Detect changes compared to original values
     useEffect(() => {
-        if(!fromGame || !originalValues.current) {
+        if(!fromGame || !originalValues) {
             setChangesDetected(null);
             return;
         }
 
         // Check if custom dimensions changed
         let customDimsChanged;
-        if((originalValues.current.preset === "Custom") && (preset === "Custom")) {
+        if((originalValues.preset === "Custom") && (preset === "Custom")) {
             customDimsChanged =
-                    originalValues.current.rows !== rows ||
-                    originalValues.current.cols !== cols ||
-                    originalValues.current.mines !== mines;
+                    Number(originalValues.rows) !== Number(rows) ||
+                    Number(originalValues.cols) !== Number(cols) ||
+                    Number(originalValues.mines) !== Number(mines);
         }
         else {
             customDimsChanged = false;
         }
 
         const hasChanges =
-                originalValues.current.lives !== lives ||
-                originalValues.current.preset !== preset ||
+                Number(originalValues.lives) !== Number(lives) ||
+                originalValues.preset !== preset ||
                 customDimsChanged;
 
-        setChangesDetected(hasChanges ? "⚠️ Changing the board dimensions or the number of mines will result in the loss of the game in progress" : null);
-    }, [preset, rows, cols, mines, lives, fromGame]);
+        setChangesDetected(hasChanges ? "🚨 Changing the board dimensions or the number of mines will result in the loss of the game in progress. 🚨" : null);
+    }, [originalValues, preset, rows, cols, mines, lives, fromGame]);
 
     // Load initial capabilities if not already loaded or not coming from existing game
     useEffect(() => {
@@ -298,17 +303,6 @@ export function MinesweeperSettingsController() {
             return;
         }
 
-        // Check for changes if coming from existing game
-        if(fromGame && changesDetected) {
-            const confirmed = window.confirm(
-                    "Changing the board dimensions or the number of mines will result in the loss of the game in progress. Do you want to continue?"
-            );
-
-            if(!confirmed) {
-                return;
-            }
-        }
-
         setSubmitError(null);
         const abortCtrl = new AbortController();
 
@@ -368,6 +362,36 @@ export function MinesweeperSettingsController() {
         }
     }, [navigate, preset, rows, cols, mines, lives, showTimer, allowUndo, enableHints, fromGame, changesDetected, existingGameId]);
 
+    const onResetOriginalSettings = useCallback(() => {
+        if(!fromGame || !originalValues) {
+            return;
+        }
+
+        const {preset: oPreset, rows: oRows, cols: oCols, mines: oMines, lives: oLives} = originalValues;
+
+        const dimsOrLivesChanged =
+                (oPreset !== preset) ||
+                Number(oRows) !== Number(rows) ||
+                Number(oCols) !== Number(cols) ||
+                Number(oMines) !== Number(mines) ||
+                Number(oLives) !== Number(lives);
+
+        if(!dimsOrLivesChanged) {
+            return;
+        }
+
+        // Reset to original values
+        setPreset(oPreset);
+        setRows(Number(oRows));
+        setCols(Number(oCols));
+        setMines(Number(oMines));
+        setLives(Number(oLives));
+
+        // Cancel changes detected warning
+        setChangesDetected(null);
+    }, [fromGame, originalValues, preset, rows, cols, mines, lives, setPreset, setRows, setCols, setMines, setLives, setChangesDetected]);
+
+
     const onBack = useCallback(() => {
         if(fromGame) {
             void onPlay();
@@ -415,6 +439,7 @@ export function MinesweeperSettingsController() {
 
         // Navigation
         onPlay,
+        onResetOriginalSettings,
         onBack
     };
 }
