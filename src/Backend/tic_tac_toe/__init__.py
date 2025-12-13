@@ -10,7 +10,7 @@ import queue
 from . import rules
 from . import service as svc
 from .adapter import compute_best_move
-from .explain import build_explanation  # ← zůstává
+from .explain import build_explanation
 
 bp = Blueprint("react", __name__, url_prefix="/api/tictactoe")
 log = logging.getLogger(__name__)
@@ -310,12 +310,6 @@ def api_play():
 
 @bp.post("/best-move")
 def api_best_move():
-    """
-    MERGED varianta:
-    - stateful poradna: vždy počítá HARD, vrací bezpečný tah (win/block/legální),
-      přidá safetyOverride=true, když engine navrhl něco jiného.
-    - stateless kalkul: stejné chování, ale s payload board/size/k/player/difficulty.
-    """
     data = request.get_json(silent=True) or {}
 
     # === stateful poradna (gameId) ===
@@ -327,7 +321,7 @@ def api_best_move():
         if g.status != "running":
             return json_error("GameOver", "Game is terminal", 409)
 
-        diff = "hard"  # poradna = vždy nejlepší výpočet
+        diff = "hard"
         t0 = time.perf_counter()
         engine = {}
         try:
@@ -336,7 +330,6 @@ def api_best_move():
             engine = {"engineError": str(e)}
         elapsed_ms = int((time.perf_counter() - t0) * 1000)
 
-        # bezpečný tah
         human = "O" if g.player == "X" else "X"
         r, c = svc._pick_ai_move_safe(g.board, ai_mark=g.player, human_mark=human,
                                       size=g.size, k=g.k_to_win, difficulty=diff)
@@ -350,7 +343,6 @@ def api_best_move():
         analysis = _mk_analysis(g.player, g.size, g.k_to_win, diff, explain=explain)
         rich = build_explanation(g.board, safe_move, g.player, g.size, g.k_to_win)
 
-        # inkrementace hintů
         try:
             g.hints_used = int(getattr(g, "hints_used", 0)) + 1
         except Exception:
@@ -581,22 +573,22 @@ def api_spectator_new():
 
     difficulty = _norm_difficulty(data.get("difficulty"))
 
-    # Delay (default 30 s)
+    # Delay (default 2 s)
     md = data.get("moveDelayMs")
     if md is None:
-        delay_ms = 3000  # 3 sekund
+        delay_ms = 2000  # 3 sekund
     else:
         try:
             delay_ms = max(0, int(md))
         except Exception:
-            delay_ms = 3000
-    # Create AI vs AI game (PvP mode but mark players as AI for UI)
+            delay_ms = 2000
+    # Create AI vs AI game
     try:
         g = svc.new_game(
             size=size,
             k_to_win=k,
             start_mark=data.get("startMark") or "X",
-            mode="pvp",  # no autoplay, both sides manual → our driver will play
+            mode="pvp",
             difficulty=difficulty,
             players={
                 "X": {"nickname": "Alpha", "kind": "ai"},
@@ -639,7 +631,7 @@ def api_spectator_events():
     with _SPECTATOR_REG_LOCK:
         if game_id not in _SPECTATOR_REG:
             # start a gentle driver with default parameters if missing
-            _start_driver(game_id, delay_ms=3000, difficulty=getattr(g, "difficulty", "easy") or "easy")
+            _start_driver(game_id, delay_ms=2000, difficulty=getattr(g, "difficulty", "easy") or "easy")
 
     client_q: queue.Queue = queue.Queue(maxsize=128)
     with _SPECTATOR_REG_LOCK:
