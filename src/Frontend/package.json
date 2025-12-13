@@ -10,7 +10,9 @@
     "lucide-react": "^0.263.1",
     "react-use-measure": "^2.1.1",
     "axios": "^1.13.2",
-    "@heroicons/react": "^2.2.0"
+    "@heroicons/react": "^2.2.0",
+    "@dnd-kit/core": "^6.1.0",
+    "@dnd-kit/utilities": "^3.2.2"
   },
   "scripts": {
     "start": "react-scripts start",
