@@ -1,6 +1,6 @@
 /**
  * @file    client.js
- * @brief   Minimalistic browser  API client for the Tic-Tac-Toe backend.
+ * @brief   Minimalistic browser API client for the Tic-Tac-Toe backend (transport only).
  *
  * @author  Hana Liškařová xliskah00
  * @date    2025-12-12
@@ -9,64 +9,15 @@
 /**
  * @typedef {Object} TttClientOptions
  * @property {string} [baseUrl]   Base URL to the API
- *                                (default: current browser origin + '/api/tictactoe')
  * @property {number} [timeoutMs] Per-request timeout in ms (default: 8000)
  * @property {number} [retries]   How many retries on network errors/5xx (default: 1)
  * @property {number} [backoffMs] Initial backoff between retries (default: 250)
  */
 
-/* ========== Helpers (parameter normalization) ========== */
-
-/**
- * Normalizes game mode value to "pvp" or "pve".
- */
-export const normalizeMode = (m) => {
-    const v = String(m ?? 'pvp').toLowerCase();
-    return v === 'pve' ? 'pve' : 'pvp';
-};
-
-/**
- * Normalizes starting mark to "X" or "O" (default "X").
- */
-export const normalizeStartMark = (s) => {
-    const v = String(s ?? 'X').toUpperCase();
-    return v === 'O' ? 'O' : 'X';
-};
-
-/**
- * Normalizes difficulty to "easy" | "medium" | "hard" (default "easy").
- */
-export const normalizeDifficulty = (d) => {
-    const v = String(d ?? 'easy').toLowerCase();
-    return v === 'hard' ? 'hard' : v === 'medium' ? 'medium' : 'easy';
-};
-
-/**
- * Converts various nickname shapes to a trimmed string or undefined:
- * - string
- * - { nickname } / { name }
- */
-export const toNick = (val) => {
-    if (val == null) return undefined;
-
-    if (typeof val === 'string') {
-        const s = val.trim();
-        return s.length ? s : undefined;
-    }
-
-    if (typeof val === 'object') {
-        const s = (val.nickname ?? val.name ?? '').toString().trim();
-        return s.length ? s : undefined;
-    }
-
-    const s = String(val).trim();
-    return s.length ? s : undefined;
-};
-
 /* ========== Public factory ========== */
 
 /**
- * Minimalistic API client for the Tic-Tac-Toe backend
+ * Minimalistic API client for the Tic-Tac-Toe backend (transport only).
  * Export: createTttClient({ baseUrl?, timeoutMs?, retries?, backoffMs? })
  *
  * @param {TttClientOptions} [options]
@@ -101,7 +52,7 @@ export function createTttClient(options = {}) {
                 const res = await fetch(url, {
                     method,
                     headers: { 'Content-Type': 'application/json' },
-                    body: json ? JSON.stringify(json) : undefined,
+                    body: json !== undefined ? JSON.stringify(json) : undefined,
                     signal: ctrl.signal,
                     credentials: 'same-origin',
                 });
@@ -153,9 +104,7 @@ export function createTttClient(options = {}) {
                 // ignore
             }
 
-            const e = new Error(
-                payload?.error?.message || body || `HTTP ${res.status}`,
-            );
+            const e = new Error(payload?.error?.message || body || `HTTP ${res.status}`);
             e.status = res.status;
             e.payload = payload;
             throw e;
@@ -164,57 +113,13 @@ export function createTttClient(options = {}) {
         return res.json();
     }
 
-    // ========= Safe builder for /new =========
-
-    /**
-     * Builds a safe payload for the /new endpoint from possibly partial UI state.
-     */
-    function buildNewPayload(p = {}) {
-        const mode = normalizeMode(p?.mode);
-
-        const px =
-            toNick(p?.players?.X?.nickname) ??
-            toNick(p?.players?.x?.nickname) ??
-            toNick(p?.players?.X) ??
-            toNick(p?.players?.x) ??
-            toNick(p?.playerName) ??
-            undefined;
-
-        const po =
-            toNick(p?.players?.O?.nickname) ??
-            toNick(p?.players?.o?.nickname) ??
-            toNick(p?.players?.O) ??
-            toNick(p?.players?.o) ??
-            undefined;
-
-        const safeX = px ?? 'Player1';
-        const safeO = po ?? (mode === 'pve' ? 'Computer' : 'Player2');
-
-        const startMark = normalizeStartMark(p?.startMark);
-
-        return {
-            size: Number(p?.size ?? 3),
-            kToWin: Number(p?.kToWin ?? p?.size ?? 3),
-            mode,
-            startMark,
-            difficulty: normalizeDifficulty(p?.difficulty),
-            humanMark: p?.humanMark ?? startMark,
-            turnTimerSec: Number(p?.turnTimerSec) || 0,
-            players: {
-                X: { nickname: String(safeX) },
-                O: { nickname: String(safeO) },
-            },
-        };
-    }
-
     // ---- public client methods ----
 
     /**
      * Starts a new game.
      */
     async function newGame(p) {
-        const body = buildNewPayload(p || {});
-        return api('/new', { method: 'POST', json: body });
+        return api('/new', { method: 'POST', json: (p || {}) });
     }
 
     /**
