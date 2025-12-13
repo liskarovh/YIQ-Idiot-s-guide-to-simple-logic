@@ -61,7 +61,11 @@ class Settings:
     
     @classmethod
     def from_dict(cls, data):
+        if data is None:
+            return cls()
+
         settings = cls()
+        # Use .get() with defaults for everything
         settings.mode = GameModes(data.get("mode", settings.mode.value))
         settings.generatedDifficulty = data.get("generatedDifficulty", settings.generatedDifficulty)
         settings.learnDifficulty = data.get("learnDifficulty", settings.learnDifficulty)
@@ -69,11 +73,23 @@ class Settings:
         settings.highlighNumbers = data.get("highlighNumbers", settings.highlighNumbers)
         settings.highlighAreas = data.get("highlightAreas", settings.highlighAreas)
         settings.highlightCompleted = data.get("highlightCompleted", settings.highlightCompleted)
-        settings.checkMistakes = CheckMistakes(data.get("checkMistakes", settings.checkMistakes.value))
+        
+        # CheckMistakes Enum safety
+        try:
+            settings.checkMistakes = CheckMistakes(data.get("checkMistakes", settings.checkMistakes.value))
+        except ValueError:
+            pass # Keep default
+
         settings.explainSmartHints = data.get("explainSmartHints", settings.explainSmartHints)
         settings.timer = data.get("timer", settings.timer)
         settings.autofillNotes = data.get("autofillHints", settings.autofillNotes)
-        settings.inputType = InputTypes(data.get("selectMethod", settings.inputType.value))
+        
+        # InputTypes Enum safety
+        try:
+            settings.inputType = InputTypes(data.get("selectMethod", settings.inputType.value))
+        except ValueError:
+            pass
+
         settings.selectedNumber = data.get("selectedNumber", settings.selectedNumber)
         settings.selectedCell = data.get("selectedCell", settings.selectedCell)
         settings.clear = data.get("clear", settings.clear)

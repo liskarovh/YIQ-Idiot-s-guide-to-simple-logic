@@ -1,5 +1,6 @@
 from sudoku.sudokuEnums import GameModes
 from typing import List, Dict, Any, Optional
+
 class GameInfo:
     def __init__(self):
         self.mode = None
@@ -16,22 +17,40 @@ class GameInfo:
         }
     
     def update_from_dict(self, data):
-        self.mode = GameModes(data.get("mode"))
-        self.difficulty = data.get("difficulty")
-        
-        self.timer = data.get("timer")
-        self.hintsUsed = data.get("hints", 0) # Default to 0 if 'hints' is missing
+        if not data:
+            return
+            
+        raw_mode = data.get("mode")
+        if raw_mode is not None:
+            try:
+                self.mode = GameModes(raw_mode)
+            except ValueError:
+                pass # Keep existing mode if invalid value received
+
+        if "difficulty" in data:
+            self.difficulty = data.get("difficulty")
+        if "timer" in data:
+            self.timer = data.get("timer")
+        if "hints" in data:
+            self.hintsUsed = data.get("hints", 0)
     
     @classmethod
     def from_dict(cls, data: Dict[str, Any]):
         """Create a GameInfo instance from a dictionary."""
-        mode = GameModes(data.get("mode"))
-        difficulty = data.get("difficulty")
+        if data is None:
+            return cls()
+
+        info = cls()
         
-        # Instantiate with required enum values
-        info = cls(mode, difficulty)
+        raw_mode = data.get("mode")
+        if raw_mode is not None:
+            try:
+                info.mode = GameModes(raw_mode)
+            except ValueError:
+                info.mode = None # Fallback
         
-        # Set optional and state values
+        info.difficulty = data.get("difficulty", 1)
         info.timer = data.get("timer")
-        info.hintsUsed = data.get("hints", 0) # Default to 0 if 'hints' is missing
+        info.hintsUsed = data.get("hints", 0)
+        
         return info
