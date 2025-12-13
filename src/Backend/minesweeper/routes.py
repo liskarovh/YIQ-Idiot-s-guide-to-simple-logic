@@ -256,6 +256,16 @@ def hint(game_id):
     """Get a hint."""
     return _proxy('GET', f'/game/{game_id}/hint')
 
+@minesweeper_bp.route('/game/<game_id>/pause', methods = ['POST'])
+def pause(game_id):
+    """Pause game session."""
+    return _proxy('POST', f'/game/{game_id}/pause')
+
+@minesweeper_bp.route('/game/<game_id>/resume', methods = ['GET'])
+def resume(game_id):
+    """Resume game session."""
+    return _proxy('GET', f'/game/{game_id}/resume')
+
 
 @minesweeper_bp.route('/echo', methods = ['GET'])
 def echo():

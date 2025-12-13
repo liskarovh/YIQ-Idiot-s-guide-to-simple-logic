@@ -8,9 +8,10 @@ export function maskGameViewForClient(gameSession: GameSession, snapshot: Snapsh
 
     // When not revealing, keep mines undefined so the client cannot infer positions.
     const mines = revealMines ? gameSession.minePositions.map(([row, col]) => ({row, col})) : undefined;
-    if (mines) {
+    if(mines) {
         console.debug(`[UTILS.ts] maskGameViewForClient revealing ${mines.length} mines`);
-    } else {
+    }
+    else {
         console.debug(`[UTILS.ts] maskGameViewForClient not revealing mines`);
     }
 
@@ -155,9 +156,9 @@ export function normalizeCreatePayload(createPayload: CreatePayload, limits: Lim
 export function buildCapabilitiesPayload(): CapabilitiesResponse {
     // Build an array of preset (name + {rows, cols, mines}).
     const presets: { name: Preset; rows: number; cols: number; mines: number }[] = [
-        { name: "Easy", ...detectMapParametersFromPreset("Easy") },
-        { name: "Medium", ...detectMapParametersFromPreset("Medium") },
-        { name: "Hard", ...detectMapParametersFromPreset("Hard") }
+        {name: "Easy", ...detectMapParametersFromPreset("Easy")},
+        {name: "Medium", ...detectMapParametersFromPreset("Medium")},
+        {name: "Hard", ...detectMapParametersFromPreset("Hard")}
     ];
 
     // Declare feature flags supported by the server.

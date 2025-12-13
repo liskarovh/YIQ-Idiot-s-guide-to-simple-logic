@@ -1,7 +1,7 @@
 import express, {type Request, type Response, type NextFunction} from "express";
 import cors from "cors";
 import session from "express-session";
-import {createGame, flag, getGame, hint, preview, revive, reveal, seek, setMode, undo} from "./engine.js";
+import {createGame, flag, getGame, hint, preview, revive, reveal, seek, setMode, undo, pauseGameSession, resumeGameSession} from "./engine.js";
 import {normalizeCreatePayload, buildCapabilitiesPayload, buildMaxMinesPayload, detectPresetFromMapParameters} from "./util.js";
 import {CapabilitiesResponseSchema, CreateGameRequestSchema, CreateGameResponseSchema} from "./jsonSchemas.js";
 import {validate, toUnifiedError} from "./ajvValidation.js";
@@ -453,18 +453,50 @@ app.post("/game/:id/revive", (request, response, next) => {
 });
 
 app.get("/game/:id/hint", (request, response, next) => {
-    console.log("[SERVER.ts][POST /game/:id/hint] id:", request.params.id);
+    console.log("[SERVER.ts][GET /game/:id/hint] id:", request.params.id);
 
     try {
         // Response: {readonly type: "none", readonly hintRectangle?: undefined} |
         //           {readonly type: "mine-area", readonly hintRectangle: {rowStart: number, colStart: number, rowEnd: number, colEnd: number}}
         const result = hint(request.params.id);
-        console.log("[SERVER.ts][POST /game/:id/hint] result:", result);
+        console.log("[SERVER.ts][GET /game/:id/hint] result:", result);
 
         return response.status(200).json(result);
     }
     catch(e: any) {
-        console.error("[SERVER.ts][POST /game/:id/hint] error:", e);
+        console.error("[SERVER.ts][GET /game/:id/hint] error:", e);
+        return next({statusCode: (e.message === "not found") ? 404 : 400, message: e.message});
+    }
+});
+
+app.post("/game/:id/pause", (request, response, next) => {
+    console.log("[SERVER.ts][POST /game/:id/pause] id:", request.params.id, ", timerSec:", request.body?.timerSec);
+
+    try {
+        // Response: GameView
+        const result = pauseGameSession(request.params.id, request.body?.timerSec);
+        console.log("[SERVER.ts][POST /game/:id/pause] result:", result);
+
+        return response.status(200).json(result);
+    }
+    catch(e: any) {
+        console.error("[SERVER.ts][POST /game/:id/pause] error:", e);
+        return next({statusCode: (e.message === "not found") ? 404 : 400, message: e.message});
+    }
+});
+
+app.get("/game/:id/resume", (request, response, next) => {
+    console.log("[SERVER.ts][GET /game/:id/resume] id:", request.params.id);
+
+    try {
+        // Response: GameView
+        const result = resumeGameSession(request.params.id);
+        console.log("[SERVER.ts][GET /game/:id/resume] result:", result);
+
+        return response.status(200).json(result);
+    }
+    catch(e: any) {
+        console.error("[SERVER.ts][GET /game/:id/resume] error:", e);
         return next({statusCode: (e.message === "not found") ? 404 : 400, message: e.message});
     }
 });

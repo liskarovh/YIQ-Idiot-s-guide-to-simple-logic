@@ -138,7 +138,7 @@ export function MinesweeperSettingsController() {
         catch {
             // ignore
         }
-    }, [findPresetDims, existingGameId, capsLoading, fromGame, cols, lives, mines, originalValues, preset, rows]);
+    }, [findPresetDims, existingGameId, capsLoading, fromGame]);
 
     // Detect changes compared to original values
     useEffect(() => {
@@ -299,6 +299,9 @@ export function MinesweeperSettingsController() {
     const onPlay = useCallback(async() => {
         // If coming from existing game and no changes detected, just navigate back
         if(fromGame && !changesDetected) {
+            persistLastGameplayPrefs(buildGameplayPrefs({gameId: existingGameId, showTimer, allowUndo, enableHints}));
+            persistLastCreatePayload(buildCreatePayload({gameId: existingGameId, preset, rows, cols, mines, lives}));
+
             navigate("/minesweeper", {state: {id: existingGameId}});
             return;
         }

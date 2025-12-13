@@ -1,11 +1,12 @@
 import {useCallback, useEffect, useMemo, useRef, useState} from "react";
 import {useNavigate, useLocation} from "react-router-dom";
-import {getGame, postReveal, postFlag, postSetMode, postUndo, postSeek, postPreview, postRevive, getHint, isAbortLikeError} from "../models/MinesweeperGame/MinesweeperGameAPI.jsx";
+import {getGame, postReveal, postFlag, postSetMode, postUndo, postSeek, postPreview, postRevive, getHint, isAbortLikeError, getResume, postPause} from "../models/MinesweeperGame/MinesweeperGameAPI.jsx";
 import {postCreateGame} from "../models/MinesweeperSettings/MinesweeperSettingsAPI.jsx";
 import {useGameTimer, useExplosionMode, useDerivedGameState} from "../hooks/MinesweeperGameHooks";
 import {buildCreatePayload, buildGameplayPrefs} from "../models/MinesweeperSettings/MinesweeperSettingsBuilders";
 import {normalizeView} from "../models/MinesweeperGame/MinesweeperGameRenderHelpers";
 import {LAST_CREATE_PAYLOAD_KEY, LAST_GAMEPLAY_PREFS_KEY, SETTINGS_PAUSE_STORAGE_KEY} from "../models/MinesweeperStorageKeys";
+import {flushSync} from "react-dom";
 
 export function useMinesweeperGameController() {
     const navigate = useNavigate();
@@ -116,7 +117,7 @@ export function useMinesweeperGameController() {
             return;
         }
         try {
-            const raw = sessionStorage.getItem(SETTINGS_PAUSE_STORAGE_KEY);
+            const raw = localStorage.getItem(SETTINGS_PAUSE_STORAGE_KEY);
             if(!raw) {
                 return;
             }
@@ -124,13 +125,13 @@ export function useMinesweeperGameController() {
             if(saved?.gameId !== gameId) {
                 return;
             }
-            sessionStorage.removeItem(SETTINGS_PAUSE_STORAGE_KEY);
+            localStorage.removeItem(SETTINGS_PAUSE_STORAGE_KEY);
             if(typeof saved.wasPaused === "boolean") {
                 setPaused(saved.wasPaused);
             }
         }
         catch {
-            sessionStorage.removeItem(SETTINGS_PAUSE_STORAGE_KEY);
+            localStorage.removeItem(SETTINGS_PAUSE_STORAGE_KEY);
             setPaused(false);
         }
     }, [gameId]);
@@ -276,41 +277,80 @@ export function useMinesweeperGameController() {
 
     // Request wrapper that applies view automatically
     const wrapRequest = useCallback(async(apiFunction) => {
-            const abortCtrl = new AbortController();
-            controllersRef.current.add(abortCtrl);
-            const signal = abortCtrl.signal;
+        const abortCtrl = new AbortController();
+        controllersRef.current.add(abortCtrl);
+        const signal = abortCtrl.signal;
 
-            setBusy(true);
-            setError(null);
+        setBusy(true);
+        setError(null);
 
-            // Execute the API function and update the view
-            try {
-                const data = await apiFunction({signal});
+        // Execute the API function and update the view
+        try {
+            const data = await apiFunction({signal});
 
-                // If aborted, do nothing
-                if(signal.aborted) {
-                    return null;
-                }
-
-                // Update the view safely
-                safeSetView(data, signal);
-                return data;
+            // If aborted, do nothing
+            if(signal.aborted) {
+                return null;
             }
-            catch(e) {
-                if(isAbortLikeError(e)) {
-                    return null;
-                }
 
-                setError(String(e?.message || e));
-                throw e;
+            // Update the view safely
+            safeSetView(data, signal);
+            return data;
+        }
+        catch(e) {
+            if(isAbortLikeError(e)) {
+                return null;
             }
-            finally {
-                controllersRef.current.delete(abortCtrl);
-                if(!signal.aborted) {
-                    setBusy(false);
-                }
+
+            setError(String(e?.message || e));
+            throw e;
+        }
+        finally {
+            controllersRef.current.delete(abortCtrl);
+            if(!signal.aborted) {
+                setBusy(false);
             }
+        }
     }, [safeSetView]);
+
+    useEffect(() => {
+        if(!gameId) {
+            return;
+        }
+
+        const sendPause = () => {
+            if(paused) {
+                return;
+            }
+
+            const url = `/game/${gameId}/pause`;
+
+            try {
+                // Fetch with keepalive (GET)
+                if(window.fetch) {
+                    void fetch(url, {method: "GET", keepalive: true, credentials: "same-origin"}).catch(() => { /* ignore */ });
+                    return;
+                }
+
+                // We also try sendBeacon as a fallback (POST)
+                if(navigator.sendBeacon) {
+                    const blob = new Blob([], {type: "text/plain;charset=UTF-8"});
+                    navigator.sendBeacon(url, blob);
+                }
+            }
+            catch {
+                // ignore
+            }
+        };
+
+        window.addEventListener("beforeunload", sendPause);
+        window.addEventListener("pagehide", sendPause);
+
+        return () => {
+            window.removeEventListener("beforeunload", sendPause);
+            window.removeEventListener("pagehide", sendPause);
+        };
+    }, [gameId, paused]);
 
     // Wapper that doesn't auto-apply view (for small utils like getHint, ...)
     const wrapRequestNoUpdate = useCallback(async(apiFunction) => {
@@ -342,6 +382,29 @@ export function useMinesweeperGameController() {
             }
         }
     }, []);
+
+    // Effect to handle pause/resume side-effects
+    const pauseSentRef = useRef(null);
+    useEffect(() => {
+        if(!gameId) {
+            return;
+        }
+
+        // We skip for the first render
+        if(view && view?.status === "new") {
+            pauseSentRef.current = paused;
+            return;
+        }
+
+        // Avoid duplicate requests
+        if(pauseSentRef.current === paused) {
+            return;
+        }
+        pauseSentRef.current = paused;
+
+        // We call the appropriate API
+        paused ? postPause(gameId, timerSec) : getResume(gameId);
+    }, [paused, gameId]);
 
     // Action handlers
     const doReveal = useCallback(async(row, col) => {
@@ -437,7 +500,6 @@ export function useMinesweeperGameController() {
         }
     }, [wrapRequestNoUpdate, gameId, view, canUseActions, hintCooldown, enableHints]);
 
-
     const doUndoAndRevive = useCallback(async() => {
         if(!view || paused || busy) {
             return;
@@ -492,12 +554,16 @@ export function useMinesweeperGameController() {
 
     const onSettings = useCallback(() => {
         const wasPaused = paused;
-        if(!paused) {
-            setPaused(true);
-        }
+
+        // Force synchronous state update before navigation
+        flushSync(() => {
+            if(!paused) {
+                setPaused(true);
+            }
+        });
 
         try {
-            sessionStorage.setItem(SETTINGS_PAUSE_STORAGE_KEY, JSON.stringify({gameId, wasPaused}));
+            localStorage.setItem(SETTINGS_PAUSE_STORAGE_KEY, JSON.stringify({gameId, wasPaused}));
         }
         catch {
             // ignore

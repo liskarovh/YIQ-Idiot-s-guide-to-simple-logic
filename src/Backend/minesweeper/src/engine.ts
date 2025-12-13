@@ -1,6 +1,6 @@
 import {randomUUID} from "crypto";
 import {maskGameViewForClient} from "./util.js";
-import type {GameOptions, ComputedCell, GameSession, GameView, Snapshot} from "./types.js";
+import type {ComputedCell, GameOptions, GameSession, GameView, Snapshot} from "./types.js";
 
 const map = new Map<string, GameSession>();
 
@@ -885,4 +885,79 @@ export function hint(id: string) {
     const hintRectangle = {rowStart, colStart, rowEnd, colEnd};
     logEnd("hint", start, {selectedMine: [mineRow, mineCol], hintRectangle, score: bestScore});
     return {type: "mine-area", hintRectangle} as const;
+}
+
+export function pauseGameSession(id: string, timerSec: number): GameView {
+    const start = logStart("pauseGameSession", {gameId: id});
+
+    const gameSession = map.get(id);
+    if(!gameSession) {
+        console.error("[engine] pauseGameSession - not found", {gameId: id});
+        throw new Error("not found");
+    }
+
+    // If the game hasn't started yet, do nothing
+    if(!gameSession.startTime) {
+        console.debug("[engine] pauseGameSession - no startTime, skip", {gameId: id});
+        const view = summarize(gameSession);
+        logEnd("pauseGameSession", start, {gameId: id, result: "no-start"});
+        return view;
+    }
+
+    // If already paused, do nothing
+    if(gameSession.lastPauseStart) {
+        console.debug("[engine] pauseGameSession - already paused", {gameId: id, lastPauseStart: gameSession.lastPauseStart});
+        const view = summarize(gameSession);
+        logEnd("pauseGameSession", start, {gameId: id, result: "already-paused"});
+        return view;
+    }
+
+    const now = Date.now();
+    gameSession.pausedDuration = Math.max(0, (now - gameSession.startTime) - Math.round(timerSec * 1000));
+    gameSession.lastPauseStart = now;
+
+    console.debug("[engine] pauseGameSession - paused", {gameId: id, lastPauseStart: gameSession.lastPauseStart, pausedDuration: gameSession.pausedDuration});
+
+    const view = summarize(gameSession);
+    logEnd("pauseGameSession", start, {gameId: id, paused: true});
+    return view;
+}
+
+export function resumeGameSession(id: string): GameView {
+    const start = logStart("resumeGameSession", {gameId: id});
+
+    const gameSession = map.get(id);
+    if(!gameSession) {
+        console.error("[engine] resumeGameSession - not found", {gameId: id});
+        throw new Error("not found");
+    }
+
+    // If the game hasn't started yet, do nothing
+    if(!gameSession.startTime) {
+        console.debug("[engine] resumeGameSession - no startTime, skip", {gameId: id});
+        const view = summarize(gameSession);
+        logEnd("resumeGameSession", start, {gameId: id, result: "no-start"});
+        return view;
+    }
+
+    // If not currently paused, do nothing
+    if(!gameSession.lastPauseStart) {
+        console.debug("[engine] resumeGameSession - not paused", {gameId: id});
+        const view = summarize(gameSession);
+        logEnd("resumeGameSession", start, {gameId: id, result: "not-paused"});
+        return view;
+    }
+
+    const now = Date.now();
+    const pausedInterval = now - gameSession.lastPauseStart;
+    gameSession.pausedDuration = (gameSession.pausedDuration || 0) + pausedInterval;
+
+    // Clear pause marker
+    delete gameSession.lastPauseStart;
+
+    console.debug("[engine] resumeGameSession - resumed", {gameId: id, pausedIntervalMs: pausedInterval, pausedDurationMs: gameSession.pausedDuration});
+
+    const view = summarize(gameSession);
+    logEnd("resumeGameSession", start, {gameId: id, resumed: true, pausedIntervalMs: pausedInterval});
+    return view;
 }

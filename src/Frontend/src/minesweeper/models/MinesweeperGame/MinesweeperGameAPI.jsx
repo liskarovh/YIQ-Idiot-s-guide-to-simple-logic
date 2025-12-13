@@ -12,6 +12,14 @@ export async function getHint(id, {signal} = {}) {
     return ctrl.getJson(`game/${id}/hint`, {signal});
 }
 
+export async function getResume(id, {signal} = {}) {
+    return ctrl.getJson(`game/${id}/resume`, {signal});
+}
+
+export async function postPause(id, timerSec, {signal} = {}) {
+    return ctrl.postJson(`game/${id}/pause`, {timerSec}, {signal});
+}
+
 export async function postReveal(id, row, col, {signal} = {}) {
     return ctrl.postJson(`game/${id}/reveal`, {row, col}, {signal});
 }
