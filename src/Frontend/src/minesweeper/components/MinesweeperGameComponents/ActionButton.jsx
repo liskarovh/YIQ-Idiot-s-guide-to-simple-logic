@@ -1,9 +1,8 @@
-// minesweeper/components/MinesweeperGameComponents/BarBtn.jsx
 import React from "react";
 import colors from "../../../Colors";
 
-export default function BarBtn({ icon, label, disabled, onClick, active }) {
-    const btnStyle = {
+export default function ActionButton({icon, label, disabled, onClick, active, style}) {
+    const actionButtonStyle = {
         display: "grid",
         placeItems: "center",
         gap: 6,
@@ -13,13 +12,19 @@ export default function BarBtn({ icon, label, disabled, onClick, active }) {
         color: colors.text_header,
         userSelect: "none",
         filter: active ? "drop-shadow(0 0 8px rgba(255,255,255,0.25))" : "none",
+        ...style
     };
-    const capStyle = { fontSize: 13, textAlign: "center" };
+    const titleStyle = {
+        fontSize: 13,
+        textAlign: "center"
+    };
 
     return (
-            <div style={btnStyle} onClick={() => !disabled && onClick?.()}>
+            <div style={actionButtonStyle}
+                 onClick={() => !disabled && onClick?.()}
+            >
                 <div>{icon}</div>
-                <div style={capStyle}>{label}</div>
+                <div style={titleStyle}>{label}</div>
             </div>
     );
 }

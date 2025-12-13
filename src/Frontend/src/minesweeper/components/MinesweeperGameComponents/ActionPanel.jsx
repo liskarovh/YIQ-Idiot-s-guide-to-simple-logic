@@ -1,5 +1,5 @@
 import React from "react";
-import BarBtn from "./BarBtn";
+import ActionButton from "./ActionButton";
 import {DragAFlagIcon} from "../../../assets/icons/DragAFlagIcon";
 import {HintIcon} from "../../../assets/icons/HintIcon";
 import {PauseIcon} from "../../../assets/icons/PauseIcon";
@@ -8,6 +8,7 @@ import {QuickFlagOnIcon} from "../../../assets/icons/QuickFlagOnIcon";
 import {ResumeIcon} from "../../../assets/icons/ResumeIcon";
 import {StrategyIcon} from "../../../assets/icons/StrategyIcon";
 import {UndoIcon} from "../../../assets/icons/UndoIcon";
+import {useMediaQuery} from "../../hooks/UseMediaQuery";
 
 export function ActionPanel({
                                 enableHints,
@@ -24,6 +25,11 @@ export function ActionPanel({
                                 onUndo,
                                 onToggleQuickFlag
                             }) {
+    const isNarrow = useMediaQuery("(max-width: 450)");
+    const isMedium = useMediaQuery("(max-width: 900px)");
+    const iconSize = isNarrow ? 30 : isMedium ? 35 : 50;
+    const buttonSize = isNarrow ? 60 : isMedium ? 75 : 90;
+
     return (
             <div
                     style={{
@@ -35,59 +41,71 @@ export function ActionPanel({
                         flexWrap: "wrap"
                     }}
             >
-                <BarBtn icon={
-                    <StrategyIcon
-                            widthHeight={50}
-                    />}
+                <ActionButton
+                        icon={
+                            <StrategyIcon
+                                    widthHeight={iconSize}
+                            />}
                         label="Strategy"
                         onClick={onStrategy}
+                        style={{width: buttonSize}}
                 />
-                <BarBtn icon={
-                    <HintIcon
-                            widthHeight={50}
-                    />}
+                <ActionButton
+                        icon={
+                            <HintIcon
+                                    widthHeight={iconSize}
+                            />}
                         label="Hint"
                         disabled={!enableHints || !canUseActions || hintDisabled}
                         onClick={onHint}
+                        style={{width: buttonSize}}
                 />
-                <BarBtn icon={paused ?
+                <ActionButton
+                        icon={paused ?
                               <ResumeIcon
-                                      widthHeight={50}
+                                      widthHeight={iconSize}
                               /> :
                               <PauseIcon
-                                      widthHeight={50}
+                                      widthHeight={iconSize}
                               />}
                         label={paused ? "Resume" : "Pause"}
                         disabled={beforeStart}
                         onClick={onPauseToggle}
+                        style={{width: buttonSize}}
                 />
-                <BarBtn icon={
-                    <UndoIcon
-                            widthHeight={50}
-                    />}
+                <ActionButton
+                        icon={
+                            <UndoIcon
+                                    widthHeight={iconSize}
+                            />}
                         label="Undo"
                         disabled={!allowUndo || !canUseActions || (cursor ?? 0) === 0}
                         onClick={onUndo}
+                        style={{width: buttonSize}}
                 />
-                <BarBtn icon={quickFlag ?
+                <ActionButton
+                        icon={quickFlag ?
                               <QuickFlagOnIcon
-                                      widthHeight={50}
+                                      widthHeight={iconSize}
                               /> :
                               <QuickFlagOffIcon
-                                      widthHeight={50}
+                                      widthHeight={iconSize}
                               />}
                         label="Quick flag mode"
                         disabled={!canUseActions}
                         onClick={onToggleQuickFlag}
                         active={quickFlag}
+                        style={{width: buttonSize}}
                 />
-                <BarBtn icon={
-                    <DragAFlagIcon
-                            widthHeight={50}
-                    />}
+                <ActionButton
+                        icon={
+                            <DragAFlagIcon
+                                    widthHeight={iconSize}
+                            />}
                         label="Drag-a-Flag"
                         disabled={!canUseActions}
                         onClick={() => {}}
+                        style={{width: buttonSize}}
                 />
             </div>
     );
