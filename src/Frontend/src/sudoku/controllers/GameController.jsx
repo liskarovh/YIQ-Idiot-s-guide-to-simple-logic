@@ -239,6 +239,10 @@ export function useGameController() {
     strategy.numberClicked(num)
   }
 
+  function dragInput(num, row, col) {
+    executeMove(row, col, false, num);
+  }
+
   function eraseClicked() {
     if (isLocked) return;
 
@@ -626,6 +630,7 @@ export function useGameController() {
     eraseClicked,
     notesClicked,
     inputClicked,
+    dragInput,
   };
 }
 

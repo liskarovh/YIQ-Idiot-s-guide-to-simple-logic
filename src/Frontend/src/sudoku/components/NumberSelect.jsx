@@ -1,16 +1,48 @@
-import React from 'react';
+import React, { useState } from 'react';
+import { useDraggable } from '@dnd-kit/core';
+import { CSS } from '@dnd-kit/utilities'; // You can remove this import now as we removed the transform
 import colors from '../../Colors';
 
 /**
- * NUMBER SELECTOR COMPONENT
- * 
- * Props:
- * - selectedNumber: number (1-9) - Currently selected number
- * - onNumberSelect: function(number) - Called when a number is clicked
- * - isColumn: boolean - If true, layout vertically; if false, layout horizontally
+ * INTERNAL COMPONENT: DRAGGABLE NUMBER
  */
+function DraggableNumber({ number, style, textStyle, onClick }) {
+  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
+    id: number.toString(),
+    data: { number },
+  });
 
-function NumberSelector({ selectedNumber, onNumberSelect, completedNumbers=[], isColumn = true, style = {} }) {
+  const [isHovered, setIsHovered] = useState(false);
+
+  // FIXED: We removed the 'transform' property.
+  // Since Game.jsx uses a <DragOverlay>, we want the source item 
+  // to stay in place but look "empty" (opacity lowered).
+  const combinedStyle = {
+    ...style,
+    opacity: isDragging ? 0.3 : (isHovered ? 0.8 : 1), 
+    touchAction: 'none', 
+  };
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={combinedStyle}
+      {...listeners} 
+      {...attributes}
+      onClick={() => onClick(number)}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
+    >
+      <span style={textStyle}>{number}</span>
+    </div>
+  );
+}
+
+/**
+ * MAIN COMPONENT: NUMBER SELECTOR
+ */
+function NumberSelector({ selectedNumber, onNumberSelect, completedNumbers = [], isColumn = true, style = {} }) {
+  
   const containerStyle = {
     display: 'flex',
     flexDirection: isColumn ? 'column' : 'row',
@@ -31,15 +63,15 @@ function NumberSelector({ selectedNumber, onNumberSelect, completedNumbers=[], i
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: '20px',
-    cursor: 'pointer',
-    transition: 'all 0.2s',
+    cursor: 'grab', 
+    transition: 'background-color 0.2s, outline 0.2s', 
     backgroundColor: number === selectedNumber ? '#FFFFFF' : colors.text_faded,
     outline: `3px solid ${number === selectedNumber ? colors.text_faded : '#FFFFFF' }`,
     containerType: 'size',
   });
 
   const getTextStyle = (number) => {
-    const contains = completedNumbers.includes(number)
+    const contains = completedNumbers.includes(number);
     return {
       fontSize: '75cqmin',
       fontWeight: '500',
@@ -47,27 +79,19 @@ function NumberSelector({ selectedNumber, onNumberSelect, completedNumbers=[], i
       WebkitTextStroke: contains ? '#FFFFFF' : '2cqmin black', 
       textStroke: contains ? '#FFFFFF' : '2cqmin black', 
       userSelect: 'none',
-    }
+    };
   };
 
   return (
     <div style={containerStyle}>
       {[1, 2, 3, 4, 5, 6, 7, 8, 9].map(number => (
-        <div
+        <DraggableNumber
           key={number}
+          number={number}
           style={getNumberStyle(number)}
-          onClick={() => onNumberSelect(number)}
-          onMouseEnter={(e) => {
-            if (number !== selectedNumber) {
-              e.currentTarget.style.opacity = '0.8';
-            }
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.opacity = '1';
-          }}
-        >
-          <span style={getTextStyle(number)}>{number}</span>
-        </div>
+          textStyle={getTextStyle(number)}
+          onClick={onNumberSelect}
+        />
       ))}
     </div>
   );

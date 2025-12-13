@@ -1,14 +1,15 @@
+import { DndContext, DragOverlay, useSensor, useSensors, PointerSensor, pointerWithin } from '@dnd-kit/core';
 import Header from "../../components/Header";
 import SudokuGrid from "../components/Grid";
 import { useSudokuNavigation } from "../controllers/NavigationController";
-import { useGameController, useNewGame } from "../controllers/GameController"; //
+import { useGameController, useNewGame } from "../controllers/GameController"; 
 import NumberSelector from "../components/NumberSelect";
 import Box from "../../components/Box"
 import IconButton from "../../components/IconButton";
-import { Eye, Sparkles, Undo, Eraser, StickyNote, BookOpen, Settings, Pointer, Play, Home } from "lucide-react"; // Added Play, Home
+import { Eye, Sparkles, Undo, Eraser, StickyNote, BookOpen, Settings, Pointer, Play, Home } from "lucide-react";
 import useMeasure from "react-use-measure";
 import colors from "../../Colors";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 
 const pageStyle = {
   display: 'flex',
@@ -16,6 +17,7 @@ const pageStyle = {
   height: '100vh',
   width: '100vw',
   overflow: 'hidden',
+  touchAction: 'none', // Prevent page bounce/scroll while playing
 };
 
 // Grid layout for desktop (wide screens)
@@ -141,55 +143,72 @@ const mobileGameAreaStyle = {
   minHeight: 0,
 };
 
+const snapCenterAndShiftUp = ({ transform, activatorEvent, draggingNodeRect }) => {
+  // 1. Safety check: Return unmodified transform if data is missing
+  if (!activatorEvent || !draggingNodeRect) {
+    return transform;
+  }
+
+  // 2. Get the *initial* activation coordinates
+  // Note: activatorEvent is the event that STARTED the drag, not the current one.
+  const startX = activatorEvent.clientX ?? activatorEvent.x ?? 0;
+  const startY = activatorEvent.clientY ?? activatorEvent.y ?? 0;
+
+  // 3. Calculate the center of the item when you picked it up
+  const elementCenterX = draggingNodeRect.left + draggingNodeRect.width / 2;
+  const elementCenterY = draggingNodeRect.top + draggingNodeRect.height / 2;
+
+  // 4. Calculate the delta (how far off-center you clicked)
+  // Example: Center is 50, Click is 80. Offset is +30.
+  const offsetX = startX - elementCenterX;
+  const offsetY = startY - elementCenterY;
+
+  // 5. Adjust the transform
+  // We ADD the offset to bring the center to the cursor.
+  // We subtract 50 from Y to lift it up (visual clearance).
+  return {
+    ...transform,
+    x: transform.x + offsetX, 
+    y: transform.y + offsetY - 30,
+  };
+};
+
 function Game() {
   const [ref, bounds] = useMeasure();
   const [gridRef, gridBounds] = useMeasure();
   const { setRelativeView, goBack } = useSudokuNavigation();
-  const { newGame } = useNewGame(); // Import newGame function
+  const { newGame } = useNewGame(); 
   
   const {
     gridData, selectedCell, selectedNumber, eraseOn, notesOn, inputMethod,
     mode, difficulty, timer, mistakes, completedNumbers, highlightNumbers, highlightAreas,
     gameStatus, hintHighlights,
-    cellClicked, numberClicked, smartHintClicked, revealHintClicked, dismissStatus, undoClicked, eraseClicked, notesClicked, inputClicked,
+    cellClicked, numberClicked, smartHintClicked, revealHintClicked, dismissStatus,
+    undoClicked, eraseClicked, notesClicked, inputClicked, dragInput
   } = useGameController()
 
-  // Determine if game is won
   const isVictory = gameStatus?.type === 'completed';
 
-  // Determine if mobile layout based on aspect ratio
   const isMobile = useMemo(() => {
     if (!bounds.width || !bounds.height) return false;
     return bounds.width < 1000 || bounds.width < bounds.height * 1.2; 
   }, [bounds.width, bounds.height]);
 
-  // Calculate dynamic sizes for Icons and Font
   const { iconSize, buttonFontSize } = useMemo(() => {
     if (!bounds.width) return { iconSize: 24, buttonFontSize: "1rem" };
-    
-    // Icon Size Calculation
     const iSize = Math.max(12, Math.min(28, bounds.width / 22));
-    
-    // Font Size Calculation
     const fSizeRaw = Math.max(12, Math.min(20, bounds.width / 50));
-    
-    return { 
-      iconSize: iSize, 
-      buttonFontSize: `${fSizeRaw}px` 
-    };
+    return { iconSize: iSize, buttonFontSize: `${fSizeRaw}px` };
   }, [bounds.width]);
 
-  // Calculate responsive sizes based on grid actual size
   const { infoWidth, infoHeight, numberSelectorWidth, gridSize } = useMemo(() => {
     if (!gridBounds.width || !gridBounds.height) {
       return { infoWidth: 400, infoHeight: 600, numberSelectorWidth: 150, gridSize: 0 };
     }
-    
     const gridSize = Math.min(gridBounds.width, gridBounds.height);
     const infoHeight = gridSize;
     const infoWidth = Math.min(400, Math.max(200, gridSize * 0.9));
     const numberSelectorWidth = Math.min(150, Math.max(100, gridSize * 0.25));
-    
     return { infoWidth, infoHeight, numberSelectorWidth, gridSize };
   }, [gridBounds.width, gridBounds.height]);
 
@@ -209,11 +228,9 @@ function Game() {
 
   function Timer({ customStyle }) {
     if (timer === null) return <></>;
-
     const minutes = Math.floor(timer / 60);
     const seconds = timer % 60;
     const timeStr = `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
-
     return <span style={customStyle || timeStyle}>{timeStr}</span>;
   }
 
@@ -234,10 +251,34 @@ function Game() {
     whiteSpace: 'pre-wrap',
   };
 
+  const [activeId, setActiveId] = useState(null);
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8, 
+      },
+    })
+  );
+
+  function handleDragStart(event) {
+    setActiveId(event.active.id);
+  }
+
+  function handleDragEnd(event) {
+    const { active, over } = event;
+    setActiveId(null); // Clear the overlay
+
+    if (!over) return;
+
+    const numberDropped = active.id;
+    const [_, row, col] = over.id.split('-'); 
+
+    dragInput(Number(numberDropped), Number(row), Number(col));
+  }
+
   function Info() {
-    // --- STATUS LOGIC (Shared) ---
     const renderStatusContent = (fontSize) => {
-      // Helper to apply dynamic font size
       const dynamicTextStyle = { ...statusTextStyle, fontSize: fontSize };
 
       if (gameStatus) {
@@ -260,14 +301,9 @@ function Game() {
           </>
         );
       }
-      
-      // Default State
-      return (
-        <></>
-      );
+      return <></>;
     };
 
-    // --- MOBILE LAYOUT (Preserved) ---
     if (isMobile) {
       const mobileBoxStyle = {
         padding: '0.75rem 1.5rem',
@@ -320,7 +356,6 @@ function Game() {
       )
     }
 
-    // --- DESKTOP LAYOUT (Responsive cqi units) ---
     const desktopBoxStyle = {
       padding: '2rem', 
       boxSizing: 'border-box',
@@ -338,27 +373,18 @@ function Game() {
     
     return (
       <Box width={infoWidth} height={gridSize} style={desktopBoxStyle}>
-          
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', flex: 1 }}>
-            
             <div style={{ flex: 1 }} /> 
-
             <span style={desktopTitleStyle}>Game Info</span>
-            
             <div style={{ flex: 0.5 }} /> 
-
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
               <span style={desktopLabelStyle}>Mode: {mode}</span>
               <span style={desktopLabelStyle}>Difficulty: {difficulty}</span>
             </div>
-
             <div style={{ flex: 0.5 }} /> 
-            
             <Timer customStyle={desktopTimerStyle}/>
-
             <div style={{ flex: 1 }} /> 
           </div>
-
           <div style={statusContainerStyle}>
             <div style={{
               flex: 1,
@@ -375,8 +401,6 @@ function Game() {
     )
   }
 
-  // --- CONTROLS COMPONENT ---
-  // Decides whether to show Gameplay buttons or Victory buttons
   function Controls() {
     if (isVictory) {
       return (
@@ -408,114 +432,165 @@ function Game() {
     );
   }
 
-  // --- MAIN RENDER ---
-
   if (isMobile) {
     const actualGridHeight = gridBounds.width || 0;
     
     return (
+      <DndContext 
+        sensors={sensors}
+        collisionDetection={pointerWithin}
+        onDragStart={handleDragStart} 
+        onDragEnd={handleDragEnd}
+      >
+        <div style={pageStyle}>
+          <Header showBack={true} onNavigate={goBack} />
+          <div ref={ref} style={mobileGridStyle}>
+            <div style={{ gridRow: '1' }}>
+              <Info/>
+            </div>
+            
+            <div style={{ gridRow: '2', ...mobileGameAreaStyle }}>
+              <div ref={gridRef} style={{ 
+                flex: '1 1 0', 
+                minWidth: 0, 
+                minHeight: 0, 
+                display: 'flex', 
+                justifyContent: 'flex-start',
+                alignItems: 'flex-start'
+              }}>
+                <div style={{ 
+                  width: '100%',
+                  aspectRatio: '1',
+                  maxWidth: '100%',
+                  maxHeight: '100%',
+                }}>
+                  <SudokuGrid 
+                    gridData={gridData}
+                    selectedCell={selectedCell}
+                    onCellClick={cellClicked}
+                    highlightedNumbers={highlightNumbers}
+                    highlightedAreas={highlightAreas}
+                    mistakes={mistakes}
+                    hintHighlights={hintHighlights}
+                  />
+                </div>
+              </div>
+              
+              {!isVictory && (
+                <NumberSelector
+                  selectedNumber={selectedNumber}
+                  onNumberSelect={numberClicked}
+                  isColumn={true}
+                  completedNumbers={completedNumbers}
+                  style={{ 
+                    height: `${actualGridHeight}px`, 
+                    width: `${gridBounds.width * 0.25}px`, 
+                    maxWidth: '16vw', 
+                    maxHeight: '100%' 
+                  }}
+                />
+              )}
+            </div>
+            
+            <div style={{ gridRow: '3', display: 'flex', justifyContent: 'space-between', width: '100%' }}>
+              <Controls />
+            </div>
+          </div>
+          <DragOverlay dropAnimation={null} modifiers={[snapCenterAndShiftUp]}>
+            {activeId ? (
+              <div style={{
+                width: '50px', 
+                height: '50px', 
+                backgroundColor: colors.text_faded,
+                color: '#fff', 
+                borderRadius: '50%',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: '2rem',
+                fontWeight: 'bold',
+                boxShadow: '0 5px 15px rgba(0,0,0,0.5)',
+                opacity: 0.9,
+              }}>
+                {activeId}
+              </div>
+            ) : null}
+          </DragOverlay>
+        </div>
+      </DndContext>
+    );
+  }
+
+  // Desktop
+  return (
+    <DndContext 
+      sensors={sensors}
+      collisionDetection={pointerWithin}
+      onDragStart={handleDragStart} 
+      onDragEnd={handleDragEnd}
+    >
       <div style={pageStyle}>
         <Header showBack={true} onNavigate={goBack} />
-        <div ref={ref} style={mobileGridStyle}>
-          <div style={{ gridRow: '1' }}>
+        <div ref={ref} style={desktopGridStyle}>
+          <div style={{ gridColumn: '1', gridRow: '1' }}>
             <Info/>
           </div>
           
-          <div style={{ gridRow: '2', ...mobileGameAreaStyle }}>
-            <div ref={gridRef} style={{ 
-              flex: '1 1 0', 
-              minWidth: 0, 
-              minHeight: 0, 
-              display: 'flex', 
-              justifyContent: 'flex-start',
-              alignItems: 'flex-start'
-            }}>
-              <div style={{ 
-                width: '100%',
-                aspectRatio: '1',
-                maxWidth: '100%',
-                maxHeight: '100%',
-              }}>
-                <SudokuGrid 
-                  gridData={gridData}
-                  selectedCell={selectedCell}
-                  onCellClick={cellClicked}
-                  highlightedNumbers={highlightNumbers}
-                  highlightedAreas={highlightAreas}
-                  mistakes={mistakes}
-                  hintHighlights={hintHighlights}
-                />
-              </div>
+          <div style={gridCellStyle} ref={gridRef}>
+            <div style={{ width: gridSize, height: gridSize }}>
+              <SudokuGrid 
+                gridData={gridData}
+                selectedCell={selectedCell}
+                onCellClick={cellClicked}
+                highlightedNumbers={highlightNumbers}
+                highlightedAreas={highlightAreas}
+                mistakes={mistakes}
+                hintHighlights={hintHighlights}
+              />
             </div>
-            
-            {/* Conditional Rendering: Only show Selector if NOT victory */}
+          </div>
+          
+          <div style={numberSelectorCellStyle}>
             {!isVictory && (
               <NumberSelector
                 selectedNumber={selectedNumber}
                 onNumberSelect={numberClicked}
                 isColumn={true}
                 completedNumbers={completedNumbers}
-                style={{ 
-                  height: `${actualGridHeight}px`, 
-                  width: `${gridBounds.width * 0.25}px`, 
-                  maxWidth: '16vw', 
-                  maxHeight: '100%' 
-                }}
+                style={{ height: gridSize, width: numberSelectorWidth }}
               />
             )}
           </div>
           
-          <div style={{ gridRow: '3', display: 'flex', justifyContent: 'space-between', width: '100%' }}>
+          <div style={{ gridColumn: '1 / 5', gridRow: '2', minHeight: 0 }}></div>
+          
+          <div style={buttonsCellStyle}>
             <Controls />
           </div>
         </div>
       </div>
-    );
-  }
 
-  // Desktop layout
-  return (
-    <div style={pageStyle}>
-      <Header showBack={true} onNavigate={goBack} />
-      <div ref={ref} style={desktopGridStyle}>
-        <div style={{ gridColumn: '1', gridRow: '1' }}>
-          <Info/>
-        </div>
-        
-        <div style={gridCellStyle} ref={gridRef}>
-          <div style={{ width: gridSize, height: gridSize }}>
-            <SudokuGrid 
-              gridData={gridData}
-              selectedCell={selectedCell}
-              onCellClick={cellClicked}
-              highlightedNumbers={highlightNumbers}
-              highlightedAreas={highlightAreas}
-              mistakes={mistakes}
-              hintHighlights={hintHighlights}
-            />
+      <DragOverlay dropAnimation={null} modifiers={[snapCenterAndShiftUp]}>
+        {activeId ? (
+          <div style={{
+            width: '60px', 
+            height: '60px', 
+            backgroundColor: colors.text_faded, 
+            color: '#fff',
+            borderRadius: '50%',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontSize: '2rem',
+            fontWeight: 'bold',
+            boxShadow: '0 5px 15px rgba(0,0,0,0.5)',
+            opacity: 0.9,
+          }}>
+            {activeId}
           </div>
-        </div>
-        
-        <div style={numberSelectorCellStyle}>
-          {/* Conditional Rendering: Only show Selector if NOT victory */}
-          {!isVictory && (
-            <NumberSelector
-              selectedNumber={selectedNumber}
-              onNumberSelect={numberClicked}
-              isColumn={true}
-              completedNumbers={completedNumbers}
-              style={{ height: gridSize, width: numberSelectorWidth }}
-            />
-          )}
-        </div>
-        
-        <div style={{ gridColumn: '1 / 5', gridRow: '2', minHeight: 0 }}></div>
-        
-        <div style={buttonsCellStyle}>
-          <Controls />
-        </div>
-      </div>
-    </div>
+        ) : null}
+      </DragOverlay>
+    </DndContext>
   );
 }
 

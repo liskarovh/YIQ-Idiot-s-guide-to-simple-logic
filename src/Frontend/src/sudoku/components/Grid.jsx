@@ -1,7 +1,14 @@
 import React from 'react';
-
+import { useDroppable } from '@dnd-kit/core';
 
 function SudokuCell({ value, type, row, col, isSelected, isHint, isHighlightedArea, isHighlightedNumber, isMistake, onClick }) {
+  const cellId = `cell-${row}-${col}`;
+
+  // 1. Get isOver to show visual feedback when dragging
+  const { setNodeRef, isOver } = useDroppable({
+    id: cellId,
+  });
+
   // Determine which 3x3 box this cell belongs to
   const boxRow = Math.floor(row / 3);
   const boxCol = Math.floor(col / 3);
@@ -9,20 +16,29 @@ function SudokuCell({ value, type, row, col, isSelected, isHint, isHighlightedAr
 
   const COLORS = {
     white: '255, 255, 255',
-    red: '255, 85, 85',     // Softer, readable red
-    blue: '80, 150, 255',   // Bright UI blue
-    gold: '255, 207, 76',   // Match your border
-    purple: '160, 140, 255' // Distinct from the blue
+    red: '255, 85, 85',
+    blue: '80, 150, 255',
+    gold: '255, 207, 76',
+    purple: '160, 140, 255'
   };
   
-  // Alternating box opacity pattern
   const isDarkBox = boxIndex % 2 === 0; 
   const baseAlpha = isDarkBox ? 0.08 : 0.16;
 
     // -- STYLE LOGIC --
   const getCellAppearance = () => {
     const textColor = type == "Given" ? '#d8e0ebff' : '#FFFFFF'
-    // 1. MISTAKE (Critical - Highest Priority)
+    
+    // 0. DRAG OVER
+    if (isOver) {
+        return {
+            backgroundColor: `rgba(${COLORS.blue}, 0.6)`,
+            textColor,
+            fontWeight: '600'
+        };
+    }
+
+    // 1. MISTAKE
     if (isMistake) {
         return {
             backgroundColor: `rgba(${COLORS.red}, 0.6)`,
@@ -39,8 +55,7 @@ function SudokuCell({ value, type, row, col, isSelected, isHint, isHighlightedAr
         };
     }
 
-    // 2. SELECTED CELL (Focus)
-    // We give it a distinct background to make the cursor position obvious
+    // 2. SELECTED CELL
     if (isSelected) {
         return {
             backgroundColor: `rgba(${COLORS.blue}, 0.5)`,
@@ -49,27 +64,25 @@ function SudokuCell({ value, type, row, col, isSelected, isHint, isHighlightedAr
         };
     }
 
-    // 3. SAME NUMBER (Context)
+    // 3. SAME NUMBER
     if (isHighlightedNumber) {
         return {
-            backgroundColor: `rgba(${COLORS.blue}, 0.3)`, // Same hue as selection, but lighter
+            backgroundColor: `rgba(${COLORS.blue}, 0.3)`,
             textColor,
             fontWeight: '600'
         };
     }
 
-    // 4. HIGHLIGHTED AREA (Row/Col/Box context)
+    // 4. HIGHLIGHTED AREA
     if (isHighlightedArea) {
         return {
-            // We just boost the white base slightly. 
-            // Adding 0.1 to alpha makes it a visible "crosshair" without distracting colors.
             backgroundColor: `rgba(${COLORS.white}, ${(baseAlpha) + 0.25})`,
             textColor,
             fontWeight: '400'
         };
     }
 
-    // 5. DEFAULT (Checkerboard)
+    // 5. DEFAULT
     return {
         backgroundColor: `rgba(${COLORS.white}, ${baseAlpha})`,
         textColor,
@@ -102,11 +115,10 @@ function SudokuCell({ value, type, row, col, isSelected, isHint, isHighlightedAr
     transition: 'background-color 0.2s ease-out',
     boxSizing: 'border-box',
     containerType: 'size',
-    position: 'relative', // Needed for z-index
+    position: 'relative',
     zIndex: zIndex,
     outline,
     outlineOffset: '-0.2cqmin',
-
     borderTop,
     borderLeft,
     borderRight,
@@ -142,9 +154,10 @@ function SudokuCell({ value, type, row, col, isSelected, isHint, isHighlightedAr
       justifyContent: 'center',
     };
 
+    // 2. ATTACH THE REF HERE (setNodeRef)
     if (type === "Pencil") {
         return (
-            <div style={cellStyle} onClick={() => onClick(row, col)}>
+            <div ref={setNodeRef} style={cellStyle} onClick={() => onClick(row, col)}>
                 <div style={pencilGridStyle}>
                 {[1, 2, 3, 4, 5, 6, 7, 8, 9].map(num => (
                     <div key={num} style={pencilCellStyle}>
@@ -158,7 +171,7 @@ function SudokuCell({ value, type, row, col, isSelected, isHint, isHighlightedAr
         );
     } else {
         return (
-            <div style={cellStyle} onClick={() => onClick(row, col)}>
+            <div ref={setNodeRef} style={cellStyle} onClick={() => onClick(row, col)}>
             {value && <span style={textStyle}>{value}</span>}
             </div>
         );
@@ -212,6 +225,7 @@ function SudokuGrid({
 
             return (
               <SudokuCell
+                key={`${rowIndex}-${colIndex}`} // Added key for React performance
                 value={cell.value}
                 type={cell.type}
                 row={rowIndex}
