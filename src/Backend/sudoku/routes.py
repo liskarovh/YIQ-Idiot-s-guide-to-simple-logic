@@ -80,30 +80,50 @@ def newBoard():
 
 @sudoku_bp.route('/get_value', methods=['GET'])
 def getValue():
-    pass
+    sid = flask_session.get("sid")
+    ses = get_or_create_session(sid)
+    
+    try:
+        row = int(request.args.get('row'))
+        col = int(request.args.get('col'))
+    except (TypeError, ValueError):
+        return jsonify({"err": -1, "message": "Invalid coordinates"}), 400
+
+    # Call the manager to reveal the cell
+    revealed_val = ses.gameManager.revealCell(row, col)
+    
+    if revealed_val is None:
+        return jsonify({"err": -1, "message": "Action failed"}), 400
+
+    save_session(ses)
+    
+    return jsonify({
+        "value": revealed_val,
+        "err": 0
+    })
 
 @sudoku_bp.route('/hint', methods=['GET'])
 def getHint():
     sid = flask_session.get("sid")
     ses = get_or_create_session(sid)
     
-    # TODO: Connect this to ses.gameManager.get_hint()
-    # The solver should return the structure below.
-    # For now, we return a Mock response to test the UI highlights.
+    # Get hint from manager
+    response_data = ses.gameManager.getHint()
     
-    # Example: Highlighting the first row (Row 0)
-    highlight_matrix = [[False for _ in range(9)] for _ in range(9)]
-    for c in range(9):
-        highlight_matrix[0][c] = True
-
-    response_data = {
-        "title": "Naked Single",
-        "explanation": "In the highlighted cells, there is only one possible candidate remaining.",
-        "matrix": highlight_matrix
-    }
-    
+    if response_data is None:
+        return jsonify({"err": -1, "message": "Game not initialized"}), 400
+        
     return jsonify(response_data)
 
 @sudoku_bp.route('/mistakes', methods=['GET'])
 def getMistakes():
-    pass
+    sid = flask_session.get("sid")
+    ses = get_or_create_session(sid)
+    
+    # Calculate mistakes matrix
+    mistakes_matrix = ses.gameManager.getMistakes()
+    
+    return jsonify({
+        "mistakes": mistakes_matrix,
+        "err": 0
+    })
