@@ -151,7 +151,7 @@ function Home() {
                                 onCardClick={() => navigate('/tic-tac-toe?fresh=1')}
                                 onPlayNowClick={() => navigate('/tic-tac-toe?fresh=1')}
                                 onSettingsClick={() => navigate('/tic-tac-toe/settings')}
-                                onStrategyClick={() => navigate('/tic-tac-toe/strategy')}
+                                onStrategyClick={() => navigate('/tic-tac-toe/strategy', { state: { from: '/' } })}
                         />
                         <GameCard
                                 title="Minesweeper"

@@ -7,7 +7,7 @@
  */
 
 import React, { useState, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 
 import Header from '../../../components/Header';
 import styles from '../../../Styles';
@@ -20,8 +20,29 @@ import UnderHeader from '../components/underHeader.jsx';
 
 export default function StrategyPage() {
     const navigate = useNavigate();
+    const location = useLocation();
     const [tab, setTab] = useState('forks'); // 'overview' | 'forks' | 'algo'
     const headerRef = useRef(null);
+
+    const safeBack = () => {
+        const current = `${location.pathname}${location.search || ''}`;
+        const from = location.state?.from;
+
+        if (typeof from === 'string' && from && from !== current) {
+            return navigate(from);
+        }
+
+        const idx =
+                typeof window !== 'undefined' &&
+                window.history?.state &&
+                typeof window.history.state.idx === 'number'
+                        ? window.history.state.idx
+                        : 0;
+
+        if (idx > 0) return navigate(-1);
+
+        return navigate('/tic-tac-toe', { replace: true });
+    };
 
     const lead =
             'A concise, practical guide to optimal tic-tac-toe: openings, forks and blocks, common pitfalls, and a simple decision algorithm for calculating the best move.';
@@ -175,15 +196,7 @@ export default function StrategyPage() {
                         backLabel="Back"
                         onNavigate={(arg) => {
                             if (arg === 'back') {
-                                const idx =
-                                        typeof window !== 'undefined' &&
-                                        window.history?.state &&
-                                        typeof window.history.state.idx === 'number'
-                                                ? window.history.state.idx
-                                                : 0;
-
-                                if (idx > 0) return navigate(-1);
-                                return navigate('/', { replace: true }); // fallback pro direct-open
+                                return safeBack();
                             }
                             navigate(String(arg || '/'));
                         }}

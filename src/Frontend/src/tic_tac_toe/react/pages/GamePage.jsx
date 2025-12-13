@@ -19,7 +19,7 @@ import React, {
     useState,
     useCallback,
 } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 
 import Header from '../../../components/Header';
 
@@ -48,6 +48,8 @@ import colors from '../../../Colors';
 
 export default function GamePage() {
     const navigate = useNavigate();
+    const location = useLocation();
+    const fromHere = `${location.pathname}${location.search || ''}`;
 
     /**
      * Core game state pulled from shared context.
@@ -789,7 +791,7 @@ export default function GamePage() {
                                                 <AfterGameToolbar
                                                         onPlayAgain={isSpectator ? spectatorPlayAgain : restart}
                                                         onNewGame={() => navigate('/tic-tac-toe/settings')}
-                                                        onStrategy={() => navigate('/tic-tac-toe/strategy')}
+                                                        onStrategy={() => navigate('/tic-tac-toe/strategy', { state: { from: fromHere } })}
                                                         onBack={() => navigate('/')}
                                                 />
                                         ) : (
@@ -799,7 +801,7 @@ export default function GamePage() {
                                                         onRestart={restart}
                                                         onPause={() => setPaused((p) => !p)}
                                                         onPower={() => navigate('/')}
-                                                        onStrategy={() => navigate('/tic-tac-toe/strategy')}
+                                                        onStrategy={() => navigate('/tic-tac-toe/strategy', { state: { from: fromHere } })}
                                                         bestMoveActive={!isSpectator && bestOpen && !ended}
                                                         onSettings={() => navigate('/tic-tac-toe/settings')}
                                                         isSpectator={isSpectator}
