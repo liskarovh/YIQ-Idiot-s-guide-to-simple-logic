@@ -4,7 +4,7 @@ import { useGameInfo } from '../models/GameInfoModel';
 import { useGameOptions } from '../models/SettingsModel';
 import { useLoading } from './SudokuController';
 import { useSudokuNavigation } from './NavigationController';
-import { useStatus } from '../models/StatusModel'; // <--- NEW IMPORT
+import { useStatus } from '../models/StatusModel'; 
 import { mapGridToReceive } from '../models/APIMappers';
 import {
   fetchNewGrid,
@@ -175,7 +175,13 @@ export function useGameController() {
     }
   }
 
-  
+  // Helper to clear artifacts when user interacts with the game
+  function clearActiveHints() {
+    if (status || hintHighlights) {
+      setStatus(null);
+      clearHints();
+    }
+  }
 
   function cellClicked(row, col) {
     if (isLocked) return;
@@ -184,6 +190,9 @@ export function useGameController() {
       performReveal(row, col);
       return; 
     }
+
+    // Clean up hint highlights if user clicks the grid
+    clearActiveHints();
 
     let strategy
     if (gameOptions.selectMethod === "Number") {
@@ -200,6 +209,12 @@ export function useGameController() {
 
     if (isRevealing) {
         setStatus(null);
+        // Note: We don't necessarily clear hints here as we are cancelling reveal, 
+        // but it's safer to clear everything to return to neutral state
+        clearHints(); 
+    } else {
+        // Clean up hint highlights on interaction
+        clearActiveHints();
     }
 
     let strategy
@@ -217,6 +232,10 @@ export function useGameController() {
 
     if (isRevealing) {
         setStatus(null);
+        clearHints();
+    } else {
+        // Clean up hint highlights on interaction
+        clearActiveHints();
     }
 
     let strategy
@@ -234,8 +253,12 @@ export function useGameController() {
 
     if (isRevealing) {
         setStatus(null);
+        clearHints();
         return;
     }
+    
+    // Undo invalidates the current hint context
+    clearActiveHints();
 
     // 1. Pop the inverse operation
     const lastState = popHistoryItem();
@@ -249,14 +272,18 @@ export function useGameController() {
   function notesClicked() {
     updateOption('notes', !gameOptions.notes)
 
+    // Clear UI overlays
     setStatus(null);
+    clearHints();
   }
 
   function inputClicked() {
     let newOpt
     if (gameOptions["selectMethod"] === "Number") {newOpt="Cell"} else {newOpt="Number"}
 
+    // Clear UI overlays
     setStatus(null);
+    clearHints();
 
     updateOption('selectMethod', newOpt)
   }
@@ -265,6 +292,9 @@ export function useGameController() {
 
   async function smartHintClicked() {
     if (isLocked) return;
+    
+    // Clear previous hints before fetching new one to avoid visual glitches
+    clearHints();
 
     // 1. Fetch from Python API
     const response = await fetchHint();
@@ -303,6 +333,9 @@ export function useGameController() {
 
   function revealHintClicked() {
     if (isLocked) return;
+
+    // Clear any existing smart hints
+    clearHints();
 
     // Strategy 1: Cell First
     if (gameOptions.selectMethod === "Cell") {
@@ -344,6 +377,7 @@ export function useGameController() {
         
         // 3. Clear States
         setStatus(null);
+        clearHints(); // Ensure no leftover highlights
     } else {
         setStatus({
             type: 'error',
@@ -399,6 +433,8 @@ export function useGameController() {
         text: 'Congratulations! You have successfully solved the Sudoku.',
         dismissText: null // Hides the dismiss button
       });
+      // Clear any remaining hints on completion
+      clearHints();
     }
   }
 
