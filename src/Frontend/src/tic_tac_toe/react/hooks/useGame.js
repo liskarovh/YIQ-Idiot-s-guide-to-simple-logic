@@ -454,6 +454,7 @@ export function useGame() {
             if (typeof moveDelayMs === 'number') {
                 payload.moveDelayMs = moveDelayMs;
             }
+            setGame(null);
 
             const base = (ttt.baseUrl || '/api/tictactoe').replace(/\/+$/, '');
             const url = `${base}/spectator/new`;
@@ -606,6 +607,7 @@ export function useGame() {
             setStartMark(payload.startMark);
             setDifficulty(payload.difficulty);
 
+            setGame(null);
             setLoading(true);
             setError(null);
             setHint(null);
@@ -687,6 +689,7 @@ export function useGame() {
     useEffect(() => {
         // ───────── 1) Spectator init (AI vs AI, SSE) ─────────
         if (isSpectator) {
+            didInitRef.current = false;
             (async () => {
                 try {
                     setLoading(true);
@@ -742,6 +745,7 @@ export function useGame() {
                             // If ended, DO NOT reopen SSE
                             if (statusStr && statusStr !== 'running') {
                                 closeSpectatorStreams();
+                                setGame(null);
                                 return;
                             }
                         } catch {

@@ -50,6 +50,10 @@ export default function GamePage() {
     const navigate = useNavigate();
     const location = useLocation();
     const fromHere = `${location.pathname}${location.search || ''}`;
+    const goStrategy = useCallback(() => {
+        sessionStorage.setItem('ttt_strategy_from', fromHere);
+        navigate('/tic-tac-toe/strategy', { state: { from: fromHere } });
+    }, [navigate, fromHere]);
 
     /**
      * Core game state pulled from shared context.
@@ -791,7 +795,7 @@ export default function GamePage() {
                                                 <AfterGameToolbar
                                                         onPlayAgain={isSpectator ? spectatorPlayAgain : restart}
                                                         onNewGame={() => navigate('/tic-tac-toe/settings')}
-                                                        onStrategy={() => navigate('/tic-tac-toe/strategy', { state: { from: fromHere } })}
+                                                        onStrategy={goStrategy}
                                                         onBack={() => navigate('/')}
                                                 />
                                         ) : (
@@ -801,7 +805,7 @@ export default function GamePage() {
                                                         onRestart={restart}
                                                         onPause={() => setPaused((p) => !p)}
                                                         onPower={() => navigate('/')}
-                                                        onStrategy={() => navigate('/tic-tac-toe/strategy', { state: { from: fromHere } })}
+                                                        onStrategy={goStrategy}
                                                         bestMoveActive={!isSpectator && bestOpen && !ended}
                                                         onSettings={() => navigate('/tic-tac-toe/settings')}
                                                         isSpectator={isSpectator}
