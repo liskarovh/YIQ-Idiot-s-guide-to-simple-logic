@@ -1,4 +1,16 @@
-// src/Frontend/src/react/tic_tac_toe/pages/GamePage.jsx
+/**
+ * @file    GamePage.jsx
+ * @brief   Main Tic-Tac-Toe game screen – board, toolbars, info panels, timer,
+ *          and spectator.
+ *
+ * This component renders the primary play view for both standard games and
+ * spectator mode. It shows the board, the current game status, context
+ * information panels, and action toolbars (before/after the game).
+ *
+ * @author  Hana Liškařová xliskah00
+ * @date    2025-12-13
+ */
+
 import React, {
     useEffect,
     useLayoutEffect,
@@ -27,12 +39,30 @@ import XWinsInfoPanel from '../components/infoPanels/xWinInfoPanel.jsx';
 import OWinsInfoPanel from '../components/infoPanels/oWinInfoPanel.jsx';
 import TimeRanOutPanel from '../components/infoPanels/timeRanOutPanel.jsx';
 import SpectatorInfoPanel from '../components/infoPanels/spectatorInfoPanel.jsx';
+import MarkX from '../components/marks/markX.jsx';
+import MarkO from '../components/marks/markO.jsx';
 import { useGame } from '../hooks/gameContext.js';
-import { ttt } from '../../javascript/ttt.client.js'; // fallback pro /best-move
+import { ttt } from '../../javascript/ttt.client.js';
+import styles from '../../../Styles';
+import colors from '../../../Colors';
 
 export default function GamePage() {
     const navigate = useNavigate();
 
+    /**
+     * Core game state pulled from shared context.
+     * - game:     latest game DTO from the backend
+     * - loading:  active network interaction (/new, /play, /best-move, /restart, ...)
+     * - pendingMove: optimistic move marker (used for ghost mark on the board)
+     * - bestMove:  hook-level helper for /best-move (HARD) requests
+     * - restart:   reset current game on backend while keeping settings
+     * - play:      send a single move to the backend
+     * - mode:      'pvp' | 'pve' (current game mode)
+     * - players:   client-side projection of player nicknames
+     * - hint:      last best-move result from backend (if any)
+     * - timeoutLose / endAsTimeout: timeout handling (backend + safe FE fallback)
+     * - isSpectator / spectator / spectatorPlayAgain: AI vs AI spectator mode API
+     */
     const {
         game,
         loading,
@@ -43,59 +73,60 @@ export default function GamePage() {
         mode,
         players,
         hint,
-        timeoutLose, // BE timeout (pokud existuje)
-        endAsTimeout, // FE fallback (z useGame)
+        timeoutLose,   // backend timeout handler
+        endAsTimeout,  // frontend-only timeout fallback
         isSpectator,
         spectator,
         spectatorPlayAgain,
     } = useGame();
 
+    /**
+     * Local UI-only pause flag.
+     * When paused:
+     *  - board is disabled
+     *  - timer countdown stops
+     *  - semi-transparent overlays are rendered over left + right column
+     * The backend game state continues to exist unchanged.
+     */
     const [paused, setPaused] = useState(false);
 
-    // ====== Derivace čistě z DTO ======
+    // ===== Derived values from DTO =====
     const size = Number.isFinite(Number(game?.size)) ? Number(game.size) : null;
-    const kToWin =
-            Number(game?.k_to_win ?? game?.goal ?? game?.kToWin ?? 0) || null;
-    const difficulty =
-            game?.difficulty ??
-            game?.settings?.difficulty ??
-            game?.ai?.difficulty ??
-            null;
+    const kToWin = Number.isFinite(Number(game?.k_to_win)) ? Number(game.k_to_win) : null;
+    const difficulty = game?.difficulty ?? null;
 
     const board = Array.isArray(game?.board) ? game.board : null;
 
-    // Výsledek / status
-    const winner = game?.winner ?? game?.game?.winner ?? null; // 'X' | 'O' | null
-    const rawStatus = game?.status ?? game?.game?.status ?? 'running';
+    // Result / status derived from
+    const winner = game?.winner ?? null;
+    const rawStatus = game?.status ?? 'running';
     const status = String(rawStatus).toLowerCase(); // 'running' | 'win' | 'draw' | 'timeout' | 'forfeit'...
     const ended = ['win', 'draw', 'timeout', 'forfeit'].includes(status);
 
+    /**
+     * Human player mark (X/O) for PvE mode.
+     */
     const humanMark = (() => {
-        const hm = game?.human_mark ?? game?.humanMark;
+        const hm = game?.humanMark;
         return hm ? String(hm).toUpperCase() : null;
     })();
     const isHumanWinner =
             ended && humanMark && String(winner).toUpperCase() === humanMark;
 
-    // Výherní sekvence (pokud BE posílá)
+    /**
+     * Winning sequence, if provided by backend.
+     * It is forwarded into <Board /> so it can draw the strike-through line.
+     */
     const seq = useMemo(() => {
-        const s = game?.winningSequence || game?.game?.winningSequence || null;
+        const s = game?.winningSequence ?? null;
         return Array.isArray(s) && s.length ? s : null;
-    }, [game?.winningSequence, game?.game?.winningSequence]);
+    }, [game?.winningSequence]);
 
-    // Statistiky
-    const moves = Number.isFinite(game?.moves)
-            ? Number(game.moves)
-            : Array.isArray(game?.history)
-                    ? game.history.length
-                    : null;
-    const hintsUsed = Number.isFinite(game?.hintsUsed)
-            ? Number(game.hintsUsed)
-            : Number.isFinite(game?.hints_used)
-                    ? Number(game?.hints_used)
-                    : 0;
+    // Basic counters for statistics on the left panel
+    const moves = Number.isFinite(Number(game?.moves)) ? Number(game.moves) : null;
+    const hintsUsed = Number.isFinite(Number(game?.hintsUsed)) ? Number(game.hintsUsed) : 0;
 
-    // Breakpoint – stacked < 980 px
+    // Layout breakpoint
     const [narrow, setNarrow] = useState(false);
     useEffect(() => {
         const mq = window.matchMedia('(max-width: 980px)');
@@ -106,47 +137,42 @@ export default function GamePage() {
     }, []);
 
     // ===== Timer =====
+
+    /**
+     * Signature of the board (string) used to detect when the position changes.
+     */
     const boardSig = useMemo(
             () => (board ? board.flat().join('') : ''),
-            [board]
+            [board],
     );
 
-    // robustní načtení délky tahu (sekundy) z více možných polí + fallback na sessionStorage
+    /**
+     * Reads turn duration (seconds) from DTO.
+     * In spectator mode the local timer is always disabled
+     */
     const configuredSec = useMemo(() => {
         if (isSpectator) return 0;
-        const candidates = [
-            game?.turnTimerSec,
-            game?.turn_timer_sec,
-            game?.timerSec,
-            game?.settings?.turnTimerSec,
-            game?.settings?.timerSec,
-            game?.settings?.timer?.seconds,
-        ];
-        for (const v of candidates) {
-            const n = Number(v);
-            if (Number.isFinite(n) && n > 0) return n;
-        }
-        try {
-            const raw = sessionStorage.getItem('ttt.settings');
-            if (raw) {
-                const cfg = JSON.parse(raw);
-                const enabled = !!cfg?.timer?.enabled;
-                const secs = Number(cfg?.timer?.seconds);
-                if (enabled && Number.isFinite(secs) && secs > 0) return secs;
-            }
-        } catch {}
-        return 0;
-    }, [
-        isSpectator,
-        game?.turnTimerSec,
-        game?.turn_timer_sec,
-        game?.timerSec,
-        game?.settings?.turnTimerSec,
-        game?.settings?.timerSec,
-        game?.settings?.timer?.seconds,
-    ]);
 
-    // živý countdown v prohlížeči + jednorázové onExpire
+        const n = Number(game?.turnTimerSec);
+        return Number.isFinite(n) && n > 0 ? n : 0;
+    }, [isSpectator, game?.turnTimerSec]);
+
+    /**
+     * Local per-turn countdown hook.
+     *
+     * @param {Object} params
+     * @param {string} params.resetKey
+     *        Unique key for the current turn (e.g. board signature + player).
+     *        Any change means "new turn → restart countdown".
+     * @param {number} params.initialSeconds
+     *        Total time allocated for this turn (0 disables counting).
+     * @param {boolean} params.running
+     *        Whether the timer should tick or stay frozen (pause, game ended, etc.).
+     * @param {Function} params.onExpire
+     *        Callback called exactly once when the countdown reaches zero.
+     * @returns {{sec: number, label: string}}
+     *        Current remaining seconds and formatted "MM:SS" label.
+     */
     function useTurnCountdown({ resetKey, initialSeconds, running, onExpire }) {
         const [sec, setSec] = useState(() => Number(initialSeconds) || 0);
 
@@ -154,13 +180,11 @@ export default function GamePage() {
         const tickIdRef = useRef(null);
         const firedRef = useRef(false);
 
-        // drž onExpire bez spouštění resetu
         const onExpireRef = useRef(onExpire);
         useEffect(() => {
             onExpireRef.current = onExpire;
         }, [onExpire]);
 
-        // drž si poslední známý zbývající čas mezi pauzami
         const secRef = useRef(sec);
         useEffect(() => {
             secRef.current = sec;
@@ -173,6 +197,9 @@ export default function GamePage() {
             }
         };
 
+        /**
+         * Start ticking from given remaining seconds.
+         */
         const startIntervalFrom = (startSeconds) => {
             if (!Number.isFinite(startSeconds) || startSeconds <= 0) return;
             deadlineRef.current = Date.now() + startSeconds * 1000;
@@ -193,7 +220,7 @@ export default function GamePage() {
             tickIdRef.current = setInterval(tick, 250);
         };
 
-        // RESET jen když se změní deska/tah nebo se změní délka tahu
+        // Full reset
         useEffect(() => {
             const start = Number(initialSeconds) || 0;
             firedRef.current = false;
@@ -205,7 +232,7 @@ export default function GamePage() {
             return clearTick;
         }, [resetKey, initialSeconds, running]);
 
-        // Pauza/rezum: pokračuj z aktuálně zbývajícího času
+        // Pause/resume using the last known remaining time
         useEffect(() => {
             clearTick();
             if (!running) return;
@@ -221,6 +248,9 @@ export default function GamePage() {
         return { sec: Number(sec) || 0, label: `${mm}:${ss}` };
     }
 
+    /**
+     * Timer-expired handler.
+     */
     const onTimerExpired = useCallback(async () => {
         if (!game || ended || paused || isSpectator) return;
         try {
@@ -232,13 +262,14 @@ export default function GamePage() {
                 endAsTimeout();
             } else {
                 console.warn(
-                        '[GamePage] Timer expired, but no timeout handler available.'
+                        '[GamePage] Timer expired, but no timeout handler is available.',
                 );
             }
         } catch (e) {
             console.warn('[GamePage] onTimerExpired ×', e);
         }
     }, [isSpectator, game, ended, paused, timeoutLose, endAsTimeout]);
+
 
     const resetKey = `${boardSig}#${game?.player ?? ''}#${game?.id ?? ''}`;
 
@@ -254,7 +285,7 @@ export default function GamePage() {
         onExpire: onTimerExpired,
     });
 
-    // ===== Rozměry =====
+    // ===== Layout measurements =====
     const headerRef = useRef(null);
     const shellRef = useRef(null);
     const rightRef = useRef(null);
@@ -267,6 +298,9 @@ export default function GamePage() {
     const UNDER_PADDING_PX = 12;
     const SAFE_TOOLBAR_PX = 160;
 
+    /**
+     * headerPx tracks the actual rendered height of the header
+     */
     const [headerPx, setHeaderPx] = useState(0);
     useLayoutEffect(() => {
         const recalcHeader = () => {
@@ -288,6 +322,14 @@ export default function GamePage() {
     const [panelMaxPx, setPanelMaxPx] = useState(0);
     const toolbarHRef = useRef(SAFE_TOOLBAR_PX);
 
+    /**
+     * Layout recalculation:
+     *  - Measures available vertical space under the header.
+     *  - Reserves room for the toolbar.
+     *  - Sets:
+     *      boardPx      = size of the square game board (px).
+     *      panelMaxPx   = maximum height for the left info panel.
+     */
     useLayoutEffect(() => {
         let raf1 = 0,
                 raf2 = 0,
@@ -363,7 +405,14 @@ export default function GamePage() {
         };
     }, [narrow, headerPx, game?.id, game?.size, boardSig]);
 
-    // ===== Best move =====
+    // ===== Best move overlay / hint =====
+
+    /**
+     * bestOpen / bestState / bestHintHidden control the functionality:
+     *  - bestOpen: whether the big overlay dialog is visible
+     *  - bestState: last explicit request via the button in the toolbar
+     *  - bestHintHidden: once the user makes a move, hint bubble hides until next request
+     */
     const [bestOpen, setBestOpen] = useState(false);
     const [bestState, setBestState] = useState({
         loading: false,
@@ -375,6 +424,9 @@ export default function GamePage() {
     });
     const [bestHintHidden, setBestHintHidden] = useState(false);
 
+    /**
+     * Handle "Best move" button click.
+     */
     const onBestMoveClick = async () => {
         setBestHintHidden(false);
         setBestOpen(true);
@@ -413,11 +465,18 @@ export default function GamePage() {
         }
     };
 
+    // Close overlay
     const handleCloseOverlay = () => {
         setBestOpen(false);
         setBestHintHidden(true);
     };
 
+    /**
+     * onCell is the only handler for user clicks on the board:
+     *  - respects pause/loading/ended flags
+     *  - clears any currently open hint overlay
+     *  - delegates to useGame().play(...) which calls backend
+     */
     const onCell = (r, c) => {
         if (!paused && !loading && !ended && game) {
             setBestOpen(false);
@@ -426,6 +485,9 @@ export default function GamePage() {
         }
     };
 
+    /**
+     * Whenever the board signature changes, all previous hints are invalid.
+     */
     const prevSigRef = useRef(boardSig);
     useEffect(() => {
         if (!prevSigRef.current) {
@@ -439,53 +501,26 @@ export default function GamePage() {
         prevSigRef.current = boardSig;
     }, [boardSig]);
 
+    /**
+     * Small SVG glyph to show whose turn it is.
+     */
     function TurnGlyph({ who = 'X' }) {
-        if (String(who).toUpperCase() === 'O') {
-            return (
-                    <svg
-                            width="clamp(22px, 2.2vw, 28px)"
-                            height="clamp(22px, 2.2vw, 28px)"
-                            viewBox="0 0 64 64"
-                            aria-label="O turn"
-                    >
-                        <circle cx="32" cy="32" r="20" stroke="#38BDF8" strokeWidth="8" fill="none" />
-                    </svg>
-            );
-        }
-        return (
-                <svg
-                        width="clamp(22px, 2.2vw, 28px)"
-                        height="clamp(22px, 2.2vw, 28px)"
-                        viewBox="0 0 64 64"
-                        aria-label="X turn"
-                >
-                    <line
-                            x1="10"
-                            y1="10"
-                            x2="54"
-                            y2="54"
-                            stroke="#FF6B6B"
-                            strokeWidth="8"
-                            strokeLinecap="round"
-                    />
-                    <line
-                            x1="54"
-                            y1="10"
-                            x2="10"
-                            y2="54"
-                            stroke="#FF6B6B"
-                            strokeWidth="8"
-                            strokeLinecap="round"
-                    />
-                </svg>
+        const isO = String(who).toUpperCase() === 'O';
+        const size = 'clamp(22px, 2.2vw, 28px)';
+        const commonStyle = { width: size, height: size, display: 'block' };
+
+        return isO ? (
+                <MarkO style={commonStyle} />
+        ) : (
+                <MarkX style={commonStyle} />
         );
     }
 
-    // ===== Styly =====
+    // ===== Styles =====
     const page = {
-        background:
-                'linear-gradient(180deg, #0F172A 0%, #020617 20%, #020617 60%, #0F172A 100%)',
+        background: styles.container.background,
         minHeight: '100svh',
+        width: '100%',
         overflowX: 'hidden',
         overflowY: 'auto',
     };
@@ -520,7 +555,7 @@ export default function GamePage() {
         maxHeight: '100%',
         marginInline: 'auto',
         position: 'relative',
-        filter: 'drop-shadow(-2px 3px 4px #CBD5E1)',
+        filter: `drop-shadow(-2px 3px 4px ${colors.text})`,
         zIndex: 2,
     };
 
@@ -538,12 +573,26 @@ export default function GamePage() {
     const toolbarInner = { width: '100%', position: 'relative' };
     const toolbarWrap = { position: 'relative', zIndex: 3 };
 
+    /**
+     * Semi-transparent overlays used to visually indicate a paused game.
+     */
+    const rgba_from_hex = (hex, a) => {
+        const h = String(hex || '').replace('#', '');
+        if (h.length !== 6) return `rgba(0,0,0,${a})`;
+        const r = parseInt(h.slice(0, 2), 16);
+        const g = parseInt(h.slice(2, 4), 16);
+        const b = parseInt(h.slice(4, 6), 16);
+        return `rgba(${r}, ${g}, ${b}, ${a})`;
+    };
+
+    const paused_bg = rgba_from_hex(colors.primary, 0.55);
+
     const leftPausedOverlay = paused
             ? {
                 position: 'absolute',
                 inset: 0,
                 borderRadius: 'clamp(20px, 3vw, 40px)',
-                background: 'rgba(2, 6, 23, 0.55)',
+                background: paused_bg,
                 backdropFilter: 'blur(1px)',
                 zIndex: 2,
                 pointerEvents: 'none',
@@ -555,19 +604,19 @@ export default function GamePage() {
                 position: 'absolute',
                 inset: 0,
                 borderRadius: 0,
-                background: 'rgba(2, 6, 23, 0.55)',
+                background: paused_bg,
                 backdropFilter: 'blur(1px)',
                 zIndex: 1,
                 pointerEvents: 'none',
             }
             : null;
 
-    // Hint pozice & text
+    // Hint position & text
     const bestMovePos = bestState.move ?? hint?.move ?? null;
     const bestExplain =
             bestState.explain || hint?.explain || hint?.analysis?.explain || '';
 
-    // ====== LOADING SKELETON ======
+    // ===== Loading skeleton =====
     const notReady = !game || !board || !size;
 
     if (notReady) {
@@ -594,7 +643,7 @@ export default function GamePage() {
                                     alignItems: 'center',
                                     justifyItems: 'center',
                                     height: '60vh',
-                                    color: '#CBD5E1',
+                                    color: colors.text,
                                 }}
                         >
                             Loading game…
@@ -604,17 +653,26 @@ export default function GamePage() {
         );
     }
 
-    // ====== Výběr levého panelu podle stavu ======
+    // ===== Left panel selection based on status =====
+    /**
+     * LeftPanel is chosen dynamically according to game status and mode:
+     *  - timeout - TimeRanOutPanel
+     *  - draw    - DrawInfoPanel
+     *  - win:
+     *      * spectator: XWinsInfoPanel / OWinsInfoPanel
+     *      * PvE: WinInfoPanel (human) / LoseInfoPanel (bot)
+     *      * PvP: PvPInfoPanel
+     *  - running + spectator: SpectatorInfoPanel
+     *  - running + normal:   GameInfoPanel
+     */
     const LeftPanel = (() => {
         // Result panels have priority even in spectator mode
         if (status === 'timeout') return TimeRanOutPanel;
         if (status === 'draw') return DrawInfoPanel;
         if (status === 'win') {
             if (isSpectator) {
-                if (winner === "X")
-                    return XWinsInfoPanel;
-                if (winner === "O")
-                    return OWinsInfoPanel;
+                if (winner === 'X') return XWinsInfoPanel;
+                if (winner === 'O') return OWinsInfoPanel;
             }
             if (String(mode).toLowerCase() === 'pve') {
                 return isHumanWinner ? WinInfoPanel : LoseInfoPanel;
@@ -627,7 +685,7 @@ export default function GamePage() {
         return GameInfoPanel;
     })();
 
-    // ====== READY UI ======
+    // ===== Main UI =====
     return (
             <div style={page}>
                 <div ref={headerRef}>
@@ -647,7 +705,7 @@ export default function GamePage() {
                         scrollY={narrow ? 'auto' : 'hidden'}
                 >
                     <div style={shell} ref={shellRef}>
-                        {/* levý panel – nikdy nepřeteče */}
+                        {/* Left panel – info / result */}
                         <div
                                 ref={statsRef}
                                 style={{
@@ -674,7 +732,7 @@ export default function GamePage() {
                                     moves={moves}
                                     hintsUsed={hintsUsed}
                                     key={`${status}:${winner ?? ''}:${game?.id ?? ''}`}
-                                    // Spectator-only props (harmless for other panels)
+                                    // Spectator-only
                                     lastMove={spectator?.lastMove}
                                     explain={spectator?.explain}
                                     explainRich={spectator?.explainRich}
@@ -685,12 +743,15 @@ export default function GamePage() {
                             )}
                         </div>
 
-                        {/* pravý sloupec – board + toolbar */}
-                        <div ref={rightRef} style={{
-                            rightColInner,
-                            width: '100%',
-                            minWidth: 0,
-                        }}>
+                        {/* Right column – board + toolbar */}
+                        <div
+                                ref={rightRef}
+                                style={{
+                                    ...rightColInner,
+                                    width: '100%',
+                                    minWidth: 0,
+                                }}
+                        >
                             {rightPausedOverlay && (
                                     <div style={rightPausedOverlay} aria-hidden="true" />
                             )}
@@ -702,8 +763,8 @@ export default function GamePage() {
                                         size={size}
                                         disabled={isSpectator || paused || loading || ended}
                                         pendingMove={pendingMove}
-                                        winnerLine={seq} // [{row,col}, ...] (nebo [[r,c], ...])
-                                        winnerMark={winner} // 'X' | 'O' (barva čáry)
+                                        winnerLine={seq}
+                                        winnerMark={winner}
                                         showStrike={status === 'win'}
                                         onCell={onCell}
                                 />

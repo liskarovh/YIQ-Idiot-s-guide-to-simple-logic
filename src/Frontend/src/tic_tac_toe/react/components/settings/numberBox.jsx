@@ -32,8 +32,7 @@ export default function NumberBox({
                                       step = 1,
                                       onChange,
                                       suffix = '',
-                                      // ~1/3 narrower than previous 78px default -> ~52px min
-                                      width = 'clamp(52px, 6.5vw, 80px)',
+                                      width = 'clamp(65px, 6.5vw, 80px)',
                                       height = 'clamp(30px, 4.5vmin, 45px)',
                                       disabled = false,
                                       ariaLabel = 'number input',
