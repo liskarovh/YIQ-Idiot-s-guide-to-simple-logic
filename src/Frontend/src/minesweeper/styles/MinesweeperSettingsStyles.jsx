@@ -21,19 +21,22 @@ const MinesweeperSettingsStyles = {
 
     // Object styles
     contentStyle: {
-        padding: "7rem 2rem 2rem 2rem",
-        display: "flex",
-        flexDirection: "column",
-        alignItems: "center"
+        padding: 'clamp(60px, 10vw, 112px) clamp(16px, 3vw, 32px) clamp(16px, 3vw, 32px)',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        gap: 'clamp(16px, 2vw, 24px)'
     },
     boxLayoutStyle: {
-        display: "flex",
-        flexDirection: "row",
-        justifyContent: "center",
-        padding: "0rem 0rem 0rem 2rem",
-        flexWrap: "wrap",
-        textAlign: "center",
-        alignItems: "flex-start"
+        display: 'flex',
+        flexDirection: 'row',
+        justifyContent: 'center',
+        flexWrap: 'wrap',
+        textAlign: 'center',
+        alignItems: 'stretch',
+        gap: 'clamp(20px, 3vw, 32px)',
+        width: '100%',
+        maxWidth: '1400px'
     },
     boxStyle: {
         display: "flex",
@@ -48,26 +51,22 @@ const MinesweeperSettingsStyles = {
         gap: 12
     },
     footer: {
-        display: "flex",
-        flexWrap: "wrap",
-        justifyContent: "center",
-        alignItems: "center",
-        gap: "1rem",
-        marginTop: "1rem",
-        width: "100%"
-    },
-    infoText: {
-        fontSize: 12,
-        opacity: 0.8
+        display: 'flex',
+        flexWrap: 'wrap',
+        justifyContent: 'center',
+        alignItems: 'center',
+        gap: 'clamp(12px, 1.5vw, 16px)',
+        marginTop: 'clamp(8px, 1vw, 12px)',
+        width: '100%'
     },
     warningBanner: {
-        marginTop: "1rem",
-        textAlign: "center"
+        marginTop: 'clamp(12px, 1.5vw, 16px)',
+        textAlign: 'center'
     },
     resetButton: {
-        fontSize: 16,
-        padding: "6px 12px",
-        height: 34
+        fontSize: 'clamp(14px, 2vw, 16px)',
+        padding: 'clamp(5px, 0.8vw, 6px) clamp(10px, 1.5vw, 12px)',
+        height: 'auto'
     }
 };
 
