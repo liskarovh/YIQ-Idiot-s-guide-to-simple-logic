@@ -1,5 +1,5 @@
 import {randomUUID} from "crypto";
-import {maskGameViewForClient, fisherYatesShuffle} from "./util.js";
+import {maskGameViewForClient, fisherYatesShuffle, snapshotsEqualIgnoringElapsed} from "./util.js";
 import type {ComputedCell, GameOptions, GameSession, GameView, Snapshot} from "./types.js";
 
 const map = new Map<string, GameSession>();
@@ -713,8 +713,18 @@ export function undo(id: string, steps = 1): GameView {
     const prevCursor = gameSession.cursor;
     let targetCursor = Math.max(0, gameSession.cursor - Math.max(1, steps));
 
-    // Check if target snapshot has revealed mine - if so, skip one more back
+    // Get current and previous snapshot for comparison
+    const currentSnapshot = stepToSnapshot(gameSession, gameSession.cursor);
     let checkSnapshot = stepToSnapshot(gameSession, targetCursor);
+
+    // If target snapshot is identical to current, skip one more back
+    if(targetCursor > 0 && snapshotsEqualIgnoringElapsed(checkSnapshot, currentSnapshot)) {
+        console.debug("[engine] undo - target snapshot identical to current snapshot, performing implicit extra undo", {targetCursor});
+        targetCursor = Math.max(0, targetCursor - 1);
+        checkSnapshot = stepToSnapshot(gameSession, targetCursor);
+    }
+
+    // Check if target snapshot has revealed mine; if so, skip one more back
     if(checkSnapshot.lostOn && targetCursor > 0) {
         console.debug("[engine] undo - target has revealed mine, skipping back one more", {targetCursor});
         targetCursor = Math.max(0, targetCursor - 1);

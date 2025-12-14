@@ -198,6 +198,66 @@ export function fisherYatesShuffle<T>(items: T[]): T[] {
     return arr;
 } // fisherYatesShuffle()
 
+export function snapshotsEqualIgnoringElapsed(fisrt: Snapshot, second: Snapshot): boolean {
+    if(fisrt.cleared !== second.cleared) {
+        return false;
+    }
+
+    // Compare lostOn positions
+    const lostA = fisrt.lostOn ? `${fisrt.lostOn.row},${fisrt.lostOn.col}` : null;
+    const lostB = second.lostOn ? `${second.lostOn.row},${second.lostOn.col}` : null;
+    if(lostA !== lostB) {
+        return false;
+    }
+
+    // Helper to convert list of coordinates to a Set of "row,col" strings for easy comparison
+    const asSet = (list?: Array<{ row: number, col: number }>) => new Set((list ?? []).map(cell => `${cell.row},${cell.col}`));
+
+    // Compare opened cells
+    const openedA = asSet(fisrt.opened);
+    const openedB = asSet(second.opened);
+
+    if(openedA.size !== openedB.size) {
+        return false;
+    }
+
+    for(const key of openedA) {
+        if(!openedB.has(key)) {
+            return false;
+        }
+    }
+
+    // Compare flagged cells
+    const flaggedA = asSet(fisrt.flagged);
+    const flaggedB = asSet(second.flagged);
+
+    if(flaggedA.size !== flaggedB.size) {
+        return false;
+    }
+
+    for(const key of flaggedA) {
+        if(!flaggedB.has(key)) {
+            return false;
+        }
+    }
+
+    // Compare permanent flags
+    const permA = asSet(fisrt.permanentFlags);
+    const permB = asSet(second.permanentFlags);
+
+    if(permA.size !== permB.size) {
+        return false;
+    }
+
+    for(const key of permA) {
+        if(!permB.has(key)) {
+            return false;
+        }
+    }
+
+    return true;
+} // snapshotsEqualIgnoringElapsed()
+
 function clamp(value: number, min: number, max: number) {
     return Math.max(min, Math.min(max, value));
 } // clamp()
