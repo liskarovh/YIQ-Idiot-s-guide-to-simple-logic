@@ -1,9 +1,18 @@
+/**
+ * @file Loading.jsx
+ * @brief Component for displaying a themed loading screen with a pulsing Sudoku grid animation.
+ *
+ * @author David Krejčí <xkrejcd00>
+ */
 import React from "react";
 import Box from "../../components/Box";
 import Header from "../../components/Header";
-import colors from "../../Colors"; // Assuming Colors is available based on Game.jsx usage
+import colors from "../../Colors"; 
 import { useNavigate } from "react-router-dom";
 
+/**
+ * @brief Styles for the main page container.
+ */
 const pageStyle = {
   display: 'flex',
   flexDirection: 'column',
@@ -12,6 +21,9 @@ const pageStyle = {
   overflow: 'hidden',
 };
 
+/**
+ * @brief Styles for the content container, centering the box vertically.
+ */
 const containerStyle = {
   flex: 1,
   display: 'flex',
@@ -20,6 +32,9 @@ const containerStyle = {
   paddingBottom: '10vh', // Visual offset to center it nicely
 };
 
+/**
+ * @brief Styles for the 3x3 grid that forms the loader.
+ */
 const loaderGridStyle = {
   display: 'grid',
   gridTemplateColumns: 'repeat(3, 1fr)',
@@ -30,12 +45,20 @@ const loaderGridStyle = {
   marginBottom: '1.5rem',
 };
 
-// Generate animation delays for a nice wave effect
+/**
+ * @brief Generates animation delays for each cell to create a wave or pulse effect.
+ * @param {number} index - The index of the grid cell (0 to 8).
+ * @returns {string} The CSS animation delay string (e.g., "0.2s").
+ */
 const getDelay = (index) => {
   const delays = [0, 0.2, 0.4, 0.2, 0.4, 0.6, 0.4, 0.6, 0.8];
   return `${delays[index]}s`;
 };
 
+/**
+ * @brief Main component for the loading screen.
+ * @returns {JSX.Element} The Loading component.
+ */
 function Loading() {
   const navigate = useNavigate();
   

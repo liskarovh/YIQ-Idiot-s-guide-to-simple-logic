@@ -1,6 +1,21 @@
+"""
+@file prebuilt_puzzles.py
+@brief Defines and stores a collection of static, pre-solved Sudoku puzzles categorized 
+       by Difficulty for standard play and by solving technique for tutorial/learn modes.
+
+@author David Krejčí <xkrejcd00>
+"""
+import random
+from typing import List, Dict, Any, Union
 from sudoku.sudokuEnums import Difficulty, GameModes
 
-def _create_puzzle_data(values_matrix, solution_matrix):
+def _create_puzzle_data(values_matrix: List[List[int]], solution_matrix: List[List[int]]) -> Dict[str, List[List[int]]]:
+    """
+    @brief Helper function to standardize the dictionary format for a single puzzle.
+    @param values_matrix: The initial puzzle grid with empty cells marked as 0.
+    @param solution_matrix: The complete, solved grid.
+    @returns {Dict[str, List[List[int]]]} Dictionary containing the puzzle data.
+    """
     return {
         "values": values_matrix,
         "solution": solution_matrix
@@ -9,7 +24,7 @@ def _create_puzzle_data(values_matrix, solution_matrix):
 # --- PUZZLE DEFINITIONS ---
 
 # 1. Standard Prebuilt Puzzles (Key = Difficulty Enum)
-PREBUILT_PUZZLES = {
+PREBUILT_PUZZLES: Dict[Difficulty, List[Dict[str, List[List[int]]]]] = {
     Difficulty.EASY: [_create_puzzle_data(
         # Values (0 = Empty)
         [[9,0,8,0,2,3,0,0,6], [0,0,0,5,6,7,8,0,0], [0,5,0,0,0,1,0,0,4],
@@ -104,7 +119,7 @@ PREBUILT_PUZZLES = {
 }
 
 # 2. Learn/Tutorial Puzzles (Key = String Name from Frontend)
-LEARN_PUZZLES = {
+LEARN_PUZZLES: Dict[str, List[Dict[str, List[List[int]]]]] = {
     "Hidden Singles": [
         _create_puzzle_data(
             # A specific setup designed to teach Hidden Singles
@@ -230,15 +245,17 @@ LEARN_PUZZLES = {
         )]
 }
 
-def get_static_puzzle(mode, identifier):
+def get_static_puzzle(mode: GameModes, identifier: Union[Difficulty, str]) -> Dict[str, List[List[int]]]:
     """
-    Retrieves a puzzle based on Mode and Identifier.
-    mode: GameModes.PREBUILT or GameModes.LEARN
-    identifier: Difficulty Enum (for Prebuilt) or String (for Learn)
+    @brief Retrieves a randomly selected puzzle from the static collections based on the game mode and identifier.
+
+    @param mode: Specifies the type of puzzle collection (GameModes.PREBUILT for standard, GameModes.LEARN for tutorials).
+    @param identifier: The key to look up the specific puzzle(s). This is a Difficulty Enum for PREBUILT mode
+                       or a string (e.g., "Hidden Singles") for LEARN mode.
+    @returns {Dict[str, List[List[int]]]} A dictionary containing the "values" and "solution" of the selected puzzle.
     """
-    import random
     
-    collection = {}
+    collection: Dict[Any, List[Dict[str, List[List[int]]]]] = {}
     
     if mode == GameModes.PREBUILT:
         collection = PREBUILT_PUZZLES
@@ -251,8 +268,15 @@ def get_static_puzzle(mode, identifier):
     if not puzzles:
         # Fallback to prevent crash if list is empty
         if mode == GameModes.PREBUILT:
-            return PREBUILT_PUZZLES.get(Difficulty.BASIC, [])[0]
-        # Fallback for learn (return the first available learn puzzle or basic)
-        return list(LEARN_PUZZLES.values())[0][0]
+            # Fallback to EASY/BASIC puzzle
+            return PREBUILT_PUZZLES.get(Difficulty.EASY, PREBUILT_PUZZLES.get(Difficulty.BASIC, []))[0]
+        
+        # Fallback for learn (return the first available learn puzzle or raise error)
+        if LEARN_PUZZLES:
+            return list(LEARN_PUZZLES.values())[0][0]
+        else:
+            # Last resort if LEARN_PUZZLES is completely empty
+             return PREBUILT_PUZZLES[list(PREBUILT_PUZZLES.keys())[0]][0]
+
 
     return random.choice(puzzles)

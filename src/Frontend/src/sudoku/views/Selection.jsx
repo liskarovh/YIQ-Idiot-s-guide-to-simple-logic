@@ -1,3 +1,9 @@
+/**
+ * @file Selection.jsx
+ * @brief Main game selection screen component, handling new game setup, resuming, and user preferences.
+ *
+ * @author David Krejčí <xkrejcd00>
+ */
 import React from "react";
 import Header from "../../components/Header";
 import { useNavigate } from "react-router-dom";
@@ -13,7 +19,13 @@ import colors from "../../Colors";
 import { Play, Settings2, BookOpen, RotateCcw, BrainCircuit, Eye, Palette, Timer } from "lucide-react";
 
 /**
- * REUSABLE ROW COMPONENT
+ * @brief Reusable component for a control row displaying a label, description, icon, and an interactive control element.
+ * * @param {object} props - The component props.
+ * @param {string} props.label - The main text label.
+ * @param {string} props.description - Secondary descriptive text.
+ * @param {JSX.Element} props.control - The interactive control element (e.g., ToggleButton, ButtonSelect).
+ * @param {LucideIcon} props.icon - Lucide icon component.
+ * @returns {JSX.Element} The ControlRow component.
  */
 function ControlRow({ label, description, control, icon: Icon }) {
     return (
@@ -43,6 +55,13 @@ function ControlRow({ label, description, control, icon: Icon }) {
     );
 }
 
+/**
+ * @brief Component for rendering a section title within a card.
+ * * @param {object} props - The component props.
+ * @param {string} props.title - The title text.
+ * @param {LucideIcon} props.icon - Lucide icon component.
+ * @returns {JSX.Element} The SectionHeader component.
+ */
 function SectionHeader({ title, icon: Icon }) {
     return (
         <div style={{ 
@@ -59,16 +78,31 @@ function SectionHeader({ title, icon: Icon }) {
     );
 }
 
+/**
+ * @brief Main component for the Game Selection and Settings screen.
+ * @returns {JSX.Element} The Selection component.
+ */
 function Selection() {
     const navigate = useNavigate();
     const {newGame} = useNewGame();
     const {goBack, setRelativeView, absoluteSetView} = useSudokuNavigation();
+    /** @brief Hook to manage user-selected game options/preferences. */
     const { options, handleOptionChange } = useOptionsController();
+    /** @brief Hook to retrieve information about the currently active game. */
     const { options: gameInfo } = useGameInfo();
 
+    /**
+     * @brief Card component to display and allow resuming of a previously started game.
+     * @returns {JSX.Element | null} The ResumeCard component or null if no active game exists.
+     */
     const ResumeCard = () => {
         if (!gameInfo.mode) return null;
 
+        /**
+         * @brief Formats total seconds into MM:SS string.
+         * @param {number} totalSeconds - The total time in seconds.
+         * @returns {string | null} Formatted time string or null.
+         */
         const formatTime = (totalSeconds) => {
             if (totalSeconds == null) return null;
             const m = Math.floor(totalSeconds / 60);
@@ -110,8 +144,16 @@ function Selection() {
         );
     };
 
+    /**
+     * @brief Card component for selecting the mode and difficulty of a new game.
+     * @returns {JSX.Element} The GameSetupCard component.
+     */
     const GameSetupCard = () => {
-        // Dynamic description for modes
+        /**
+         * @brief Provides a description for the selected game mode.
+         * @param {string} mode - The selected game mode.
+         * @returns {string} The description.
+         */
         const getModeDescription = (mode) => {
             switch(mode) {
                 case "Learn": return "Master specific techniques step-by-step.";
@@ -207,8 +249,16 @@ function Selection() {
         );
     };
 
+    /**
+     * @brief Card component for setting visual and assistance preferences.
+     * @returns {JSX.Element} The PreferencesCard component.
+     */
     const PreferencesCard = () => {
-        // Dynamic description for error checking
+        /**
+         * @brief Provides a description for the selected error checking type.
+         * @param {string} type - The selected error checking type.
+         * @returns {string} The description.
+         */
         const getErrorCheckDescription = (type) => {
             switch(type) {
                 case "Immediate": return "Checks against the solution.";

@@ -1,36 +1,40 @@
+"""
+@file generator.py
+@brief Sudoku puzzle generator that creates puzzles of specific difficulty using incremental clue removal and unique solution verification via backtracking.
+
+@author David Krejčí <xkrejcd00>
+"""
 import numpy as np
 import random
 import time
 from sudoku.grid import Grid
 from sudoku.sudokuEnums import Difficulty, CellValue
+from typing import Optional, List, Any
 
 
 class Generator:
     """
-    Sudoku puzzle generator that creates puzzles of specific difficulty.
+    @brief Sudoku puzzle generator that creates puzzles of specific difficulty.
     Uses incremental clue removal and efficient state management.
     """
     
-    def __init__(self, grid_class):
+    def __init__(self, grid_class: Any):
         """
-        Initialize generator with a Grid class.
+        @brief Initialize generator with a Grid class.
         
-        Args:
-            grid_class: The Grid class to use for puzzle generation
+        @param grid_class: The Grid class to use for puzzle generation.
         """
         self.Grid = grid_class
         
-    def generate(self, difficulty=Difficulty.EASY, max_time=300, verbose=True):
+    def generate(self, difficulty: Difficulty = Difficulty.EASY, max_time: int = 300, verbose: bool = True) -> Optional[List[Grid]]:
         """
-        Generate a puzzle of specified difficulty.
+        @brief Generate a puzzle of specified difficulty.
         
-        Args:
-            difficulty: Target difficulty level (Difficulty enum)
-            max_time: Maximum generation time in seconds
-            verbose: Print progress information
+        @param difficulty: Target difficulty level (Difficulty enum).
+        @param max_time: Maximum generation time in seconds.
+        @param verbose: Print progress information.
             
-        Returns:
-            Grid object with generated puzzle, or None if timeout
+        @returns {Optional[List[Grid]]} A list containing [puzzle_grid, solution_grid], or None if timeout.
         """
         start_time = time.time()
         attempts = 0
@@ -68,8 +72,12 @@ class Generator:
             print(f"\n✗ Timeout after {attempts} attempts")
         return None
     
-    def _generate_solved_grid(self):
-        """Generate a complete, valid Sudoku solution using backtracking."""
+    def _generate_solved_grid(self) -> Optional[Grid]:
+        """
+        @brief Generate a complete, valid Sudoku solution using backtracking.
+        
+        @returns {Optional[Grid]} A fully solved Grid object, or None if generation failed.
+        """
         grid = self.Grid()
         
         # Start with empty grid
@@ -77,8 +85,15 @@ class Generator:
             return grid
         return None
     
-    def _fill_grid(self, grid, row, col):
-        """Recursively fill grid with valid values using backtracking."""
+    def _fill_grid(self, grid: Grid, row: int, col: int) -> bool:
+        """
+        @brief Recursively fill grid with valid values using backtracking.
+        
+        @param grid: The Grid object being filled.
+        @param row: Current row index.
+        @param col: Current column index.
+        @returns {bool} True if the grid was successfully filled from this point.
+        """
         # Move to next row if we've filled this row
         if col == 9:
             return self._fill_grid(grid, row + 1, 0)
@@ -86,6 +101,10 @@ class Generator:
         # Successfully filled entire grid
         if row == 9:
             return True
+        
+        # Skip filled cells (only happens if the initial grid wasn't empty)
+        if grid.values[row, col] != 0:
+            return self._fill_grid(grid, row, col + 1)
         
         # Try random order of digits 1-9
         digits = list(range(1, 10))
@@ -99,13 +118,22 @@ class Generator:
                 if self._fill_grid(grid, row, col + 1):
                     return True
                 
+                # Backtrack
                 grid.values[row, col] = 0
                 grid.types[row, col] = CellValue.ENTERED
         
         return False
     
-    def _is_valid_placement(self, grid, row, col, num):
-        """Check if placing num at (row, col) is valid."""
+    def _is_valid_placement(self, grid: Grid, row: int, col: int, num: int) -> bool:
+        """
+        @brief Check if placing num at (row, col) is valid according to Sudoku rules.
+        
+        @param grid: The Grid object.
+        @param row: Row index.
+        @param col: Column index.
+        @param num: The number to place.
+        @returns {bool} True if placement is valid, False otherwise.
+        """
         # Check row
         if num in grid.values[row, :]:
             return False
@@ -121,9 +149,16 @@ class Generator:
         
         return True
     
-    def _remove_clues(self, grid, target_difficulty, start_time, max_time, verbose):
+    def _remove_clues(self, grid: Grid, target_difficulty: Difficulty, start_time: float, max_time: int, verbose: bool) -> Optional[Grid]:
         """
-        Remove clues with difficulty awareness.
+        @brief Incrementally removes clues from a solved grid while maintaining uniqueness and difficulty control.
+        
+        @param grid: The solved Grid object to modify into a puzzle.
+        @param target_difficulty: The desired minimum difficulty level.
+        @param start_time: The time generation started (for timeout check).
+        @param max_time: Maximum time allowed for generation.
+        @param verbose: Print progress information.
+        @returns {Optional[Grid]} The puzzle Grid object, or None if timeout or difficulty check failed.
         """
         cells = [(r, c) for r in range(9) for c in range(9)]
         random.shuffle(cells)
@@ -148,18 +183,19 @@ class Generator:
             
             # Every 5 removals, check actual difficulty
             if removed_count - last_difficulty_check >= 5:
+                # Check difficulty up to one level above the target
                 current_difficulty = self._get_puzzle_difficulty(grid, target_difficulty + 1)
                 last_difficulty_check = removed_count
                 
                 if verbose:
                     print(f"    Removed {removed_count}, current difficulty: {Difficulty(current_difficulty).name}")
                 
-                # If we've reached target difficulty, try to maintain it
+                # If we've reached target difficulty, become more selective
                 if current_difficulty >= target_difficulty:
-                    # Be more selective about further removals
-                    # Only remove if it maintains or increases difficulty
+                    # Test if removing the next clue would drop the difficulty too much
                     test_diff = self._get_puzzle_difficulty(grid, target_difficulty + 1)
                     if test_diff < target_difficulty:
+                        # Revert the removal if it drops the difficulty below target
                         grid.values[r, c] = saved_value
                         continue
             
@@ -169,7 +205,7 @@ class Generator:
                 clues_left = 81 - removed_count
                 print(f"    Removed {removed_count} clues ({clues_left} remaining)...")
         
-        # Set types
+        # Set final types
         for r in range(9):
             for c in range(9):
                 if grid.values[r, c] > 0:
@@ -183,22 +219,25 @@ class Generator:
         if verbose:
             print(f"    Final difficulty: {Difficulty(final_difficulty).name} (target: {Difficulty(target_difficulty).name})")
         
-        # Accept if at target or within 1 level
+        # Accept if at target or within 1 level below
         if final_difficulty >= target_difficulty - 1:
             return grid
         
         return None
     
-    def _check_valid_puzzle(self, grid, target_difficulty):
+    # Note: _check_valid_puzzle and _validate_final_puzzle were simplified/merged into _remove_clues logic in the original.
+    # The definitions are kept simple here as requested by the original code structure.
+    
+    def _check_valid_puzzle(self, grid: Grid, target_difficulty: Difficulty) -> bool:
         """
-        Quick check during removal - just verify uniqueness.
-        We'll do full difficulty check less frequently.
+        @brief Quick uniqueness check during removal.
         """
-        # Quick uniqueness check using backtracking
         return self._has_unique_solution(grid)
     
-    def _validate_final_puzzle(self, grid, target_difficulty):
-        """Final validation that puzzle requires target difficulty."""
+    def _validate_final_puzzle(self, grid: Grid, target_difficulty: Difficulty) -> bool:
+        """
+        @brief Final validation that puzzle has a unique solution and requires the target difficulty level (or close).
+        """
         if not self._has_unique_solution(grid):
             return False
         
@@ -208,21 +247,31 @@ class Generator:
         # or are slightly easier (within 1 level)
         return difficulty >= target_difficulty - 1 and difficulty <= target_difficulty
     
-    def _has_unique_solution(self, grid):
+    def _has_unique_solution(self, grid: Grid) -> bool:
         """
-        Check if puzzle has exactly one solution using backtracking.
-        Returns True if unique, False otherwise.
+        @brief Check if puzzle has exactly one solution using backtracking.
+        
+        @param grid: The current Grid state (puzzle).
+        @returns {bool} True if unique solution exists, False otherwise (0 or >1 solutions).
         """
         test_grid = self.Grid()
         test_grid.values = grid.values.copy()
         
-        solutions = []
+        solutions: List[np.ndarray] = []
         self._count_solutions(test_grid, 0, 0, solutions, max_solutions=2)
         
         return len(solutions) == 1
     
-    def _count_solutions(self, grid, row, col, solutions, max_solutions=2):
-        """Count solutions using backtracking (stops at max_solutions)."""
+    def _count_solutions(self, grid: Grid, row: int, col: int, solutions: List[np.ndarray], max_solutions: int = 2):
+        """
+        @brief Count solutions using backtracking (stops at max_solutions).
+        
+        @param grid: The test Grid object.
+        @param row: Current row index.
+        @param col: Current column index.
+        @param solutions: List to store found solutions.
+        @param max_solutions: Maximum number of solutions to find before stopping.
+        """
         if len(solutions) >= max_solutions:
             return
         
@@ -236,7 +285,7 @@ class Generator:
             solutions.append(grid.values.copy())
             return
         
-        # Skip filled cells
+        # Skip filled cells (clues)
         if grid.values[row, col] != 0:
             self._count_solutions(grid, row, col + 1, solutions, max_solutions)
             return
@@ -246,22 +295,23 @@ class Generator:
             if self._is_valid_placement(grid, row, col, num):
                 grid.values[row, col] = num
                 self._count_solutions(grid, row, col + 1, solutions, max_solutions)
-                grid.values[row, col] = 0
+                grid.values[row, col] = 0 # Backtrack
                 
                 if len(solutions) >= max_solutions:
                     return
     
-    def _get_puzzle_difficulty(self, grid, max_difficulty):
+    def _get_puzzle_difficulty(self, grid: Grid, max_difficulty: Difficulty) -> int:
         """
-        Determine the difficulty of a puzzle by trying to solve it
+        @brief Determine the difficulty of a puzzle by trying to solve it
         with progressively harder techniques.
         
-        Returns the minimum difficulty level required to solve.
+        @param grid: The puzzle Grid object.
+        @param max_difficulty: The maximum difficulty enum to test up to.
+        @returns {int} The minimum difficulty level required to solve (as an integer enum value), or +1 if unsolvable.
         """
         # Create a fresh grid for solving
         solve_grid = self.Grid()
         solve_grid.values = grid.values.copy()
-        # Don't copy types - let make_candidates handle it
         
         # Initialize candidates
         solve_grid.make_candidates()
@@ -270,12 +320,13 @@ class Generator:
         max_difficulty_found = Difficulty.BASIC
         made_progress = True
         while(made_progress and not self._is_solved(solve_grid)):
+            # If we exceed max_difficulty, stop and return the exceeded value
             if max_difficulty_found > max_difficulty:
                 return max_difficulty_found
             
             made_progress = False
             
-            # BASIC: Naked singles, hidden singles
+            # --- BASIC (Naked/Hidden Singles) ---
             if solve_grid.solve_naked_singles() > 0:
                 made_progress = True
                 continue
@@ -285,7 +336,7 @@ class Generator:
                 max_difficulty_found = max(max_difficulty_found, Difficulty.EASY)
                 continue
             
-            # EASY: Pointing, claiming
+            # --- EASY (Pointing/Claiming) ---
             if solve_grid.solve_pointing_pairs() > 0:
                 made_progress = True
                 max_difficulty_found = max(max_difficulty_found, Difficulty.EASY)
@@ -296,7 +347,7 @@ class Generator:
                 max_difficulty_found = max(max_difficulty_found, Difficulty.EASY)
                 continue
             
-            # MEDIUM: Naked/hidden sets
+            # --- MEDIUM (Naked/Hidden Pairs/Triplets) ---
             if solve_grid.solve_naked_sets(2) > 0:
                 made_progress = True
                 max_difficulty_found = max(max_difficulty_found, Difficulty.MEDIUM)
@@ -317,7 +368,7 @@ class Generator:
                 max_difficulty_found = max(max_difficulty_found, Difficulty.MEDIUM)
                 continue
             
-            # HARD: Fish patterns
+            # --- HARD (Fish Patterns: X-Wing, Swordfish) ---
             if solve_grid.solve_xwing() > 0:
                 made_progress = True
                 max_difficulty_found = max(max_difficulty_found, Difficulty.HARD)
@@ -328,7 +379,7 @@ class Generator:
                 max_difficulty_found = max(max_difficulty_found, Difficulty.HARD)
                 continue
             
-            # VERY_HARD: Wing patterns
+            # --- VERY_HARD (Wing Patterns: XY-Wing, XYZ-Wing) ---
             if solve_grid.solve_xy_wing() > 0:
                 made_progress = True
                 max_difficulty_found = max(max_difficulty_found, Difficulty.VERY_HARD)
@@ -339,13 +390,13 @@ class Generator:
                 max_difficulty_found = max(max_difficulty_found, Difficulty.VERY_HARD)
                 continue
             
-            # EXPERT: Unique rectangles
+            # --- EXPERT (Unique Rectangles) ---
             if solve_grid.solve_unique_rectangles() > 0:
                 made_progress = True
                 max_difficulty_found = max(max_difficulty_found, Difficulty.EXPERT)
                 continue
             
-            # EXTREME: X-chains, Forcing chains
+            # --- EXTREME (Chains) ---
             if solve_grid.solve_x_chains() > 0:
                 made_progress = True
                 max_difficulty_found = max(max_difficulty_found, Difficulty.EXTREME)
@@ -359,13 +410,18 @@ class Generator:
         
         # If solved, return the highest technique used
         if self._is_solved(solve_grid):
-            return max_difficulty
+            return max_difficulty_found.value
         
-        # Could not solve - puzzle is too hard
-        return Difficulty.EXTREME + 1
+        # Could not solve - puzzle is too hard (or requires advanced guessing/trial-and-error)
+        return Difficulty.EXTREME.value + 1
     
-    def _is_solved(self, grid):
-        """Check if grid is completely solved."""
+    def _is_solved(self, grid: Grid) -> bool:
+        """
+        @brief Check if grid is completely solved (all cells filled).
+        
+        @param grid: The Grid object.
+        @returns {bool} True if solved, False otherwise.
+        """
         return np.all(grid.values > 0)
 
 
@@ -380,7 +436,7 @@ if __name__ == "__main__":
         # Difficulty.MEDIUM,
         # Difficulty.HARD,
         # Difficulty.VERY_HARD,
-        # Difficulty.EXPERT,    # Uncomment to test harder levels
+        # Difficulty.EXPERT,
         # Difficulty.EXTREME,
     ]
     
@@ -394,6 +450,7 @@ if __name__ == "__main__":
         
         if puzzle:
             print("\nGenerated puzzle:")
+            # Assuming Grid has a working __str__ or __repr__
             print(puzzle[0])
             print("\nSolution:")
             print(puzzle[1])
