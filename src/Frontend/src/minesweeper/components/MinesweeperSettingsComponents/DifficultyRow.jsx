@@ -1,6 +1,6 @@
 import React from "react";
-import SettingRow from "../../../components/SettingsRow";
-import ButtonSelect from "../../../components/ButtonSelect";
+import MinesweeperSettingsRow from "../MinesweeperCommonComponents/MinesweeperSettingsRow";
+import MinesweeperButtonSelect from "../MinesweeperCommonComponents/MinesweeperButtonSelect";
 import MinesweeperSettingsStyles from "../../styles/MinesweeperSettingsStyles.jsx";
 
 function DifficultyRow({preset, options, onChange}) {
@@ -27,11 +27,11 @@ function DifficultyRow({preset, options, onChange}) {
     });
 
     return (
-            <SettingRow
+            <MinesweeperSettingsRow
                     label="Difficulty:"
                     inline={MinesweeperSettingsStyles.settingsRowInline}
                     control={
-                        <ButtonSelect
+                        <MinesweeperButtonSelect
                                 options={mappedOptions}
                                 selected={preset}
                                 onChange={onChange}

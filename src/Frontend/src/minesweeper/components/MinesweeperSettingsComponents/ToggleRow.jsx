@@ -1,19 +1,18 @@
-import SettingRow from "../../../components/SettingsRow";
-import ToggleSwitch from "../../../components/ToggleButton";
-import MinesweeperSettingsStyles from "../../styles/MinesweeperSettingsStyles.jsx";
+import React from "react";
+import MinesweeperSettingsRow from "../MinesweeperCommonComponents/MinesweeperSettingsRow";
+import ToggleSwitch from "../MinesweeperCommonComponents/MinesweeperToggleButton";
 
 function ToggleRow({label, checked, onChange}) {
     return (
-            <SettingRow
+            <MinesweeperSettingsRow
                     label={label}
-                    inline={MinesweeperSettingsStyles.settingsRowInline}
+                    inline={true}
                     control={
-                        <div style={MinesweeperSettingsStyles.sliderAndNumberFieldStyle}>
-                            <ToggleSwitch
-                                    checked={checked}
-                                    onChange={onChange}
-                            />
-                        </div>}
+                        <ToggleSwitch
+                                checked={checked}
+                                onChange={onChange}
+                        />
+                    }
             />
     );
 }

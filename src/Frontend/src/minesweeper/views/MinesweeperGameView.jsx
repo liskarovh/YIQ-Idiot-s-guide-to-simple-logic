@@ -3,14 +3,13 @@ import {useNavigate} from "react-router-dom";
 import {InformationCircleIcon, ArrowsPointingInIcon, MagnifyingGlassPlusIcon, MagnifyingGlassMinusIcon} from "@heroicons/react/24/outline";
 import MineGrid from "../components/MinesweeperGameComponents/MineGrid";
 import {useMinesweeperGameController} from "../controllers/MinesweeperGameController.jsx";
-import {GameInfoPanel} from "../components/MinesweeperGameComponents/GameInfoPanel.jsx";
+import GameInfoPanel from "../components/MinesweeperGameComponents/GameInfoPanel.jsx";
 import {ActionBar} from "../components/MinesweeperGameComponents/ActionBar.jsx";
 import {ReviewControls} from "../components/MinesweeperGameComponents/ReviewControls.jsx";
 import {GameOverControls} from "../components/MinesweeperGameComponents/GameOverControls.jsx";
 import GameLayout from "../components/MinesweeperGameComponents/GameLayout.jsx";
 import MinesweeperGameStyles from "../styles/MinesweeperGameStyles.jsx";
 import PanZoomViewport from "../components/MinesweeperGameComponents/PanZoomViewport.jsx";
-import {useMediaQuery} from "../hooks/UseMediaQuery";
 import OverlayButton from "../components/MinesweeperGameComponents/OverlayButton";
 import GameLoader from "../components/MinesweeperGameComponents/GameLoader";
 
@@ -18,11 +17,10 @@ function MinesweeperGameView() {
     const navigate = useNavigate();
     const ctrl = useMinesweeperGameController();
 
-    // Hooks for viewport and responsiveness
+    // Reference to the viewport component
     const viewportRef = useRef(null);
-    const isNarrow = useMediaQuery("(max-width: 800px)");
 
-    // Attach keyboard listener to host element
+    // Attach keyboard listener
     useEffect(() => {
         document.addEventListener("keydown", ctrl.handleKeyDown);
         return () => document.removeEventListener("keydown", ctrl.handleKeyDown);
@@ -45,7 +43,7 @@ function MinesweeperGameView() {
         );
     }
 
-    // Panels and areas
+    // Statistics panel
     const statisticsArea = (
             <GameInfoPanel
                     view={ctrl.view}
@@ -59,8 +57,13 @@ function MinesweeperGameView() {
             />
     );
 
+    // Mine grid
     const mineGrid = (
-            <div style={{...MinesweeperGameStyles.mineGrid, ...(ctrl.paused ? MinesweeperGameStyles.mineGridPaused : MinesweeperGameStyles.mineGridActive)}}>
+            <div style={{
+                ...MinesweeperGameStyles.mineGrid,
+                ...(ctrl.paused ? MinesweeperGameStyles.mineGridPaused : MinesweeperGameStyles.mineGridActive)
+            }}
+            >
                 <MineGrid
                         /* Coordinates */
                         rows={ctrl.view.rows}
@@ -99,7 +102,7 @@ function MinesweeperGameView() {
             </div>
     );
 
-    // Determine which action controls to show
+    // Action controls
     const actionArea = (!ctrl.isGameOver && !ctrl.isExploded) ? (
             <ActionBar
                     enableHints={ctrl.enableHints}
@@ -137,22 +140,26 @@ function MinesweeperGameView() {
                 />
         );
 
+    // Board area with viewport and controls
     const boardArea = (
-            <div ref={ctrl.keyboardHostRef}
-                 tabIndex={0}
-                 style={{
-                     ...MinesweeperGameStyles.boardArea,
-                     ...(!isNarrow ? MinesweeperGameStyles.boardAreaRight : {})
-                 }}
+            <div
+                    ref={ctrl.keyboardHostRef}
+                    tabIndex={0}
+                    style={{
+                        display: "flex",
+                        flexDirection: "column",
+                        flex: "1 1 auto",
+                        minHeight: 0,
+                        minWidth: 0,
+                        outline: "none"
+                    }}
             >
-                {/* Stats panel - Above board when narrow */}
-                {isNarrow && (
-                        <div style={MinesweeperGameStyles.statisticsAreaAbove}>
-                            {statisticsArea}
-                        </div>
-                )}
-
-                <div style={MinesweeperGameStyles.viewportContent}>
+                <div style={{
+                    ...MinesweeperGameStyles.viewportContent,
+                    flex: "1 1 auto",
+                    minHeight: 0
+                }}
+                >
                     {/* Viewport */}
                     <PanZoomViewport
                             ref={viewportRef}
@@ -164,14 +171,13 @@ function MinesweeperGameView() {
                         {mineGrid}
                     </PanZoomViewport>
 
-                    {/* Controls info button - Top right corner */}
+                    {/* Help button - Top right */}
                     <OverlayButton
                             icon={
                                 <InformationCircleIcon
                                         style={{width: 35, height: 35}}
                                         aria-hidden="true"
-                                />
-                            }
+                                />}
                             title="Help"
                             ariaLabel="Show controls help"
                             onClick={() => {}}
@@ -218,15 +224,14 @@ function MinesweeperGameView() {
                             size={44}
                     />
 
-                    {/* Zoom controls - Bottom right corner */}
+                    {/* Zoom controls - Bottom right */}
                     <div style={MinesweeperGameStyles.zoomControls}>
                         <OverlayButton
                                 icon={
                                     <MagnifyingGlassPlusIcon
                                             style={{width: 35, height: 35}}
                                             aria-hidden="true"
-                                    />
-                                }
+                                    />}
                                 title="Zoom in"
                                 onClick={() => viewportRef.current?.zoomIn()}
                                 size={44}
@@ -236,8 +241,7 @@ function MinesweeperGameView() {
                                     <MagnifyingGlassMinusIcon
                                             style={{width: 35, height: 35}}
                                             aria-hidden="true"
-                                    />
-                                }
+                                    />}
                                 title="Zoom out"
                                 onClick={() => viewportRef.current?.zoomOut()}
                                 size={44}
@@ -247,8 +251,7 @@ function MinesweeperGameView() {
                                     <ArrowsPointingInIcon
                                             style={{width: 35, height: 35}}
                                             aria-hidden="true"
-                                    />
-                                }
+                                    />}
                                 title="Fit to view"
                                 onClick={() => viewportRef.current?.fitToContain()}
                                 size={44}
@@ -262,10 +265,9 @@ function MinesweeperGameView() {
     return (
             <GameLayout
                     onSettings={ctrl.onSettings}
-                    statisticsArea={isNarrow ? null : statisticsArea}
+                    statisticsArea={statisticsArea}
                     boardArea={boardArea}
                     actionsArea={actionArea}
-                    isNarrow={isNarrow}
                     error={ctrl.error}
             />
     );

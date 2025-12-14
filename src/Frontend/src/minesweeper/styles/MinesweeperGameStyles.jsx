@@ -9,7 +9,7 @@ const MinesweeperGameStyles = {
     // Outer shell that keeps content centered and adds a left offset from viewport
     boxLayoutStyle: {
         display: "grid",
-        gridTemplateColumns: "clamp(240px, 20vw, 320px) minmax(auto, 1fr)",
+        gridTemplateColumns: "clamp(280px, 22vw, 360px) minmax(0, 1fr)",
         columnGap: "clamp(2rem, 1.8vw, 3rem)",
         rowGap: "1.5rem",
         padding: "0rem 1rem 0rem 2rem",
@@ -37,7 +37,7 @@ const MinesweeperGameStyles = {
     // Statistics Area styles
     statisticsAreaLeft: {
         display: "flex",
-        flexDirection: "column",
+        flexDirection: "column"
     },
     statisticsAreaAbove: {
         width: "100%",
@@ -96,8 +96,6 @@ const MinesweeperGameStyles = {
         top: 12,
         display: "grid"
     }
-
-
 };
 
 export default MinesweeperGameStyles;

@@ -1,7 +1,7 @@
 // minesweeper/components/MinesweeperGameComponents/GameOverControls.jsx
 import React from "react";
-import Slider from "../../../components/Slider";
-import NumberField from "../../../components/NumberField";
+import MinesweeperSlider from "../MinesweeperCommonComponents/MinesweeperSlider";
+import MinesweeperNumberField from "../MinesweeperCommonComponents/MinesweeperNumberField";
 import ActionPill from "./ActionPill.jsx";
 import colors from "../../../Colors";
 
@@ -19,9 +19,9 @@ export function GameOverControls({ max, seekValue, onSeek, onPlayAgain, onExit }
                 <div style={{ width: "82%", display: "flex", alignItems: "center", gap: 10 }}>
                     <span style={{ color: colors.text, fontWeight: 700, minWidth: 56 }}>Move:</span>
                     <div style={{ flex: 1 }}>
-                        <Slider min={0} max={max} value={seekValue} onChange={onSeek} />
+                        <MinesweeperSlider min={0} max={max} value={seekValue} onChange={onSeek} />
                     </div>
-                    <NumberField value={seekValue} min={0} max={max} onChange={onSeek} />
+                    <MinesweeperNumberField value={seekValue} min={0} max={max} onChange={onSeek} />
                 </div>
                 <div style={{ display: "flex", gap: 16 }}>
                     <ActionPill onClick={onPlayAgain}>Play Again</ActionPill>

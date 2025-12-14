@@ -1,16 +1,31 @@
-import MinesweeperSettingsStyles from "../../styles/MinesweeperSettingsStyles";
+import React from "react";
 import Box from "../../../components/Box";
 import Loader from "../../../components/Loader";
-import Colors from "../../../Colors";
+import colors from "../../../Colors";
 
 function SettingsLoader() {
+    const card = {
+        boxSizing: 'border-box',
+        borderRadius: 'clamp(20px, 3vw, 40px)',
+        background: '#0F172A',
+        padding: 'clamp(18px, 2.8vw, 24px)',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: 'clamp(16px, 2.5vw, 20px)',
+        minHeight: 'clamp(200px, 30vw, 300px)'
+    };
+
+    const textStyle = {
+        color: colors.text,
+        fontSize: 'clamp(16px, 2.5vw, 20px)'
+    };
+
     return (
-            <Box width={MinesweeperSettingsStyles.boxWidth}
-                 height={MinesweeperSettingsStyles.boxHeight}
-                 style={MinesweeperSettingsStyles.boxStyle}
-            >
+            <Box style={card}>
                 <span><Loader size={60} /></span>
-                <span style={{color: Colors.text, fontSize: "20px"}}>Loading default settings...</span>
+                <span style={textStyle}>Loading default settings...</span>
             </Box>
     );
 }

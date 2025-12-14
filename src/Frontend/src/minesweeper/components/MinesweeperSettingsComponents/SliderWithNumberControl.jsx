@@ -1,25 +1,34 @@
-import Slider from "../../../components/Slider";
-import NumberField from "../../../components/NumberField";
-import MinesweeperSettingsStyles from "../../styles/MinesweeperSettingsStyles.jsx";
+import React from "react";
+import MinesweeperSlider from "../MinesweeperCommonComponents/MinesweeperSlider";
+import MinesweeperNumberField from "../MinesweeperCommonComponents/MinesweeperNumberField";
 
 function SliderWithNumberControl({
-                                 value,
-                                 onChange,
-                                 min,
-                                 max,
-                                 sliderWidth,
-                                 maxDigits,
-                                 zeroAsInfinity
-                             }) {
+                                     value,
+                                     onChange,
+                                     min,
+                                     max,
+                                     maxDigits,
+                                     zeroAsInfinity,
+                                     sliderWidth
+                                 }) {
+    const containerStyle = {
+        display: 'flex',
+        alignItems: 'center',
+        gap: 'clamp(22px, 2.6vw, 32px)',
+        width: '100%',
+        justifyContent: 'flex-end'
+    };
+
     return (
-            <div style={MinesweeperSettingsStyles.sliderAndNumberFieldStyle}>
-                <Slider min={min}
+            <div style={containerStyle}>
+                <MinesweeperSlider
+                        min={min}
                         max={max}
                         value={value}
                         onChange={onChange}
                         width={sliderWidth}
                 />
-                <NumberField
+                <MinesweeperNumberField
                         value={value}
                         onChange={onChange}
                         minValue={min}

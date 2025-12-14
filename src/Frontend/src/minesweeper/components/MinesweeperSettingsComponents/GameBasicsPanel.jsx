@@ -1,8 +1,10 @@
+import React, {useLayoutEffect, useRef, useState} from "react";
 import Box from "../../../components/Box";
-import SettingRow from "../../../components/SettingsRow";
+import MinesweeperSettingsRow from "../MinesweeperCommonComponents/MinesweeperSettingsRow";
 import SliderWithNumberControl from "./SliderWithNumberControl";
 import DifficultyRow from "./DifficultyRow";
-import MinesweeperSettingsStyles from "../../styles/MinesweeperSettingsStyles.jsx";
+import colors from "../../../Colors";
+import MinesweeperInfoPanel from "../MinesweeperCommonComponents/MinesweeperInfoPanel";
 
 function GameBasicsPanel({
                              preset,
@@ -15,66 +17,66 @@ function GameBasicsPanel({
                              onPresetChange,
                              onRowsChange,
                              onColsChange,
-                             onMinesChange
+                             onMinesChange,
+                             maxHeightPx
                          }) {
     const rowsL = limits?.rows || {min: 3, max: 30};
     const colsL = limits?.cols || {min: 3, max: 30};
     const minesL = {min: 1, max: maxMines} || limits?.mines || {min: 1, max: 900};
 
     return (
-            <Box width={MinesweeperSettingsStyles.boxWidth}
-                 height={MinesweeperSettingsStyles.boxHeight}
-                 style={MinesweeperSettingsStyles.boxStyle}
-                 title="Game Basics"
+            <MinesweeperInfoPanel
+                    title="Game Basics"
+                    maxHeightPx={maxHeightPx}
+                    gap="clamp(20px, 2.8vw, 28px)"
+                    paddingBottom="clamp(40px, 5.6vw, 56px)"
             >
-                <DifficultyRow
-                        preset={preset}
-                        options={difficultyOptions}
-                        onChange={onPresetChange}
-                />
 
-                <SettingRow
-                        label="Rows:"
-                        inline={MinesweeperSettingsStyles.settingsRowInline}
-                        control={
-                            <SliderWithNumberControl
-                                    value={rows}
-                                    onChange={onRowsChange}
-                                    min={rowsL.min}
-                                    max={rowsL.max}
-                                    sliderWidth={MinesweeperSettingsStyles.sliderGameBasicsPanelWidth}
-                                    maxDigits={MinesweeperSettingsStyles.numberFieldMaxDigits}
-                            />}
-                />
+                    <DifficultyRow
+                            preset={preset}
+                            options={difficultyOptions}
+                            onChange={onPresetChange}
+                    />
 
-                <SettingRow
-                        label="Columns:"
-                        inline={MinesweeperSettingsStyles.settingsRowInline}
-                        control={
-                            <SliderWithNumberControl
-                                    value={cols}
-                                    onChange={onColsChange}
-                                    min={colsL.min}
-                                    max={colsL.max}
-                                    sliderWidth={MinesweeperSettingsStyles.sliderGameBasicsPanelWidth}
-                                    maxDigits={MinesweeperSettingsStyles.numberFieldMaxDigits}
-                            />}
-                />
+                    <MinesweeperSettingsRow
+                            label="Rows:"
+                            inline={true}
+                            control={
+                                <SliderWithNumberControl
+                                        value={rows}
+                                        onChange={onRowsChange}
+                                        min={rowsL.min}
+                                        max={rowsL.max}
+                                        maxDigits={3}
+                                />}
+                    />
 
-                <SettingRow
-                        label="Mines:"
-                        inline={MinesweeperSettingsStyles.settingsRowInline}
-                        control={
-                            <SliderWithNumberControl
-                                    value={mines}
-                                    onChange={onMinesChange}
-                                    min={minesL.min}
-                                    max={minesL.max}
-                                    sliderWidth={MinesweeperSettingsStyles.sliderGameBasicsPanelWidth}
-                                    maxDigits={MinesweeperSettingsStyles.numberFieldMaxDigits}
-                            />}
-                />
-            </Box>
+                    <MinesweeperSettingsRow
+                            label="Columns:"
+                            inline={true}
+                            control={
+                                <SliderWithNumberControl
+                                        value={cols}
+                                        onChange={onColsChange}
+                                        min={colsL.min}
+                                        max={colsL.max}
+                                        maxDigits={3}
+                                />}
+                    />
+
+                    <MinesweeperSettingsRow
+                            label="Mines:"
+                            inline={true}
+                            control={
+                                <SliderWithNumberControl
+                                        value={mines}
+                                        onChange={onMinesChange}
+                                        min={minesL.min}
+                                        max={minesL.max}
+                                        maxDigits={3}
+                                />}
+                    />
+            </MinesweeperInfoPanel>
     );
 }
 

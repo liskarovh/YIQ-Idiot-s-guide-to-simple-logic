@@ -1,6 +1,6 @@
-import Box from "../../../components/Box";
-import SettingRow from "../../../components/SettingsRow";
-import MinesweeperSettingsStyles from "../../styles/MinesweeperSettingsStyles.jsx";
+import React from "react";
+import MinesweeperInfoPanel from "../MinesweeperCommonComponents/MinesweeperInfoPanel";
+import MinesweeperSettingsRow from "../MinesweeperCommonComponents/MinesweeperSettingsRow";
 import SliderWithNumberControl from "./SliderWithNumberControl";
 import ToggleRow from "./ToggleRow";
 
@@ -13,49 +13,51 @@ function GameplayPanel({
                            onLivesChange,
                            onShowTimerChange,
                            onAllowUndoChange,
-                           onEnableHintsChange
+                           onEnableHintsChange,
+                           maxHeightPx
                        }) {
     const livesL = (limits && limits.lives) || {min: 0, max: 10};
 
     return (
-            <Box width={MinesweeperSettingsStyles.boxWidth}
-                 height={MinesweeperSettingsStyles.boxHeight}
-                 style={MinesweeperSettingsStyles.boxStyle}
-                 title="Gameplay"
+            <MinesweeperInfoPanel
+                    title="Gameplay Preferences"
+                    maxHeightPx={maxHeightPx}
+                    gap="clamp(20px, 2.8vw, 28px)"
+                    paddingBottom="clamp(40px, 5.6vw, 56px)"
             >
-                <SettingRow
-                        label="Number of Lives:"
-                        inline={MinesweeperSettingsStyles.settingsRowInline}
+                <MinesweeperSettingsRow
+                        label="Number of lives:"
+                        inline={true}
                         control={
                             <SliderWithNumberControl
                                     value={lives}
                                     onChange={onLivesChange}
                                     min={livesL.min}
                                     max={livesL.max}
-                                    sliderWidth={MinesweeperSettingsStyles.sliderGameplayPanelWidth}
-                                    maxDigits={MinesweeperSettingsStyles.numberFieldMaxDigits}
+                                    maxDigits={3}
                                     zeroAsInfinity={true}
+                                    sliderWidth="clamp(140px, 18vw, 240px)"
                             />}
                 />
 
                 <ToggleRow
-                        label="Enable Timer:"
+                        label="Enable timer:"
                         checked={showTimer}
                         onChange={onShowTimerChange}
                 />
 
                 <ToggleRow
-                        label="Enable Undo(s):"
+                        label="Enable undo(s):"
                         checked={allowUndo}
                         onChange={onAllowUndoChange}
                 />
 
                 <ToggleRow
-                        label="Enable Hints:"
+                        label="Enable hints:"
                         checked={enableHints}
                         onChange={onEnableHintsChange}
                 />
-            </Box>
+            </MinesweeperInfoPanel>
     );
 }
 

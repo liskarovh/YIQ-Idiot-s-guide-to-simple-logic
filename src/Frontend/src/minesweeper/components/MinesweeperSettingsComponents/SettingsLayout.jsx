@@ -1,9 +1,7 @@
-import React, {useRef, useState, useEffect} from "react";
+import React from "react";
 import Header from "../../../components/Header";
-import AutoScale from "../../../components/AutoScale";
-import BoxButton from "../../../components/BoxButton";
+import MinesweeperBoxButton from "../MinesweeperCommonComponents/MinesweeperBoxButton";
 import {PlayIcon} from "../../../assets/icons/PlayIcon";
-import MinesweeperSettingsStyles from "../../styles/MinesweeperSettingsStyles";
 import Banner from "../../../components/Banner";
 import {RestartIcon} from "../../../assets/icons/RestartIcon";
 
@@ -19,7 +17,6 @@ function SettingsLayout({
                             error
                         }) {
 
-    // Play button style
     const playButtonTitle = (fromGame && typeof changesDetected === "string") ? "Start new game"
                                                                               : fromGame ? "Continue"
                                                                                          : "Play";
@@ -28,99 +25,61 @@ function SettingsLayout({
                            <RestartIcon /> :
                            <PlayIcon />;
 
-    // Layout stacking detection
-    const layoutRef = useRef(null);
-    const leftContainerRef = useRef(null);
-    const rightContainerRef = useRef(null);
-    const [stacked, setStacked] = useState(false);
+    const contentStyle = {
+        padding: 'clamp(60px, 10vw, 112px) clamp(16px, 3vw, 32px) clamp(16px, 3vw, 32px)',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        gap: 'clamp(16px, 2vw, 24px)'
+    };
 
-    // Check if the panels are stacked vertically
-    useEffect(() => {
-        const element = layoutRef.current;
-        if(!element) {
-            return;
-        }
+    const boxLayoutStyle = {
+        display: 'flex',
+        flexDirection: 'row',
+        justifyContent: 'center',
+        flexWrap: 'wrap',
+        textAlign: 'center',
+        alignItems: 'stretch',
+        gap: 'clamp(20px, 3vw, 32px)',
+        width: '100%',
+        maxWidth: '1400px'
+    };
 
-        // Function to check if children are stacked
-        const checkStacked = () => {
-            // Get only Element children (skip text nodes)
-            const children = Array.from(element.children).filter(child => child instanceof Element);
-            if(children.length < 2) {
-                setStacked(false);
-                return;
-            }
+    const footer = {
+        display: 'flex',
+        flexWrap: 'wrap',
+        justifyContent: 'center',
+        alignItems: 'center',
+        gap: 'clamp(12px, 1.5vw, 16px)',
+        marginTop: 'clamp(8px, 1vw, 12px)',
+        width: '100%'
+    };
 
-            // Check the top positions of the children
-            const firstTop = children[0].getBoundingClientRect().top;
-            const isStacked = children.some((child, idx) => (idx > 0) && (Math.abs(child.getBoundingClientRect().top - firstTop) > 2));
-            setStacked(isStacked);
-        };
+    const resetButton = {
+        fontSize: 'clamp(14px, 2vw, 16px)',
+        padding: 'clamp(5px, 0.8vw, 6px) clamp(10px, 1.5vw, 12px)',
+        height: 'auto'
+    };
 
-        // Initial check
-        checkStacked();
-
-        // Observe resize events
-        let resizeObserver;
-        if(typeof ResizeObserver !== "undefined") {
-            resizeObserver = new ResizeObserver(checkStacked);
-            resizeObserver.observe(element);
-        }
-
-        // Also listen to window resize and orientation change
-        window.addEventListener("resize", checkStacked);
-        window.addEventListener("orientationchange", checkStacked);
-
-        return () => {
-            // Cleanup
-            if(resizeObserver) {
-                resizeObserver.disconnect();
-            }
-            window.removeEventListener("resize", checkStacked);
-            window.removeEventListener("orientationchange", checkStacked);
-        };
-    }, []);
-
-    // AutoScale options for panels
-    const panelAutoScaleOptions = {
-        baseWidth: MinesweeperSettingsStyles.boxAutoscaleWidth,
-        baseHeight: MinesweeperSettingsStyles.boxAutoscaleHeight,
-        maxScale: MinesweeperSettingsStyles.boxAutoscaleMaxScale,
-        minScale: MinesweeperSettingsStyles.boxAutoscaleMinScale,
-        center: MinesweeperSettingsStyles.boxAutoscaleCenter,
-        fit: stacked ? "width" : "contain",
-        offset: stacked ? {width: 6, height: 0, unit: "rem"} : undefined,
-        style: {marginRight: stacked ? "1.35rem" : 0}
+    const warningBanner = {
+        marginTop: 'clamp(12px, 1.5vw, 16px)',
+        textAlign: 'center'
     };
 
     return (
-            <div style={MinesweeperSettingsStyles.contentStyle}>
+            <div style={contentStyle}>
                 <Header showBack={false}
-                        rightLinkTitle={playButtonTitle}
+                        rightLinkTitle={playButtonTitle === "Play" ? "Back" : playButtonTitle}
                         onNavigate={onBack}
                 />
 
-                <div style={MinesweeperSettingsStyles.boxLayoutStyle}
-                     ref={layoutRef}
-                >
-                    <div ref={leftContainerRef}>
-                        <AutoScale {...panelAutoScaleOptions}
-                                   {...{targetRef: leftContainerRef}}
-                        >
-                            {leftPanel}
-                        </AutoScale>
-                    </div>
-
-                    <div ref={rightContainerRef}>
-                        <AutoScale {...panelAutoScaleOptions}
-                                   {...{targetRef: rightContainerRef}}
-                        >
-                            {rightPanel}
-                        </AutoScale>
-                    </div>
+                <div style={boxLayoutStyle}>
+                    {leftPanel}
+                    {rightPanel}
                 </div>
 
-                <div style={MinesweeperSettingsStyles.footer}>
-                    <BoxButton
+                <div style={footer}>
+                    <MinesweeperBoxButton
                             title={playButtonTitle}
                             icon={playButtonIcon}
                             disabled={disabled}
@@ -128,11 +87,11 @@ function SettingsLayout({
                     />
 
                     {fromGame &&
-                     <BoxButton
+                     <MinesweeperBoxButton
                              title={"Reset to Original Settings"}
                              disabled={!fromGame || !changesDetected}
                              onClick={onResetOriginalSettings}
-                             style={MinesweeperSettingsStyles.resetButton}
+                             style={resetButton}
                      />}
                 </div>
 
@@ -142,7 +101,7 @@ function SettingsLayout({
 
                 <Banner type={"warning"}
                         customMessage={typeof changesDetected === "string" ? changesDetected : undefined}
-                        style={MinesweeperSettingsStyles.warningBanner}
+                        style={warningBanner}
                 />
             </div>
     );
