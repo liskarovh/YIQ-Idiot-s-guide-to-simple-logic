@@ -17,7 +17,7 @@ const pageStyle = {
   height: '100vh',
   width: '100vw',
   overflow: 'hidden',
-  touchAction: 'none', // Prevent page bounce/scroll while playing
+  touchAction: 'none', 
 };
 
 // Grid layout for desktop (wide screens)
@@ -40,16 +40,6 @@ const mobileGridStyle = {
   padding: '7rem 2rem 2rem 2rem', 
   flex: 1,
   minHeight: 0,
-};
-
-const boxContentStyle = {
-  display: 'flex',
-  flexDirection: 'column',
-  alignItems: 'center',
-  height: '100%',
-  width: '100%',
-  justifyContent: 'space-between',
-  containerType: 'size',
 };
 
 const gameInfoStyle = {
@@ -144,28 +134,16 @@ const mobileGameAreaStyle = {
 };
 
 const snapCenterAndShiftUp = ({ transform, activatorEvent, draggingNodeRect }) => {
-  // 1. Safety check: Return unmodified transform if data is missing
   if (!activatorEvent || !draggingNodeRect) {
     return transform;
   }
-
-  // 2. Get the *initial* activation coordinates
-  // Note: activatorEvent is the event that STARTED the drag, not the current one.
   const startX = activatorEvent.clientX ?? activatorEvent.x ?? 0;
   const startY = activatorEvent.clientY ?? activatorEvent.y ?? 0;
-
-  // 3. Calculate the center of the item when you picked it up
   const elementCenterX = draggingNodeRect.left + draggingNodeRect.width / 2;
   const elementCenterY = draggingNodeRect.top + draggingNodeRect.height / 2;
-
-  // 4. Calculate the delta (how far off-center you clicked)
-  // Example: Center is 50, Click is 80. Offset is +30.
   const offsetX = startX - elementCenterX;
   const offsetY = startY - elementCenterY;
-
-  // 5. Adjust the transform
-  // We ADD the offset to bring the center to the cursor.
-  // We subtract 50 from Y to lift it up (visual clearance).
+  
   return {
     ...transform,
     x: transform.x + offsetX, 
@@ -267,7 +245,7 @@ function Game() {
 
   function handleDragEnd(event) {
     const { active, over } = event;
-    setActiveId(null); // Clear the overlay
+    setActiveId(null); 
 
     if (!over) return;
 
@@ -432,6 +410,23 @@ function Game() {
     );
   }
 
+  // --- DRAG OVERLAY STYLE UPDATE ---
+  // Matches the new "Selected" style in NumberSelect.jsx
+  const dragOverlayStyle = {
+    width: '60px', 
+    height: '60px', 
+    backgroundColor: '#d8e0eb', // Unified Light Blue/White
+    color: '#0f172a', // Dark Text
+    borderRadius: '12px', // Rounded corners
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    fontSize: '2rem',
+    fontWeight: 'bold',
+    boxShadow: '0 10px 20px rgba(0,0,0,0.3)', // deeper shadow for lifting effect
+    opacity: 0.95,
+  };
+
   if (isMobile) {
     const actualGridHeight = gridBounds.width || 0;
     
@@ -498,20 +493,7 @@ function Game() {
           </div>
           <DragOverlay dropAnimation={null} modifiers={[snapCenterAndShiftUp]}>
             {activeId ? (
-              <div style={{
-                width: '50px', 
-                height: '50px', 
-                backgroundColor: colors.text_faded,
-                color: '#fff', 
-                borderRadius: '50%',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                fontSize: '2rem',
-                fontWeight: 'bold',
-                boxShadow: '0 5px 15px rgba(0,0,0,0.5)',
-                opacity: 0.9,
-              }}>
+              <div style={{...dragOverlayStyle, width: '50px', height: '50px'}}>
                 {activeId}
               </div>
             ) : null}
@@ -572,20 +554,7 @@ function Game() {
 
       <DragOverlay dropAnimation={null} modifiers={[snapCenterAndShiftUp]}>
         {activeId ? (
-          <div style={{
-            width: '60px', 
-            height: '60px', 
-            backgroundColor: colors.text_faded, 
-            color: '#fff',
-            borderRadius: '50%',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            fontSize: '2rem',
-            fontWeight: 'bold',
-            boxShadow: '0 5px 15px rgba(0,0,0,0.5)',
-            opacity: 0.9,
-          }}>
+          <div style={dragOverlayStyle}>
             {activeId}
           </div>
         ) : null}

@@ -1,3 +1,10 @@
+/**
+ * @file QuickFlagOffIcon.jsx
+ * @brief SVG icon component for "Quick Flag Off" state in Minesweeper.
+ *
+ * @author Jan Kalina \<xkalinj00>
+ */
+
 import React from "react";
 
 export const QuickFlagOffIcon = ({widthHeight = 80}) => (

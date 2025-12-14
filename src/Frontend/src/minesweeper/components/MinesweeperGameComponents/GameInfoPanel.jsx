@@ -1,4 +1,11 @@
-import React, {useMemo} from "react";
+/**
+ * @file GameInfoPanel.jsx
+ * @brief Game information panel for Minesweeper game.
+ *
+ * @author Jan Kalina \<xkalinj00>
+ */
+
+import React from "react";
 import MinesweeperInfoPanel from "../MinesweeperCommonComponents/MinesweeperInfoPanel";
 import colors from "../../../Colors";
 import {formatTime} from "../../models/MinesweeperGame/MinesweeperGameRenderHelpers";

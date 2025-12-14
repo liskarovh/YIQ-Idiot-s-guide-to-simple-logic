@@ -1,3 +1,11 @@
+/**
+ * @file GameOverControls.jsx
+ * @brief Controls displayed when the Minesweeper game is over,
+ *        including move navigation and action buttons.
+ *
+ * @author Jan Kalina \<xkalinj00>
+ */
+
 import React from "react";
 import MinesweeperSlider from "../MinesweeperCommonComponents/MinesweeperSlider";
 import MinesweeperNumberField from "../MinesweeperCommonComponents/MinesweeperNumberField";
@@ -43,6 +51,7 @@ function GameOverControls({max, seekValue, onSeek, onPlayAgain, onExit}) {
                                 max={max}
                                 value={seekValue}
                                 onChange={onSeek}
+                                width="100%"
                         />
                     </div>
                     <MinesweeperNumberField

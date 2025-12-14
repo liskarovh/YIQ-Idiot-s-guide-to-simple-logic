@@ -1,3 +1,10 @@
+/**
+ * @file LostOnControls.jsx
+ * @brief A React component that provides controls for when the player has lost in Minesweeper.
+ *
+ * @author Jan Kalina \<xkalinj00>
+ */
+
 import React from "react";
 import MinesweeperSlider from "../MinesweeperCommonComponents/MinesweeperSlider";
 import MinesweeperNumberField from "../MinesweeperCommonComponents/MinesweeperNumberField";

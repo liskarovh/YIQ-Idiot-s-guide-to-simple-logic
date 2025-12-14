@@ -1,3 +1,10 @@
+/**
+ * @file MinesweeperStrategyController.jsx
+ * @brief Controller for Minesweeper strategy selection and navigation.
+ *
+ * @author Jan Kalina \<xkalinj00>
+ */
+
 import {useCallback} from "react";
 import {useLocation, useNavigate} from "react-router-dom";
 

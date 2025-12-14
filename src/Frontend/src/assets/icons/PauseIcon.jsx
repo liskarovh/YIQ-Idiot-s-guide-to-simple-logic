@@ -1,3 +1,10 @@
+/**
+ * @file PauseIcon.jsx
+ * @brief SVG icon component for game pausing in Minesweeper.
+ *
+ * @author Jan Kalina \<xkalinj00>
+ */
+
 import React from "react";
 
 export const PauseIcon = ({widthHeight = 80}) => (

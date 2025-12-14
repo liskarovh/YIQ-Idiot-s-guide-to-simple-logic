@@ -1,3 +1,10 @@
+/**
+ * @file DragAFlagIcon.jsx
+ * @brief SVG icon component for "Drag a Flag" in Minesweeper.
+ *
+ * @author Jan Kalina \<xkalinj00>
+ */
+
 import React from "react";
 
 export const DragAFlagIcon = ({widthHeight = 80}) => (

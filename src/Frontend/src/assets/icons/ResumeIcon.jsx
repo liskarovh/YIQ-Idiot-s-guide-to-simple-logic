@@ -1,3 +1,10 @@
+/**
+ * @file ResumeIcon.jsx
+ * @brief SVG icon component for a resume symbol.
+ *
+ * @author Jan Kalina \<xkalinj00>
+ */
+
 import React from "react";
 
 export const ResumeIcon = ({widthHeight = 80}) => (

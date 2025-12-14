@@ -1,4 +1,11 @@
 /**
+ * @file Banner.jsx
+ * @brief Banner component to display messages of various types.
+ *
+ * @author Jan Kalina \<xkalinj00>
+ */
+
+/**
  * @brief Banner component to display messages of various types.
  *
  * @param type "error" | "warning" | "notification" | "success"

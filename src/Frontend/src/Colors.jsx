@@ -1,3 +1,10 @@
+/**
+ * @file Colors.jsx
+ * @brief Color definitions for the application.
+ *
+ * @author Jan Kalina \<xkalinj00>, David Krejčí \<xkrejcd00>, Hana Liškařová \<xliskah00>
+ */
+
 const colors = {
     text_header: "#FFFFFF",
     text: "#CBD5E1",

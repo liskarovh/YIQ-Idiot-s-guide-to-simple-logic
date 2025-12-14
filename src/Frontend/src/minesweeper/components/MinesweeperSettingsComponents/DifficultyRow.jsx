@@ -1,3 +1,10 @@
+/**
+ * @file DifficultyRow.jsx
+ * @brief A React component for selecting the difficulty preset in Minesweeper settings.
+ *
+ * @author Jan Kalina \<xkalinj00>
+ */
+
 import React from "react";
 import MinesweeperSettingsRow from "../MinesweeperCommonComponents/MinesweeperSettingsRow";
 import MinesweeperButtonSelect from "../MinesweeperCommonComponents/MinesweeperButtonSelect";

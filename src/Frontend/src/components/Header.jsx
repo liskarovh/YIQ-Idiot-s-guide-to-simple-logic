@@ -1,3 +1,10 @@
+/**
+ * @file Header.jsx
+ * @brief Navigation header component for the application.
+ *
+ * @author Jan Kalina \<xkalinj00>, David Krejčí \<xkrejcd00>
+ */
+
 import React, {useEffect, useState} from "react";
 import {useNavigate} from "react-router-dom";
 import colors from "../Colors";

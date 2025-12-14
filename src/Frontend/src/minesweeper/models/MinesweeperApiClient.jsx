@@ -1,3 +1,10 @@
+/**
+ * @file MinesweeperApiClient.jsx
+ * @brief Axios API client configuration for Minesweeper game.
+ *
+ * @author Jan Kalina \<xkalinj00>
+ */
+
 import axios from "axios";
 
 const APP_API_URL = process.env.REACT_APP_API_URL || "http://localhost:5000";

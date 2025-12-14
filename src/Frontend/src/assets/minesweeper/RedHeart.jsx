@@ -1,3 +1,10 @@
+/**
+ * @file RedHeart.jsx
+ * @brief A React component that renders a red heart icon as an SVG.
+ *
+ * @author Jan Kalina \<xkalinj00>
+ */
+
 import React from "react";
 
 export const RedHeart = ({width = 64, height = 54.212}) => (

@@ -1,3 +1,10 @@
+/**
+ * @file GameplayPanel.jsx
+ * @brief A React component for configuring gameplay preferences in Minesweeper settings.
+ *
+ * @author Jan Kalina \<xkalinj00>
+ */
+
 import React from "react";
 import MinesweeperInfoPanel from "../MinesweeperCommonComponents/MinesweeperInfoPanel";
 import MinesweeperSettingsRow from "../MinesweeperCommonComponents/MinesweeperSettingsRow";

@@ -1,3 +1,10 @@
+/**
+ * @file SettingsLoader.jsx
+ * @brief A loading component for Minesweeper settings.
+ *
+ * @author Jan Kalina \<xkalinj00>
+ */
+
 import React from "react";
 import Box from "../../../components/Box";
 import Loader from "../../../components/Loader";

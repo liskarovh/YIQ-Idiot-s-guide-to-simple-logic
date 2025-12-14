@@ -1,3 +1,10 @@
+/**
+ * @file ActionBar.jsx
+ * @brief Action bar component for Minesweeper game.
+ *
+ * @author Jan Kalina \<xkalinj00>
+ */
+
 import {useRef} from "react";
 import ActionButton from "./ActionButton";
 import {DragAFlagIcon} from "../../../assets/icons/DragAFlagIcon";

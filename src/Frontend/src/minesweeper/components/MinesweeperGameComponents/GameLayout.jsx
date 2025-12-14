@@ -1,3 +1,11 @@
+/**
+ * @file Game layout component for Minesweeper game.
+ * @brief This component manages the layout of the Minesweeper game,
+ *        including responsive design for narrow and wide screens.
+ *
+ * @author Jan Kalina \<xkalinj00>
+ */
+
 import React, {useRef, useState, useLayoutEffect, cloneElement} from "react";
 import Header from "../../../components/Header";
 import Banner from "../../../components/Banner";

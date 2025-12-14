@@ -1,11 +1,13 @@
 import React, { createContext, useContext, useState, useRef } from "react";
+import {useNavigate} from "react-router-dom";
 
 const NavigationContext = createContext();
 
-export function NavigationProvider({ children }) {
-  const [activeView, setActiveView] = useState("Selection");
+export function NavigationProvider({ children, initialView = "Game" }) {
+  const [activeView, setActiveView] = useState(initialView);
+  const navigate = useNavigate();
 
-  const viewStack = useRef(["Selection"]);
+  const viewStack = useRef([initialView]);
 
   function absoluteSetView(view) {
     viewStack.current = [view]
@@ -22,6 +24,8 @@ export function NavigationProvider({ children }) {
       viewStack.current.pop()
       const lastView = viewStack.current[viewStack.current.length - 1];
       setActiveView(lastView);
+    } else {
+      navigate('/');
     }
   }
 

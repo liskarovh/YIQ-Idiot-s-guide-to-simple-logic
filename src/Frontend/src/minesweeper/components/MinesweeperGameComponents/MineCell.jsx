@@ -1,3 +1,10 @@
+/**
+ * @file MineCell.jsx
+ * @brief A React component representing a single cell in the Minesweeper game grid.
+ *
+ * @author Jan Kalina \<xkalinj00>
+ */
+
 import React, {useRef, useMemo, useState, memo} from "react";
 import colors from "../../../Colors";
 import {useImageUrl} from "../../../hooks/RenderImage";

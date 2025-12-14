@@ -1,3 +1,10 @@
+/**
+ * @file MinesweeperGameRenderHelpers.jsx
+ * @brief Helper functions for rendering and formatting in the Minesweeper game.
+ *
+ * @author Jan Kalina \<xkalinj00>
+ */
+
 export const formatTime = (sec = 0) => {
     sec = Math.max(0, Math.floor(sec));
 

@@ -1,3 +1,10 @@
+/**
+ * @file MineGrid.jsx
+ * @brief A React component that renders the Minesweeper game grid.
+ *
+ * @author Jan Kalina \<xkalinj00>
+ */
+
 import React, {useCallback, useEffect, useMemo, useRef} from "react";
 import colors from "../../../Colors";
 import MineCell from "./MineCell";

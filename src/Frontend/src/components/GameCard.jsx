@@ -1,3 +1,10 @@
+/**
+ * @file GameCard.jsx
+ * @brief Clickable game card component with title, description, image, and action handlers.
+ *
+ * @author Jan Kalina \<xkalinj00>, David Krejčí \<xkrejcd00>
+ */
+
 import React, {useLayoutEffect, useRef, useState} from "react";
 import colors from "../Colors";
 import {useRenderImage} from "../hooks/RenderImage";

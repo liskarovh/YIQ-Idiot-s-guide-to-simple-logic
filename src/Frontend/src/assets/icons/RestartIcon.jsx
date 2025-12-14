@@ -1,3 +1,10 @@
+/**
+ * @file RestartIcon.jsx
+ * @brief SVG component for the restart icon used in the Minesweeper game.
+ *
+ * @author Jan Kalina \<xkalinj00>
+ */
+
 import React from "react";
 
 export const RestartIcon = ({width = 55.2, height = 64.2}) => (

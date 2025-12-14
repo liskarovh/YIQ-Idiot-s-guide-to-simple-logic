@@ -1,3 +1,10 @@
+/**
+ * @file HintOverlay.jsx
+ * @brief A React component that displays a hint overlay on a Minesweeper board.
+ *
+ * @author Jan Kalina \<xkalinj00>
+ */
+
 import { useEffect, useState } from "react";
 
 function HintOverlay({ hintRectangle, cellSize = 0, gap = 0, duration = 5000 }) {

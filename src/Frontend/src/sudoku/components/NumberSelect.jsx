@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import { useDraggable } from '@dnd-kit/core';
-import { CSS } from '@dnd-kit/utilities'; // You can remove this import now as we removed the transform
 import colors from '../../Colors';
 
 /**
@@ -14,12 +13,12 @@ function DraggableNumber({ number, style, textStyle, onClick }) {
 
   const [isHovered, setIsHovered] = useState(false);
 
-  // FIXED: We removed the 'transform' property.
-  // Since Game.jsx uses a <DragOverlay>, we want the source item 
-  // to stay in place but look "empty" (opacity lowered).
   const combinedStyle = {
     ...style,
-    opacity: isDragging ? 0.3 : (isHovered ? 0.8 : 1), 
+    // If dragging, leave a "ghost" behind (low opacity)
+    // If hovered, brighten slightly
+    opacity: isDragging ? 0.3 : (isHovered ? 1 : style.opacity), 
+    transform: isHovered && !isDragging ? 'scale(1.05)' : 'scale(1)',
     touchAction: 'none', 
   };
 
@@ -46,8 +45,9 @@ function NumberSelector({ selectedNumber, onNumberSelect, completedNumbers = [],
   const containerStyle = {
     display: 'flex',
     flexDirection: isColumn ? 'column' : 'row',
-    gap: '3%',
+    gap: '0.5rem', // Consistent gap with other UI
     alignItems: 'center',
+    // Preserve layout sizing logic from Game.jsx
     width: isColumn ? '150px' : '100%',
     height: isColumn ? '100%' : '150px',
     padding: isColumn ? "3px 0px" : "0px 3px",
@@ -55,29 +55,49 @@ function NumberSelector({ selectedNumber, onNumberSelect, completedNumbers = [],
     ...style
   };
 
-  const getNumberStyle = (number) => ({
-    flex: 1,
-    width: isColumn ? '100%' : 'auto',
-    height: isColumn ? 'auto' : '100%',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: '20px',
-    cursor: 'grab', 
-    transition: 'background-color 0.2s, outline 0.2s', 
-    backgroundColor: number === selectedNumber ? '#FFFFFF' : colors.text_faded,
-    outline: `3px solid ${number === selectedNumber ? colors.text_faded : '#FFFFFF' }`,
-    containerType: 'size',
-  });
+  const getNumberStyle = (number) => {
+    const isSelected = number === selectedNumber;
+    const isCompleted = completedNumbers.includes(number);
+
+    // UNIFIED THEME COLORS
+    const activeBg = '#d8e0eb';
+    const inactiveBg = 'rgba(255, 255, 255, 0.1)';
+    const completedBg = 'rgba(255, 255, 255, 0.02)'; // Very faint for completed
+
+    return {
+      flex: 1,
+      width: isColumn ? '100%' : 'auto',
+      height: isColumn ? 'auto' : '100%',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderRadius: '12px', // Consistent rounded corner
+      cursor: 'grab', 
+      transition: 'all 0.2s ease', 
+      
+      // Visual Logic
+      backgroundColor: isSelected ? activeBg : (isCompleted ? completedBg : inactiveBg),
+      border: isSelected ? 'none' : '1px solid rgba(255,255,255,0.1)',
+      boxShadow: isSelected ? '0 0 10px rgba(255,255,255,0.3)' : 'none',
+      
+      // Dim completed numbers if they aren't currently selected
+      opacity: (isCompleted && !isSelected) ? 0.5 : 1,
+      
+      containerType: 'size',
+    };
+  };
 
   const getTextStyle = (number) => {
-    const contains = completedNumbers.includes(number);
+    const isSelected = number === selectedNumber;
+    
+    // UNIFIED THEME COLORS
+    const activeColor = '#0f172a'; // Dark text on light background
+    const inactiveColor = '#ffffff';
+
     return {
-      fontSize: '75cqmin',
-      fontWeight: '500',
-      color: contains ? colors.primary : '#FFFFFF',
-      WebkitTextStroke: contains ? '#FFFFFF' : '2cqmin black', 
-      textStroke: contains ? '#FFFFFF' : '2cqmin black', 
+      fontSize: '50cqmin', // Slightly reduced to breathe better inside the box
+      fontWeight: isSelected ? '700' : '500',
+      color: isSelected ? activeColor : inactiveColor,
       userSelect: 'none',
     };
   };

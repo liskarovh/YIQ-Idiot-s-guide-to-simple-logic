@@ -1,3 +1,10 @@
+/**
+ * @file MinesweeperGameHooks.jsx
+ * @brief Custom React hooks for managing Minesweeper game state and behavior.
+ *
+ * @author Jan Kalina \<xkalinj00>
+ */
+
 import {useEffect, useMemo, useState} from "react";
 
 export function useGameTimer({view, showTimer, paused, isExploded, isGameOver}) {

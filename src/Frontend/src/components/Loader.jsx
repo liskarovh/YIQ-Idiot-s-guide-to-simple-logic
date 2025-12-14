@@ -1,3 +1,10 @@
+/**
+ * @file Loader.jsx
+ * @brief Loader component displaying a spinning animation.
+ *
+ * @author Jan Kalina \<xkalinj00>
+ */
+
 import Colors from "../Colors";
 
 const LoaderStyles = {

@@ -1,3 +1,10 @@
+/**
+ * @file MinesweeperGameStyles.jsx
+ * @brief Styles for the Minesweeper game layout and components.
+ *
+ * @author Jan Kalina \<xkalinj00>
+ */
+
 const MinesweeperGameStyles = {
     // Page background and header spacing
     contentStyle: {

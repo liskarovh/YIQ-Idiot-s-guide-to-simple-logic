@@ -1,3 +1,10 @@
+/**
+ * @file Minesweeper settings view
+ * @brief A React component for the Minesweeper settings view.
+ *
+ * @author Jan Kalina \<xkalinj00>
+ */
+
 import GameBasicsPanel from "../components/MinesweeperSettingsComponents/GameBasicsPanel";
 import GameplayPanel from "../components/MinesweeperSettingsComponents/GameplayPanel";
 import SettingsLayout from "../components/MinesweeperSettingsComponents/SettingsLayout";

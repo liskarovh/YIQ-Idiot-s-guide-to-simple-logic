@@ -1,3 +1,10 @@
+/**
+ * @file HintIcon.jsx
+ * @brief SVG icon component for a hint in Minesweeper.
+ *
+ * @author Jan Kalina \<xkalinj00>
+ */
+
 import React from "react";
 
 export const HintIcon = ({widthHeight = 80}) => (

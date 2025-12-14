@@ -1,23 +1,13 @@
-const boxWidth = 650;
-const boxHeight = 450;
+/**
+ * @file MinesweeperSettingsStyles.jsx
+ * @brief Styles for the Minesweeper settings components.
+ *
+ * @author Jan Kalina \<xkalinj00>
+ */
 
 const MinesweeperSettingsStyles = {
-    // Box sizes
-    boxWidth: boxWidth,
-    boxHeight: boxHeight,
-
-    // Autoscale preset
-    boxAutoscaleWidth: boxWidth + 100,
-    boxAutoscaleHeight: boxHeight + 100,
-    boxAutoscaleMaxScale: 1,
-    boxAutoscaleMinScale: 0.6,
-
     // Settings row sizes and flags
-    boxAutoscaleCenter: true,
     settingsRowInline: true,
-    sliderGameplayPanelWidth: 240,
-    sliderGameBasicsPanelWidth: 295,
-    numberFieldMaxDigits: 3,
 
     // Object styles
     contentStyle: {
@@ -41,8 +31,8 @@ const MinesweeperSettingsStyles = {
     boxStyle: {
         display: "flex",
         flexDirection: "column",
-        maxWidth: boxWidth,
-        maxHeight: boxHeight,
+        maxWidth: 650,
+        maxHeight: 450,
         gap: "1.75rem"
     },
     sliderAndNumberFieldStyle: {

@@ -1,4 +1,9 @@
 /**
+ * @file ImageUrlCache.js
+ * @brief Image URL caching utility.
+ *
+ * @author Jan Kalina \<xkalinj00>
+ *
  * Cache for converted image URLs to avoid redundant conversions.
  * - Stores image -> URL mappings with timestamps
  * - Automatically expires entries after CACHE_LIFETIME
@@ -17,10 +22,10 @@ const cacheTimestamps = new Map();
 /**
  * Gets a cached image URL or converts and caches a new one.
  *
- * @param {string|Object} image Image reference (string URL or SVG component)
- * @param {Function} converter Function to convert image to URL (e.g., SVG -> data URL)
+ * @param image Image reference (string URL or SVG component)
+ * @param converter Function to convert image to URL (e.g., SVG -> data URL)
  *
- * @returns {string|undefined} Converted image URL or undefined if conversion fails
+ * @returns Converted image URL or undefined if conversion fails
  */
 export function getCachedImageUrl(image, converter) {
     // If already a string URL, return immediately (no conversion needed)

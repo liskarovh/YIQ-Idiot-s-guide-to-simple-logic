@@ -1,3 +1,10 @@
+/**
+ * @file FlaggingModeCellTexture.jsx
+ * @brief A React component that renders the texture for a flagging mode cell in Minesweeper as an SVG.
+ *
+ * @author Jan Kalina \<xkalinj00>
+ */
+
 import React from "react";
 
 export const UnopenedCellTexture = ({widthAndHeight = 40}) => (

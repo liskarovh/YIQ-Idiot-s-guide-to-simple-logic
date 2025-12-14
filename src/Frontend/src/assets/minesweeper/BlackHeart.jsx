@@ -1,3 +1,10 @@
+/**
+ * @file BlackHeart.jsx
+ * @brief SVG component for a black heart icon.
+ *
+ * @author Jan Kalina \<xkalinj00>
+ */
+
 import React from "react";
 
 export const BlackHeart = ({width = 64, height = 54.212}) => (

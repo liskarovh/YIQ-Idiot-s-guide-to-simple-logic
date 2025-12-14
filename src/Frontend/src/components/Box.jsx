@@ -1,3 +1,10 @@
+/**
+ * @file Box.jsx
+ * @brief A styled box container component for layout purposes.
+ *
+ * @author David Krejčí \<xkrejcd00>
+ */
+
 import React from "react";
 import colors from "../Colors";
 

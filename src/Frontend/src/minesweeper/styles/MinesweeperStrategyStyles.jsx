@@ -1,3 +1,10 @@
+/**
+ * @file MinesweeperStrategyStyles.jsx
+ * @brief Styles for the Minesweeper strategy guide components.
+ *
+ * @author Jan Kalina \<xkalinj00>
+ */
+
 import styles from "../../Styles";
 import colors from "../../Colors";
 

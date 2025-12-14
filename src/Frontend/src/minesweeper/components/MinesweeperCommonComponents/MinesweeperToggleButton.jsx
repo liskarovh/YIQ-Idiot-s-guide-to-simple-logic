@@ -1,3 +1,10 @@
+/**
+ * @file MinesweeperToggleButton.jsx
+ * @brief A toggle button component for Minesweeper settings.
+ *
+ * @author Jan Kalina \<xkalinj00>
+ */
+
 import {useLayoutEffect, useRef, useState} from "react";
 import colors from "../../../Colors";
 

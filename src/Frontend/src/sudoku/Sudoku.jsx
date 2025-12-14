@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useLocation } from 'react-router-dom';
 import Game from './views/Game'
 import Selection from './views/Selection'
 import Settings from './views/Settings'
@@ -38,8 +39,11 @@ function SudokuContent() {
 
 
 export default function Sudoku() {
+  const location = useLocation();
+  const initialView = location.state?.view || "Game";
+
   return (
-    <NavigationProvider>
+    <NavigationProvider initialView={initialView}>
       <GameOptionsProvider>
         <HistoryProvider>
           <StatusProvider>

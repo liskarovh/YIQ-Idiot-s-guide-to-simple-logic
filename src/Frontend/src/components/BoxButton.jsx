@@ -1,3 +1,10 @@
+/**
+ * @file BoxButton.jsx
+ * @brief Configurable button component with optional icon for the React application.
+ *
+ * @author Jan Kalina \<xkalinj00>
+ */
+
 import {createElement, useState} from "react";
 import colors from "../Colors";
 
