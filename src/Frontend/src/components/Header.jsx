@@ -33,7 +33,7 @@ function useWindowScale(baseWidth = 1920, {min, max} = {}) {
     return s;
 }
 
-function Header({rightLinkTitle = null, showBack = null, onNavigate}) {
+function Header({rightLinkTitle = null, showBack = null, onNavigate, rightLinkTooltip = null }) {
     const navigate = useNavigate();
     const s = useWindowScale(1920, {min: 0.7, max: 1});
     const [linkHover, setLinkHover] = useState(false);
@@ -109,6 +109,7 @@ function Header({rightLinkTitle = null, showBack = null, onNavigate}) {
                 </div>
 
                 <span style={linkStyle}
+                      title={rightLinkTooltip || undefined}
                       onClick={() => onNavigate && onNavigate(showBack ? "back" : "/about")}
                       onMouseEnter={() => setLinkHover(true)}
                       onMouseLeave={() => setLinkHover(false)}

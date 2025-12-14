@@ -7,7 +7,7 @@
  */
 
 import React, { useMemo, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 
 import Header from './components/Header';
 import styles from './Styles';
@@ -22,6 +22,14 @@ import Person from './components/Person.jsx';
 
 export default function AboutPage() {
     const navigate = useNavigate();
+
+    const location = useLocation();
+
+    const fromEndedSpectator = (() => {
+        const qp = new URLSearchParams(location.search);
+        return qp.get('from') === 'ttt-spectator-ended';
+    })();
+
     const headerRef = useRef(null);
 
     const aboutText =
@@ -131,7 +139,10 @@ export default function AboutPage() {
                         showBack
                         backLabel="Back"
                         onNavigate={(arg) => {
-                            if (arg === 'back') return navigate(-1);
+                            if (arg === 'back') {
+                                if (fromEndedSpectator) return navigate('/', { replace: true });
+                                return navigate(-1);
+                            }
                             navigate(String(arg || '/'));
                         }}
                 />

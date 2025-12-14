@@ -51,9 +51,11 @@ export default function GamePage() {
     const location = useLocation();
     const fromHere = `${location.pathname}${location.search || ''}`;
     const goStrategy = useCallback(() => {
-        sessionStorage.setItem('ttt_strategy_from', fromHere);
-        navigate('/tic-tac-toe/strategy', { state: { from: fromHere } });
-    }, [navigate, fromHere]);
+        const from = endedSpectator ? '/' : fromHere;
+
+        sessionStorage.setItem('ttt_strategy_from', from);
+        navigate('/tic-tac-toe/strategy', { state: { from } });
+    }, [navigate, fromHere, endedSpectator]);
 
     /**
      * Core game state pulled from shared context.
@@ -109,6 +111,15 @@ export default function GamePage() {
     const status = String(rawStatus).toLowerCase(); // 'running' | 'win' | 'draw' | 'timeout' | 'forfeit'...
     const ended = ['win', 'draw', 'timeout', 'forfeit'].includes(status);
 
+    const endedSpectator = !!isSpectator && !!ended;
+
+    const leaveEndedSpectatorTooltip = endedSpectator
+            ? 'Finished spectator game: leaving will return to Home.'
+            : null;
+
+    const strategyEndedSpectatorTooltip = endedSpectator
+            ? 'Strategy (finished spectator game: Back will return to Home)'
+            : null;
     /**
      * Human player mark (X/O) for PvE mode.
      */
@@ -632,9 +643,18 @@ export default function GamePage() {
                     <div ref={headerRef}>
                         <Header
                                 showBack={false}
-                                onNavigate={(arg) =>
-                                        arg === 'back' ? navigate('/') : navigate(String(arg || '/'))
-                                }
+                                rightLinkTooltip={leaveEndedSpectatorTooltip}
+                                onNavigate={(arg) => {
+                                    if (arg === 'back') return navigate('/');
+
+                                    const target = String(arg || '/');
+
+                                    if (endedSpectator && target === '/about') {
+                                        return navigate('/about?from=ttt-spectator-ended');
+                                    }
+
+                                    return navigate(target);
+                                }}
                         />
                     </div>
                     <UnderHeader
@@ -698,9 +718,18 @@ export default function GamePage() {
                 <div ref={headerRef}>
                     <Header
                             showBack={false}
-                            onNavigate={(arg) =>
-                                    arg === 'back' ? navigate('/') : navigate(String(arg || '/'))
-                            }
+                            rightLinkTooltip={leaveEndedSpectatorTooltip}
+                            onNavigate={(arg) => {
+                                if (arg === 'back') return navigate('/');
+
+                                const target = String(arg || '/');
+
+                                if (endedSpectator && target === '/about') {
+                                    return navigate('/about?from=ttt-spectator-ended');
+                                }
+
+                                return navigate(target);
+                            }}
                     />
                 </div>
 
@@ -798,6 +827,7 @@ export default function GamePage() {
                                                         onNewGame={() => navigate('/tic-tac-toe/settings')}
                                                         onStrategy={goStrategy}
                                                         onBack={() => navigate('/')}
+                                                        strategyTitle={strategyEndedSpectatorTooltip}
                                                 />
                                         ) : (
                                                 <Toolbar

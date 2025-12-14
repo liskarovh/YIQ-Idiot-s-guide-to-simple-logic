@@ -25,6 +25,7 @@ export default function AfterGameToolbar({
                                              onNewGame,
                                              onStrategy,
                                              onBack,
+                                             strategyTitle,
                                          }) {
     const handleBack = (e) => {
         if (typeof onBack === 'function') {
@@ -91,7 +92,7 @@ export default function AfterGameToolbar({
                             style={toolbarButton}
                             onClick={handleStrategy}
                             aria-label="Strategy"
-                            title="Strategy"
+                            title={typeof strategyTitle === 'string' ? strategyTitle : "Strategy"}
                     >
                         <InfoIcon style={toolbarIcon} />
                     </button>
