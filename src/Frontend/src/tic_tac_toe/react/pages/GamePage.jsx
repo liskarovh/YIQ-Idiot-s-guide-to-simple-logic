@@ -113,8 +113,9 @@ export default function GamePage() {
      * Human player mark (X/O) for PvE mode.
      */
     const humanMark = (() => {
-        const hm = game?.humanMark;
+        const hm = game?.humanMark ?? game?.human_mark;
         return hm ? String(hm).toUpperCase() : null;
+
     })();
     const isHumanWinner =
             ended && humanMark && String(winner).toUpperCase() === humanMark;
