@@ -752,6 +752,15 @@ export function useMinesweeperGameController() {
             return;
         }
 
+        // Only process allowed keys
+        const allowedKeys = ["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight",
+                             "Enter", " ", "d", "D", "f", "F", "q", "Q",
+                             "h", "H", "p", "P", "u", "U", "t", "T",
+                             "Escape", "Home", "End"];
+        if(!allowedKeys.includes(event.key)) {
+            return;
+        }
+
         // Allow keyboard navigation before game starts
         const allowKeyboard = canUseActions || beforeStart || event.key === "p" || event.key === "P" || event.key === "Escape";
         if(!allowKeyboard) {
