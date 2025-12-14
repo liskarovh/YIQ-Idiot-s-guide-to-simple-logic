@@ -1,7 +1,6 @@
 from sudoku.grid import Grid
-from sudoku.gridCache import get_grid
-from sudoku.prebuilt_puzzles import get_static_puzzle
-from sudoku.sudokuEnums import GameModes, Difficulty
+from sudoku.gridCache import start_cache, get_grid
+from sudoku.sudokuEnums import GameModes
 from sudoku.sudokuEnums import CellValue as CV
 from sudoku.operationStack import OperationStack
 import numpy as np
@@ -76,42 +75,18 @@ class GameManager:
         self.solution: Grid = None
         self.operationStack = OperationStack()
 
-    def newGrid(self, mode, difficulty=Difficulty.HARD):
+    def newGrid(self, mode):
         self.operationStack = OperationStack()
         
-        if mode == GameModes.GENERATED:
-            # difficulty_or_tech must be a Difficulty Enum here
-            result = get_grid(difficulty)
-            self.currentBoard = result[0]
-            self.solution = result[1]
-            return
-
-        # Get data dictionary from prebuilt_puzzles.py
-        data = get_static_puzzle(mode, difficulty)
-        
-        # 1. Setup Current Board
-        self.currentBoard = Grid()
-        
-        grid_values = data["values"]
-        
-        # Create 9x9 default types
-        types = [[CV.ENTERED if val > 0 else CV.ENTERED for val in row] for row in grid_values]
-        
-        # Create 9x9 empty pencils
-        pencils = [[[] for _ in range(9)] for _ in range(9)]
-        
-        self.currentBoard.update_from_dict({
-            "values": grid_values,
-            "types": types,
-            "pencils": pencils
-        })
-        
-        # Mark clues as STARTING type so they can't be edited
-        self.currentBoard.types[self.currentBoard.values > 0] = CV.STARTING
-        
-        # 2. Setup Solution Board
-        self.solution = Grid()
-        self.solution.values = np.array(data["solution"])
+        if mode == GameModes.PREBUILT:
+            self.currentBoard = Grid()
+            self.currentBoard.update_from_dict(EXAMPLE_GRID)
+            self.solution = Grid()
+            self.solution.update_from_dict(EXAMPLE_SOLUTION)
+        elif mode == GameModes.GENERATED:
+            new = get_grid()
+            self.currentBoard = new[0]
+            self.solution = new[1]
 
 
     def fillNotes(self):

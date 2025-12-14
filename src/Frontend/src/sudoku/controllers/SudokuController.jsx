@@ -5,7 +5,6 @@ import { useGameInfo } from '../models/GameInfoModel';
 import { useGameOptions } from '../models/SettingsModel';
 import { useHistory } from '../models/HistoryModel';
 import { mapGridToReceive, mapGridToSend, mapInfoToReceive, mapInfoToSend, mapOptionsToReceive, mapOptionsToSend } from '../models/APIMappers';
-import { useNewGame } from './GameController';
 
 // Create a loading context
 const LoadingContext = createContext();
@@ -95,7 +94,6 @@ export function useSetupSudoku() {
     const { history, setHistoryState } = useHistory();
     const { loading, setLoading } = useLoading();
     const currentState = { gridData, gameInfo, gameOptions, history };
-    const {newGame} = useNewGame();
 
     const hasData = useRef(false);
     const dataRef = useRef({gridData, gameInfo, gameOptions, history})
@@ -118,6 +116,12 @@ export function useSetupSudoku() {
             const response = await fetchState();
             if (!isMounted) return
             if (response.err === 0) {
+                if (response.grid != null) {
+                    console.log("Updating grid data received: ", response.grid)
+                    const data = mapGridToReceive(response.grid)
+                    console.log("Updating grid data with: ", data)
+                    setGridData(prev => ({ ...prev, ...data }));
+                }
                 if (response.info != null) {
                     setGameInfo(mapInfoToReceive(response.info));
                     console.log("Updating info with: ", response.info)
@@ -129,14 +133,6 @@ export function useSetupSudoku() {
                 if (response.history != null) {
                     console.log("Updating history with: ", response.history);
                     setHistoryState(response.history);
-                }
-                if (response.grid != null) {
-                    console.log("Updating grid data received: ", response.grid)
-                    const data = mapGridToReceive(response.grid)
-                    console.log("Updating grid data with: ", data)
-                    setGridData(prev => ({ ...prev, ...data }));
-                } else {
-                    newGame();
                 }
             } else {
                 console.error("Error fetching Sudoku state:", response.err);

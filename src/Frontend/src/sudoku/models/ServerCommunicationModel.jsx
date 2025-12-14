@@ -50,28 +50,21 @@ export async function sendState(sudokuState) {
 }
 
 
-export async function fetchNewGrid(mode, difficulty) {
+export async function fetchNewGrid() {
     try {
-        console.log(`Sending GET to /new_grid with mode=${mode} and difficulty=${difficulty}`);
-        
-        // Create query parameters
-        const params = new URLSearchParams({
-            mode: mode,
-            difficulty: difficulty
-        });
-
-        const response = await fetch(`${apiUrl}/api/sudoku/new_grid?${params.toString()}`, {
+        console.log("Sending GET to /new_grid")
+        const response = await fetch(`${apiUrl}/api/sudoku/new_grid`, {
             method: 'GET',
             credentials: 'include',
         });
 
         if (!response.ok) {
-            console.error("Got error for GET request to /new_grid");
+            console.error("Got error for GET request to /new_grid")
             return { err: response.status, message: `HTTP error ${response.status}` };
         }
 
         const data = await response.json();
-        console.log("Got response for GET request to /new_grid");
+        console.log("Got response for GET request to /new_grid")
         return { ...data, err: 0 };
     } catch (err) {
         return { err: -1, message: err.message || 'Network error' };

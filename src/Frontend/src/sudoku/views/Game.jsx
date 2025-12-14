@@ -10,7 +10,6 @@ import { Eye, Sparkles, Undo, Eraser, StickyNote, BookOpen, Settings, Pointer, P
 import useMeasure from "react-use-measure";
 import colors from "../../Colors";
 import { useMemo, useState } from "react";
-import { useNavigate } from 'react-router-dom';
 
 const pageStyle = {
   display: 'flex',
@@ -179,7 +178,6 @@ function Game() {
   const [gridRef, gridBounds] = useMeasure();
   const { setRelativeView, goBack } = useSudokuNavigation();
   const { newGame } = useNewGame(); 
-  const navigate = useNavigate();
   
   const {
     gridData, selectedCell, selectedNumber, eraseOn, notesOn, inputMethod,
@@ -412,7 +410,9 @@ function Game() {
           width: '100%', 
           gap: '2rem' 
         }}>
-            <IconButton size={iconSize} fontSize={buttonFontSize} icon={Settings} description="New Game and Settings" onClick={() => setRelativeView("Settings")}/>
+          <IconButton size={iconSize} fontSize={buttonFontSize} icon={Home} description="Menu" onClick={goBack}/>
+          <IconButton size={iconSize} fontSize={buttonFontSize} icon={Play} description="New Game" onClick={newGame}/>
+          <IconButton size={iconSize} fontSize={buttonFontSize} icon={Settings} description="Settings" onClick={() => setRelativeView("Settings")}/>
             <IconButton size={iconSize} fontSize={buttonFontSize} icon={BookOpen} description="Strategy" onClick={() => setRelativeView("Strategy")}/>
         </div>
       );
@@ -426,7 +426,7 @@ function Game() {
         <IconButton size={iconSize} fontSize={buttonFontSize} icon={Eraser} description={getDescriptions().erase} onClick={eraseClicked}/>
         <IconButton size={iconSize} fontSize={buttonFontSize} icon={StickyNote} description={getDescriptions().notes} onClick={notesClicked}/>
         <IconButton size={iconSize} fontSize={buttonFontSize} icon={BookOpen} description="Strategy" onClick={() => setRelativeView("Strategy")}/>
-        <IconButton size={iconSize} fontSize={buttonFontSize} icon={Settings} description="New Game and Settings" onClick={() => setRelativeView("Settings")}/>
+        <IconButton size={iconSize} fontSize={buttonFontSize} icon={Settings} description="Settings" onClick={() => setRelativeView("Settings")}/>
         <IconButton size={iconSize} fontSize={buttonFontSize} icon={Pointer} description={getDescriptions().inputMethod} onClick={inputClicked}/>
       </>
     );
@@ -443,7 +443,7 @@ function Game() {
         onDragEnd={handleDragEnd}
       >
         <div style={pageStyle}>
-          <Header rightLinkTitle='Home' onNavigate={() => navigate('/')} />
+          <Header showBack={true} onNavigate={goBack} />
           <div ref={ref} style={mobileGridStyle}>
             <div style={{ gridRow: '1' }}>
               <Info/>
@@ -530,7 +530,7 @@ function Game() {
       onDragEnd={handleDragEnd}
     >
       <div style={pageStyle}>
-        <Header rightLinkTitle='Home' onNavigate={() => navigate('/')} />
+        <Header showBack={true} onNavigate={goBack} />
         <div ref={ref} style={desktopGridStyle}>
           <div style={{ gridColumn: '1', gridRow: '1' }}>
             <Info/>

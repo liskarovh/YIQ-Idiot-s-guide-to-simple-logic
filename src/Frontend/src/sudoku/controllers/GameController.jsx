@@ -384,7 +384,7 @@ export function useGameController() {
     // 1. Fetch value
     const response = await fetchReveal(row, col);
 
-    if (response.err === 0 && response.value !== 0) {
+    if (response.err === 0) {
         // 2. Update Grid
         saveStateForUndo(row, col);
         
@@ -640,21 +640,20 @@ export function useNewGame() {
   const { options: gameOptions } = useGameOptions();
   const { setLoading } = useLoading();
   const { setRelativeView } = useSudokuNavigation();
-  const { clearHints } = useStatus();
+  const { clearHints } = useStatus(); // Use this to clear hints on new game
 
   async function newGame() {
         setLoading(true);
 
+        // Reset hints when starting new game
         clearHints();
 
-        // 1. Determine the correct difficulty based on the current Mode
         let difficulty;
         if (gameOptions.mode === "Prebuilt") {
             difficulty = gameOptions.prebuiltDifficulty;
         } else if (gameOptions.mode === "Learn") {
             difficulty = gameOptions.learnDifficulty;
         } else {
-            // Default to Generated
             difficulty = gameOptions.generatedDifficulty;
         }
         
@@ -667,8 +666,7 @@ export function useNewGame() {
 
         setGameInfo(info);
 
-        // 2. Pass mode and difficulty to the API call
-        const newGrid = await fetchNewGrid(gameOptions.mode, difficulty);
+        const newGrid = await fetchNewGrid();
 
         if (newGrid.err === 0) {
             console.log("Updating grid data received: ", newGrid);

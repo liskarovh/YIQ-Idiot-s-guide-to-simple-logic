@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import Game from './views/Game'
 import Selection from './views/Selection'
+import Settings from './views/Settings'
 import Strategy from './views/Strategy'
 import { useSudokuNavigation, NavigationProvider } from './controllers/NavigationController';
 import { GameOptionsProvider } from './models/SettingsModel';
@@ -25,6 +26,8 @@ function SudokuContent() {
       return <Game/>
     case "Selection":
       return <Selection/>
+    case "Settings":
+      return <Settings/>
     case "Strategy":
       return <Strategy/>
     default:

@@ -1,7 +1,7 @@
 from datetime import datetime, timedelta
 from flask import Blueprint, jsonify, request, session as flask_session
 from sudoku.sessionManager import get_or_create_session, save_session
-from sudoku.sudokuEnums import GameModes, Difficulty
+from sudoku.sudokuEnums import GameModes
 
 sudoku_bp = Blueprint('sudoku', __name__)
 
@@ -42,6 +42,7 @@ def state():
             ses.gameManager.operationStack.update_from_list(data["history"])
 
         print(f"Updating state on request for sid {ses.sid}:")
+        print(data)
 
         save_session(ses)
         resp = jsonify({"message": "State updated successfully."})
@@ -59,43 +60,23 @@ def state():
     
     return resp
 
+    
 
 @sudoku_bp.route('/new_grid', methods=['GET'])
 def newBoard():
+    # TODO Set candidates?
+    # TODO Update game info
     sid = flask_session.get("sid")
     ses = get_or_create_session(sid)
+    ses.gameManager.newGrid(GameModes.PREBUILT)
+    board = ses.gameManager.currentBoard
     
-    # 1. Get Params
-    mode_str = request.args.get('mode', 'Generated')
-    diff_param = request.args.get('difficulty', 'Hard')
-    
-    # 2. Determine Mode
-    try:
-        mode = GameModes[mode_str.upper()] # Matches "GENERATED", "PREBUILT", "LEARN"
-    except KeyError:
-        mode = GameModes.GENERATED
+    print(f"Sending new grid for sid {ses.sid}:")
+    print("grid", board.to_dict())
 
-    # 3. Determine Difficulty/Identifier
-    identifier = None
-    
-    if mode == GameModes.LEARN:
-        # For Learn, we pass the raw string (e.g., "Hidden Singles")
-        # because the keys in LEARN_PUZZLES are strings.
-        identifier = diff_param 
-    else:
-        # For Generated/Prebuilt, we convert to Difficulty Enum
-        try:
-            identifier = Difficulty[diff_param.upper()]
-        except KeyError:
-            identifier = Difficulty.HARD
-
-    print(f"New Grid: Mode={mode.name}, ID={identifier}")
-
-    # 4. Generate
-    ses.gameManager.newGrid(mode, identifier)
-    
     save_session(ses)
-    return jsonify(ses.gameManager.currentBoard.to_dict())
+    resp = jsonify(board.to_dict())
+    return resp
 
 @sudoku_bp.route('/get_value', methods=['GET'])
 def getValue():
@@ -125,7 +106,6 @@ def getValue():
 def getHint():
     sid = flask_session.get("sid")
     ses = get_or_create_session(sid)
-    print("got hint request")
     
     # Get hint from manager
     response_data = ses.gameManager.getHint()
