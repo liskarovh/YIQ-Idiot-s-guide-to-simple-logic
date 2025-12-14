@@ -1,3 +1,10 @@
+/**
+ * @file ToggleRow.jsx
+ * @brief A React component for a settings row with a toggle switch in Minesweeper.
+ *
+ * @author Jan Kalina \<xkalinj00>
+ */
+
 import React from "react";
 import MinesweeperSettingsRow from "../MinesweeperCommonComponents/MinesweeperSettingsRow";
 import ToggleSwitch from "../MinesweeperCommonComponents/MinesweeperToggleButton";

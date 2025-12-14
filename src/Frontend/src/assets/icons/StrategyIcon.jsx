@@ -1,3 +1,10 @@
+/**
+ * @file StrategyIcon.jsx
+ * @brief SVG icon component representing a strategy symbol.
+ *
+ * @author Jan Kalina \<xkalinj00>
+ */
+
 import React from "react";
 
 export const StrategyIcon = ({widthHeight = 80}) => (

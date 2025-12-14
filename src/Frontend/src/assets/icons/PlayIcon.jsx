@@ -1,3 +1,10 @@
+/**
+ * @file PlayIcon.jsx
+ * @brief A React component that renders a play icon as an SVG.
+ *
+ * @author Jan Kalina \<xkalinj00>
+ */
+
 import React from "react";
 
 export const PlayIcon = ({width = 55.301, height = 61.142}) => (

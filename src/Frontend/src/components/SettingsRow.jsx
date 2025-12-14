@@ -1,3 +1,11 @@
+/**
+ * @file SettingsRow.jsx
+ * @brief A React component that displays a setting row with a label, optional
+ *        description, and a control element.
+ *
+ * @author David Krejčí \<xkrejcd00>
+ */
+
 import React from "react";
 import colors from "../Colors";
 

@@ -1,3 +1,10 @@
+/**
+ * @file SliderWithNumberControl.jsx
+ * @brief A React component that combines a slider and a number input field for Minesweeper settings.
+ *
+ * @author Jan Kalina \<xkalinj00>
+ */
+
 import React from "react";
 import MinesweeperSlider from "../MinesweeperCommonComponents/MinesweeperSlider";
 import MinesweeperNumberField from "../MinesweeperCommonComponents/MinesweeperNumberField";

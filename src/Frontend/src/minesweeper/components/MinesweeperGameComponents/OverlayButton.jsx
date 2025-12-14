@@ -1,3 +1,10 @@
+/**
+ * @file OverlayButton.jsx
+ * @brief A customizable overlay button component with optional hover content.
+ *
+ * @author Jan Kalina \<xkalinj00>
+ */
+
 import {useState} from "react";
 
 function OverlayButton({

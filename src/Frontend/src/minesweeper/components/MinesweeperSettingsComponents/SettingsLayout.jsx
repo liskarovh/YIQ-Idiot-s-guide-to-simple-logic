@@ -1,3 +1,10 @@
+/**
+ * @file SettingsLayout.jsx
+ * @brief A React component that provides the layout for the Minesweeper settings screen.
+ *
+ * @author Jan Kalina \<xkalinj00>
+ */
+
 import React from "react";
 import Header from "../../../components/Header";
 import MinesweeperBoxButton from "../MinesweeperCommonComponents/MinesweeperBoxButton";

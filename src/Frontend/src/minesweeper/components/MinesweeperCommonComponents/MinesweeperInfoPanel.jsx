@@ -1,3 +1,10 @@
+/**
+ * @file MinesweeperInfoPanel.jsx
+ * @brief A styled information panel for Minesweeper game.
+ *
+ * @author Jan Kalina \<xkalinj00>
+ */
+
 import React, {useLayoutEffect, useRef, useState} from "react";
 import Box from "../../../components/Box";
 import colors from "../../../Colors";

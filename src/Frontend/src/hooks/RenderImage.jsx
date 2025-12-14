@@ -1,3 +1,10 @@
+/**
+ * @file RenderImage.jsx
+ * @brief Hooks for rendering images from various formats and caching image URLs.
+ *
+ * @author Jan Kalina \<xkalinj00>
+ */
+
 import React, {useMemo, isValidElement, cloneElement} from "react";
 import {renderToStaticMarkup} from "react-dom/server";
 import {getCachedImageUrl} from "./ImageUrlCache";
@@ -10,10 +17,11 @@ import {getCachedImageUrl} from "./ImageUrlCache";
  * - React elements (clones with merged styles)
  * - Function components (renders with provided styles)
  *
- * @param {string|React.Element|Function} image Image source (URL, React element, or component)
- * @param {string} alt Alternative text for the image (used only for string URLs)
- * @param {Object} style CSS styles to apply to the image
- * @returns {React.Element|null} Rendered image element or null if invalid format
+ * @param image Image source (URL, React element, or component)
+ * @param alt Alternative text for the image (used only for string URLs)
+ * @param style CSS styles to apply to the image
+ *
+ * @returns Rendered image element or null if invalid format
  */
 export function useRenderImage(image, alt = "", style = {}) {
     return useMemo(() => {
@@ -39,7 +47,9 @@ export function useRenderImage(image, alt = "", style = {}) {
         // Function component --> render with provided styles
         if(typeof image === "function") {
             const ImageComponent = image;
-            return <ImageComponent style={style} />;
+            return <ImageComponent
+                    style={style}
+            />;
         }
 
         return null;
@@ -54,8 +64,8 @@ export function useRenderImage(image, alt = "", style = {}) {
  * - React elements with src prop (extracts src)
  * - Function components that render SVG (converts to data URL)
  *
- * @param {string|React.Element|Function} image Image to convert
- * @returns {string|null} URL string or null if conversion fails
+ * @param image Image to convert
+ * @returns URL string or null if conversion fails
  */
 function convertImageToUrl(image) {
     // Already a string URL --> return immediately
@@ -104,8 +114,8 @@ function convertImageToUrl(image) {
  * redundant conversions. Ideal for use with CSS background-image
  * or when you need a URL string instead of a React element.
  *
- * @param {string|React.Element|Function} image Image source to convert
- * @returns {string|undefined} Cached URL string or undefined if conversion fails
+ * @param image Image source to convert
+ * @returns Cached URL string or undefined if conversion fails
  */
 export function useImageUrl(image) {
     return useMemo(() => {

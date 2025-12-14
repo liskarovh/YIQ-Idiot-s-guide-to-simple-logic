@@ -1,9 +1,16 @@
+/**
+ * @file IconTextButton.jsx
+ * @brief A button component that displays text with an optional icon.
+ *
+ * @author David Krejčí \<xkrejcd00>
+ */
+
 import React from 'react';
 import colors from '../Colors';
 
 /**
  * TEXT BUTTON COMPONENT - Button with text and optional icon
- * 
+ *
  * Props:
  * - text: string - Button text
  * - icon: string - Path to icon image (optional)

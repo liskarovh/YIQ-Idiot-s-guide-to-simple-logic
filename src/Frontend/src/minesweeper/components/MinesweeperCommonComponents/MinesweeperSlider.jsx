@@ -1,3 +1,10 @@
+/**
+ * @file MinesweeperSlider.jsx
+ * @brief A custom slider component for Minesweeper settings.
+ *
+ * @author Jan Kalina \<xkalinj00>
+ */
+
 import React, {useMemo, useRef, useState} from "react";
 import colors from "../../../Colors";
 

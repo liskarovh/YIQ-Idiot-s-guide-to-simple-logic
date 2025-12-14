@@ -1,3 +1,9 @@
+/**
+ * @file MinesweeperStrategyView.jsx
+ * @brief A React component that displays Minesweeper strategy tips and techniques.
+ *
+ * @author Jan Kalina \<xkalinj00>
+ */
 import React, {useState} from "react";
 import Header from "../../components/Header";
 import {MinesweeperStrategyController} from "../controllers/MinesweeperStrategyController";
@@ -971,7 +977,6 @@ export default function MinesweeperStrategyView() {
                     )}
 
                     {/* ADVANCED LOGIC content */}
-                    {/* ADVANCED LOGIC content */}
                     {tab === "advancedLogic" && (
                             <>
                                 <section style={MinesweeperStrategyStyles.section}>
@@ -1064,141 +1069,106 @@ export default function MinesweeperStrategyView() {
                             </>
                     )}
 
-
                     {/* PATTERN REDUCTION content */}
-                    <section
-                            style={MinesweeperStrategyStyles.section}
-                    >
-                        <StrategyBox
-                                title={patternReduction.intro.title}
-                        >
-                            {patternReduction.intro.paragraphs.map((p, idx) => (
-                                    <p key={idx}
-                                       style={MinesweeperStrategyStyles.boxBodyTextStyle}
-                                    >
-                                        {p}
-                                    </p>
-                            ))}
-                        </StrategyBox>
-                    </section>
+                    {tab === "patternReduction" && (
+                            <>
+                                <section style={MinesweeperStrategyStyles.section}>
+                                    <StrategyBox title={patternReduction.intro.title}>
+                                        {patternReduction.intro.paragraphs.map((p, idx) => (
+                                                <p
+                                                        key={idx}
+                                                        style={MinesweeperStrategyStyles.boxBodyTextStyle}
+                                                >
+                                                    {p}
+                                                </p>
+                                        ))}
+                                    </StrategyBox>
+                                </section>
 
-                    <section
-                            style={MinesweeperStrategyStyles.section}
-                    >
-                        <StrategyBox
-                                title="Reduction examples"
-                        >
-                            <p style={MinesweeperStrategyStyles.boxBodyTextStyle}>
-                                {patternReduction.row1.text}
-                            </p>
-                        </StrategyBox>
-                    </section>
+                                <section style={MinesweeperStrategyStyles.section}>
+                                    <StrategyBox title="Reduction examples">
+                                        <p style={MinesweeperStrategyStyles.boxBodyTextStyle}>
+                                            {patternReduction.row1.text}
+                                        </p>
+                                    </StrategyBox>
+                                </section>
 
-                    <div style={MinesweeperStrategyStyles.galleryGridFour}>
-                        {patternReduction.row1.items.map((it, idx) => (
-                                <StrategyBox
-                                        key={idx}
-                                        transparent={true}
-                                >
-                                    <img
-                                            src={it.img}
-                                            alt={`Pattern reduction example row 1 - ${idx + 1}`}
-                                            style={MinesweeperStrategyStyles.image}
-                                    />
-                                    <p style={MinesweeperStrategyStyles.figureCaption}>{it.caption}</p>
-                                </StrategyBox>
-                        ))}
-                    </div>
+                                <div style={MinesweeperStrategyStyles.galleryGridFour}>
+                                    {patternReduction.row1.items.map((it, idx) => (
+                                            <StrategyBox key={idx} transparent={true}>
+                                                <img
+                                                        src={it.img}
+                                                        alt={`Pattern reduction example row 1 - ${idx + 1}`}
+                                                        style={MinesweeperStrategyStyles.image}
+                                                />
+                                                <p style={MinesweeperStrategyStyles.figureCaption}>
+                                                    {it.caption}
+                                                </p>
+                                            </StrategyBox>
+                                    ))}
+                                </div>
 
-                    <section
-                            style={MinesweeperStrategyStyles.section}
-                    >
-                        <StrategyBox
-                                title="More complex reductions"
-                        >
-                            <p style={MinesweeperStrategyStyles.boxBodyTextStyle}>
-                                {patternReduction.row2.text}
-                            </p>
-                        </StrategyBox>
-                    </section>
+                                <section style={MinesweeperStrategyStyles.section}>
+                                    <StrategyBox title="More complex reductions">
+                                        <p style={MinesweeperStrategyStyles.boxBodyTextStyle}>
+                                            {patternReduction.row2.text}
+                                        </p>
+                                    </StrategyBox>
+                                </section>
 
-                    <div style={MinesweeperStrategyStyles.galleryGridFour}>
-                        {patternReduction.row2.items.map((it, idx) => (
-                                <StrategyBox
-                                        key={idx}
-                                        transparent={true}
-                                >
-                                    <img
-                                            src={it.img}
-                                            alt={`Pattern reduction example row 2 - ${idx + 1}`}
-                                            style={MinesweeperStrategyStyles.image}
-                                    />
-                                    <p style={MinesweeperStrategyStyles.figureCaption}>{it.caption}</p>
-                                </StrategyBox>
-                        ))}
-                    </div>
+                                <div style={MinesweeperStrategyStyles.galleryGridFour}>
+                                    {patternReduction.row2.items.map((it, idx) => (
+                                            <StrategyBox key={idx} transparent={true}>
+                                                <img
+                                                        src={it.img}
+                                                        alt={`Pattern reduction example row 2 - ${idx + 1}`}
+                                                        style={MinesweeperStrategyStyles.image}
+                                                />
+                                                <p style={MinesweeperStrategyStyles.figureCaption}>
+                                                    {it.caption}
+                                                </p>
+                                            </StrategyBox>
+                                    ))}
+                                </div>
+                            </>
+                    )}
 
-                    {/* FIRST CLICK content */}
                     {tab === "first" && (
                             <>
-                                <section
-                                        style={MinesweeperStrategyStyles.section}
-                                >
-                                    <StrategyBox
-                                            title={firstClick.intro.title}
-                                    >
+                                <section style={MinesweeperStrategyStyles.section}>
+                                    <StrategyBox title={firstClick.intro.title}>
                                         {firstClick.intro.paragraphs.map((p, idx) => (
-                                                <p key={idx}
-                                                   style={MinesweeperStrategyStyles.boxBodyTextStyle}
-                                                >
+                                                <p key={idx} style={MinesweeperStrategyStyles.boxBodyTextStyle}>
                                                     {p}
                                                 </p>
                                         ))}
                                     </StrategyBox>
                                 </section>
 
-                                <section
-                                        style={MinesweeperStrategyStyles.section}
-                                >
-                                    <StrategyBox
-                                            title={firstClick.tradeoff.title}
-                                    >
+                                <section style={MinesweeperStrategyStyles.section}>
+                                    <StrategyBox title={firstClick.tradeoff.title}>
                                         {firstClick.tradeoff.paragraphs.map((p, idx) => (
-                                                <p key={idx}
-                                                   style={MinesweeperStrategyStyles.boxBodyTextStyle}
-                                                >
+                                                <p key={idx} style={MinesweeperStrategyStyles.boxBodyTextStyle}>
                                                     {p}
                                                 </p>
                                         ))}
                                     </StrategyBox>
                                 </section>
 
-                                <section
-                                        style={MinesweeperStrategyStyles.section}
-                                >
-                                    <StrategyBox
-                                            title={firstClick.systemNotes.title}
-                                    >
+                                <section style={MinesweeperStrategyStyles.section}>
+                                    <StrategyBox title={firstClick.systemNotes.title}>
                                         {firstClick.systemNotes.paragraphs.map((p, idx) => (
-                                                <p key={idx}
-                                                   style={MinesweeperStrategyStyles.boxBodyTextStyle}
-                                                >
+                                                <p key={idx} style={MinesweeperStrategyStyles.boxBodyTextStyle}>
                                                     {p}
                                                 </p>
                                         ))}
                                     </StrategyBox>
                                 </section>
 
-                                <section
-                                        style={MinesweeperStrategyStyles.section}
-                                >
-                                    <StrategyBox
-                                            title={firstClick.recommendations.title}
-                                    >
+                                <section style={MinesweeperStrategyStyles.section}>
+                                    <StrategyBox title={firstClick.recommendations.title}>
                                         {firstClick.recommendations.bullets.map((b, idx) => (
-                                                <div key={idx}
-                                                     style={MinesweeperStrategyStyles.bulletBlock}
-                                                >
+                                                <div key={idx} style={MinesweeperStrategyStyles.bulletBlock}>
                                                     <div style={MinesweeperStrategyStyles.bulletTitle}>{b.title}</div>
                                                     <p style={MinesweeperStrategyStyles.boxBodyTextStyle}>{b.text}</p>
                                                 </div>
@@ -1206,16 +1176,10 @@ export default function MinesweeperStrategyView() {
                                     </StrategyBox>
                                 </section>
 
-                                <section
-                                        style={MinesweeperStrategyStyles.section}
-                                >
-                                    <StrategyBox
-                                            title={firstClick.takeaway.title}
-                                    >
+                                <section style={MinesweeperStrategyStyles.section}>
+                                    <StrategyBox title={firstClick.takeaway.title}>
                                         {firstClick.takeaway.paragraphs.map((p, idx) => (
-                                                <p key={idx}
-                                                   style={MinesweeperStrategyStyles.boxBodyTextStyle}
-                                                >
+                                                <p key={idx} style={MinesweeperStrategyStyles.boxBodyTextStyle}>
                                                     {p}
                                                 </p>
                                         ))}
@@ -1223,6 +1187,7 @@ export default function MinesweeperStrategyView() {
                                 </section>
                             </>
                     )}
+
 
                     {/* GUESSING content */}
                     {tab === "guessing" && (

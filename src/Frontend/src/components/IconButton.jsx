@@ -1,3 +1,10 @@
+/**
+ * @file IconButton.jsx
+ * @brief A reusable button component that displays an icon above a description.
+ *
+ * @author David Krejčí \<xkrejcd00>
+ */
+
 import React from "react";
 
 const IconButton = ({ icon: Icon, description, onClick, size=32, fontSize='1.25rem'}) => {
@@ -24,7 +31,7 @@ const IconButton = ({ icon: Icon, description, onClick, size=32, fontSize='1.25r
 
   const descriptionStyle = {
     color: 'white',
-    fontSize: finalFontSize, 
+    fontSize: finalFontSize,
     fontWeight: 500,
     textAlign: 'center',
     whiteSpace: 'normal',

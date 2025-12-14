@@ -1,3 +1,10 @@
+/**
+ * @file StrategyPill.jsx
+ * @brief A React component representing a clickable pill-shaped button for strategy selection.
+ *
+ * @author Jan Kalina \<xkalinj00>
+ */
+
 import {useState} from "react";
 import colors from "../../../Colors";
 

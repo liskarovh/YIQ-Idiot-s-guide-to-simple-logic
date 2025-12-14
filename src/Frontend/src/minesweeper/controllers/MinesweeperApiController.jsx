@@ -1,3 +1,10 @@
+/**
+ * @file MinesweeperApiController.jsx
+ * @brief A controller for interacting with the Minesweeper API.
+ *
+ * @author Jan Kalina \<xkalinj00>
+ */
+
 import {ApiClient, API_BASE} from "../models/MinesweeperApiClient";
 
 function buildUrl(path) {

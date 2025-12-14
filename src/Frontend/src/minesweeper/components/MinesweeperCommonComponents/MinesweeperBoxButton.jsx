@@ -1,3 +1,10 @@
+/**
+ * @file MinesweeperBoxButton.jsx
+ * @brief A configurable button component with optional icon for the Minesweeper game.
+ *
+ * @author Jan Kalina \<xkalinj00>
+ */
+
 import {createElement, useState} from "react";
 import colors from "../../../Colors";
 

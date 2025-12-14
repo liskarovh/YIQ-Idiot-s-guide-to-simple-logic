@@ -1,3 +1,10 @@
+/**
+ * @file Home.jsx
+ * @brief Home page component displaying available games.
+ *
+ * @author Jan Kalina \<xkalinj00>, David Krejčí \<xkrejcd00>, Hana Liškařová \<xliskah00>
+ */
+
 import {useNavigate} from "react-router-dom";
 import styles from "./Styles";
 import Header from "./components/Header";
@@ -42,10 +49,10 @@ function Home() {
                 />
                 <div style={contentStyle}>
                     <div>
-                        <h1 style={{...styles.mainTitleStyle, maxWidth: '1400px'}}>
+                        <h1 style={{...styles.mainTitleStyle, maxWidth: "1400px"}}>
                             Train logical thinking through accessible logical games
                         </h1>
-                        <p style={{...styles.subtitleStyle, marginBottom: '1rem'}}>
+                        <p style={{...styles.subtitleStyle, marginBottom: "1rem"}}>
                             Pick a game to start playing and stop being Ydea impaired.
                         </p>
                     </div>

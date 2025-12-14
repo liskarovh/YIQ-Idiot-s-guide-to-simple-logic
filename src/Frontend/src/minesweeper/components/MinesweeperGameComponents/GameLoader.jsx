@@ -1,3 +1,10 @@
+/**
+ * @file GameLoader.jsx
+ * @brief A loading screen component for the Minesweeper game.
+ *
+ * @author Jan Kalina \<xkalinj00>
+ */
+
 import Colors from "../../../Colors";
 import Loader from "../../../components/Loader";
 import Header from "../../../components/Header";

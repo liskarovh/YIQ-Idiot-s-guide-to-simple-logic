@@ -1,3 +1,10 @@
+/**
+ * @file MinesweeperGameView.jsx
+ * @brief The main view component for the Minesweeper game.
+ *
+ * @author Jan Kalina \<xkalinj00>
+ */
+
 import {useCallback, useEffect, useRef} from "react";
 import {useNavigate} from "react-router-dom";
 import {InformationCircleIcon, ArrowsPointingInIcon, MagnifyingGlassPlusIcon, MagnifyingGlassMinusIcon} from "@heroicons/react/24/outline";
@@ -112,7 +119,7 @@ function MinesweeperGameView() {
                     beforeStart={ctrl.beforeStart}
                     quickFlag={ctrl.quickFlag}
                     cursor={ctrl.view.cursor ?? 0}
-                    onStrategy={() => navigate("/minesweeper/strategy")} // TODO: Implement strategy view and add controller function
+                    onStrategy={ctrl.onStrategy}
                     onHint={ctrl.doHint}
                     hintDisabled={ctrl.hintCooldown}
                     onPauseToggle={() => ctrl.setPaused((p) => !p)}

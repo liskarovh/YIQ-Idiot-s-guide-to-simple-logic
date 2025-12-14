@@ -1,3 +1,10 @@
+/**
+ * @file ActionButton.jsx
+ * @brief A customizable action button component for Minesweeper game.
+ *
+ * @author Jan Kalina \<xkalinj00>
+ */
+
 import React from "react";
 import colors from "../../../Colors";
 

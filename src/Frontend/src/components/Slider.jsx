@@ -1,3 +1,10 @@
+/**
+ * @file Slider.jsx
+ * @brief Custom Slider component controllable by mouse and touch.
+ *
+ * @author Jan Kalina \<xkalinj00>
+ */
+
 import React, { useMemo, useRef, useState } from 'react';
 import colors from '../Colors';
 

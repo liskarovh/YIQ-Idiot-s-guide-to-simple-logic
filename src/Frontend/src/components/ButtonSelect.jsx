@@ -1,3 +1,10 @@
+/**
+ * @file ButtonSelect.jsx
+ * @brief A React component that renders a button-style select input.
+ *
+ * @author David Krejčí \<xkrejcd00>
+ */
+
 import React, {useState} from "react";
 import colors from "../Colors";
 

@@ -1,3 +1,10 @@
+/**
+ * @file MinesweeperGameController.jsx
+ * @brief A custom React hook that manages the state and actions of a Minesweeper game.
+ *
+ * @author Jan Kalina \<xkalinj00>
+ */
+
 import {useCallback, useEffect, useMemo, useRef, useState} from "react";
 import {useNavigate, useLocation} from "react-router-dom";
 import {getGame, postReveal, postFlag, postSetMode, postUndo, postSeek, postPreview, postRevive, getHint, isAbortLikeError, getResume, postPause} from "../models/MinesweeperGame/MinesweeperGameAPI.jsx";
@@ -566,10 +573,32 @@ export function useMinesweeperGameController() {
         });
     }, [gameId, paused, navigate]);
 
+    const onStrategy = useCallback(() => {
+        const wasPaused = paused;
+
+        flushSync(() => {
+            if(!paused) {
+                setPaused(true);
+            }
+        });
+
+        try {
+            localStorage.setItem(SETTINGS_PAUSE_STORAGE_KEY, JSON.stringify({gameId, wasPaused}));
+        }
+        catch {
+            // ignore
+        }
+
+        navigate("/minesweeper/strategy", {
+            state: {
+                existingGameId: gameId,
+                fromGame: true
+            }
+        });
+    }, [gameId, paused, navigate]);
+
     // Play Again handler
     const onPlayAgain = useCallback(async() => {
-        const startTs = new Date().toISOString();
-
         setError(null);
         const abortCtrl = new AbortController();
 
@@ -1058,6 +1087,7 @@ export function useMinesweeperGameController() {
 
         // Routing
         onSettings,
+        onStrategy,
         onPlayAgain,
 
         // Keyboard navigation

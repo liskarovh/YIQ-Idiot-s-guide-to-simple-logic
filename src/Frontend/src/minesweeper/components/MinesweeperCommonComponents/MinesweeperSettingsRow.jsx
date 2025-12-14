@@ -1,3 +1,10 @@
+/**
+ * @file MinesweeperSettingsRow.jsx
+ * @brief A single row in the Minesweeper settings panel.
+ *
+ * @author Jan Kalina \<xkalinj00>
+ */
+
 import React from "react";
 import colors from "../../../Colors";
 

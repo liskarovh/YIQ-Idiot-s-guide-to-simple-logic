@@ -1,3 +1,10 @@
+/**
+ * @file MinesweeperNumberField.jsx
+ * @brief A styled numeric input component with increment/decrement buttons for Minesweeper game.
+ *
+ * @author Jan Kalina \<xkalinj00>
+ */
+
 import React, {useMemo, useEffect, useState, useRef} from "react";
 import colors from "../../../Colors";
 

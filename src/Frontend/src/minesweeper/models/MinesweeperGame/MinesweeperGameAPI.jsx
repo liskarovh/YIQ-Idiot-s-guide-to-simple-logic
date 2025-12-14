@@ -1,3 +1,10 @@
+/**
+ * @file MinesweeperGameAPI.jsx
+ * @brief API functions for interacting with the Minesweeper game backend.
+ *
+ * @author Jan Kalina \<xkalinj00>
+ */
+
 import {MinesweeperApiController} from "../../controllers/MinesweeperApiController";
 
 const ctrl = MinesweeperApiController();

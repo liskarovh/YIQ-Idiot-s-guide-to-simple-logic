@@ -1,3 +1,10 @@
+/**
+ * @file Flag.jsx
+ * @brief SVG component representing a flag icon for Minesweeper game.
+ *
+ * @author Jan Kalina \<xkalinj00>
+ */
+
 import React from "react";
 
 export const Flag = ({widthAndHeight = 40}) => (

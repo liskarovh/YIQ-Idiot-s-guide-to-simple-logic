@@ -1,3 +1,10 @@
+/**
+ * @file PanZoomViewport.jsx
+ * @brief A React component that provides pan and zoom functionality for its children.
+ *
+ * @author Jan Kalina \<xkalinj00>
+ */
+
 import React, {forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState} from "react";
 
 export default forwardRef(function PanZoomViewport({

@@ -1,3 +1,10 @@
+/**
+ * @file MinesweeperSettingsController.jsx
+ * @brief Controller hook for managing Minesweeper settings state and logic.
+ *
+ * @author Jan Kalina \<xkalinj00>
+ */
+
 import {useCallback, useEffect, useMemo, useRef, useState} from "react";
 import {useLocation, useNavigate} from "react-router-dom";
 import {postCreateGame, getCapabilities, getMaxMines, getDetectPreset, persistLastCreatePayload, persistLastGameplayPrefs, isAbortLikeError} from "../models/MinesweeperSettings/MinesweeperSettingsAPI";
@@ -322,12 +329,24 @@ export function MinesweeperSettingsController() {
 
     const onPlay = useCallback(async() => {
         // If coming from existing game and no changes detected, just navigate back
-        if(fromGame && !changesDetected) {
-            persistLastGameplayPrefs(buildGameplayPrefs({gameId: existingGameId, showTimer, allowUndo, enableHints}));
-            persistLastCreatePayload(buildCreatePayload({gameId: existingGameId, preset, rows, cols, mines, lives}));
+        if(fromGame) {
+            // No changes at all -> just persist and go back
+            if(!changesDetected) {
+                persistLastGameplayPrefs(buildGameplayPrefs({gameId: existingGameId, showTimer, allowUndo, enableHints}));
+                persistLastCreatePayload(buildCreatePayload({gameId: existingGameId, preset, rows, cols, mines, lives}));
 
-            navigate("/minesweeper", {state: {id: existingGameId}});
-            return;
+                navigate("/minesweeper", {state: {id: existingGameId}});
+                return;
+            }
+
+            // Only feature toggles changed, do NOT create new game,
+            if(changesDetected === true) {
+                persistLastGameplayPrefs(buildGameplayPrefs({gameId: existingGameId, showTimer, allowUndo, enableHints}));
+                persistLastCreatePayload(buildCreatePayload({gameId: existingGameId, preset, rows, cols, mines, lives}));
+
+                navigate("/minesweeper", {state: {id: existingGameId}});
+                return;
+            }
         }
 
         setSubmitError(null);

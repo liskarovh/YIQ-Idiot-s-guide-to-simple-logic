@@ -1,3 +1,10 @@
+/**
+ * @file StrategyBox.jsx
+ * @brief A React component that renders a styled box for displaying Minesweeper strategies.
+ *
+ * @author Jan Kalina \<xkalinj00>
+ */
+
 import colors from "../../../Colors";
 import Box from "../../../components/Box";
 

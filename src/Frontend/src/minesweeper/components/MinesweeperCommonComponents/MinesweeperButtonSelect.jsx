@@ -1,3 +1,10 @@
+/**
+ * @file MinesweeperButtonSelect.jsx
+ * @brief A button select component for Minesweeper game settings.
+ *
+ * @author Jan Kalina \<xkalinj00>
+ */
+
 import React, {useState} from "react";
 import colors from "../../../Colors";
 

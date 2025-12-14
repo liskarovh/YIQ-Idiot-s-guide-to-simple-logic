@@ -1,3 +1,10 @@
+/**
+ * @file ToggleButton.jsx
+ * @brief A simple toggle (switch) UI component implemented with inline styles.
+ *
+ * @author Jan Kalina \<xkalinj00>
+ */
+
 import React from 'react';
 import colors from '../Colors';
 

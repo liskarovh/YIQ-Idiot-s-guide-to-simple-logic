@@ -1,3 +1,10 @@
+/**
+ * @file Mine.jsx
+ * @brief SVG component representing a mine for the Minesweeper game.
+ *
+ * @author Jan Kalina \<xkalinj00>
+ */
+
 import React from "react";
 
 export const Mine = ({width = 35, height = 37.02}) => (

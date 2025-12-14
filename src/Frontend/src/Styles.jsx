@@ -1,3 +1,10 @@
+/**
+ * @file Styles.jsx
+ * @brief Centralized style definitions for the Minesweeper application.
+ *
+ * @author Jan Kalina \<xkalinj00>, David Krejčí \<xkrejcd00>, Hana Liškařová \<xliskah00>
+ */
+
 import colors from "./Colors";
 
 const styles = {
@@ -38,7 +45,7 @@ const styles = {
         lineHeight: "1.1",
         display: "flex",
         justifyContent: "center",
-        flexWrap: "wrap",
+        flexWrap: "wrap"
     },
 
     // Subtitle
@@ -51,7 +58,7 @@ const styles = {
         display: "flex",
         justifyContent: "center",
         flexWrap: "wrap"
-    },
+    }
 };
 
 export default styles;

@@ -1,3 +1,10 @@
+/**
+ * @file FlaggedCellTexture.jsx
+ * @brief SVG texture for a flagged cell in Minesweeper.
+ *
+ * @author Jan Kalina \<xkalinj00>
+ */
+
 import React from "react";
 
 export const FlaggedCellTexture = ({widthAndHeight = 40}) => (
