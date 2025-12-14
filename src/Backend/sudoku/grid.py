@@ -86,12 +86,14 @@ class Grid:
     #                   SOLVING
     #######################################################################################################
 
-    def find_next_step(self):
+    def find_next_step(self, max_attempts=100):
         """
         Tries solving techniques in order of difficulty.
         Returns a tuple: (Technique Name, Explanation, Boolean Matrix of affected cells)
         or None if no step is found.
         """
+        attempt_count = 0
+
         # 1. Helper to detect changes
         def get_diff_matrix(p_before, v_before):
             v_diff = self.values != v_before
@@ -125,9 +127,15 @@ class Grid:
 
         # 3. Try each technique
         for title, func, explanation in techniques:
+            attempt_count += 1
+            if attempt_count > max_attempts:
+                print(f"[Hint] Max attempts ({max_attempts}) reached")
+                return None
+
             # Snapshot state
             p_before = self.pencils.copy()
             v_before = self.values.copy()
+            t_before = self.types.copy()
 
             # Run technique with limit=1
             try:
@@ -142,10 +150,17 @@ class Grid:
                 changed = func()
 
             if changed > 0:
+                diff_matrix = get_diff_matrix(p_before, v_before)
+                
+                # CRITICAL: Restore the grid to its original state!
+                self.pencils = p_before
+                self.values = v_before
+                self.types = t_before
+                
                 return {
                     "title": title,
                     "explanation": explanation,
-                    "matrix": get_diff_matrix(p_before, v_before)
+                    "matrix": diff_matrix
                 }
         
         return None
@@ -160,7 +175,7 @@ class Grid:
             bit = self.pencils[r, c]
             if bit == 0: continue
             
-            value = int(np.log2(bit)) + 1
+            value = int(bit).bit_length()
             self.values[r, c] = value
             self.types[r, c] = 1
             self.pencils[r, c] = 0
@@ -728,7 +743,7 @@ class Grid:
                     bit = self.pencils[r, c]
                     if bit == 0:
                         continue
-                    value = int(np.log2(bit)) + 1
+                    value = int(bit).bit_length()
                     
                     # Check for contradictions
                     bitmask = 0xFFFF ^ np.uint16(1 << (value - 1))

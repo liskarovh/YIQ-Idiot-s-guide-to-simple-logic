@@ -9,6 +9,7 @@ from flask_cors import CORS
 from sudoku.routes import sudoku_bp
 from minesweeper.routes import minesweeper_bp
 from tic_tac_toe import bp as tic_tac_toe_bp   # <<< blueprint je v __init__.py
+from sudoku.gridCache import start_cache
 
 def create_app() -> Flask:
     app = Flask(__name__)
@@ -49,7 +50,18 @@ def create_app() -> Flask:
                 {"id": 3, "name": "Minesweeper",  "path": "/minesweeper"},
             ]
         })
+    
+     # Sudoku chache
+    is_reloader_child = os.environ.get("WERKZEUG_RUN_MAIN") == "true"
+    is_debug_mode = app.debug or os.getenv("FLASK_DEBUG") == "1"
 
+    # Start if we are in the reloader child OR if we are not using debug mode at all
+    if is_reloader_child or not is_debug_mode:
+        try:
+            start_cache()
+        except RuntimeError:
+            pass
+    
     return app
 
 # umožní `flask --app app:app run`

@@ -8,7 +8,7 @@ const GameOptionsContext = createContext();
 export const GameOptionsProvider = ({ children }) => {
   const [options, setOptions] = useState({
     mode: "Generated",
-    generatedDifficulty: "Basic",
+    generatedDifficulty: "Medium",
     learnDifficulty: "Hidden Singles",
     prebuiltDifficulty: "Easy",
     highlightNumbers: true,

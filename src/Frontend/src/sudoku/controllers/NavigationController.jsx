@@ -3,9 +3,9 @@ import React, { createContext, useContext, useState, useRef } from "react";
 const NavigationContext = createContext();
 
 export function NavigationProvider({ children }) {
-  const [activeView, setActiveView] = useState("Selection");
+  const [activeView, setActiveView] = useState("Game");
 
-  const viewStack = useRef(["Selection"]);
+  const viewStack = useRef(["Game"]);
 
   function absoluteSetView(view) {
     viewStack.current = [view]

@@ -2,6 +2,7 @@ import React from "react";
 import Box from "../../components/Box";
 import Header from "../../components/Header";
 import colors from "../../Colors"; // Assuming Colors is available based on Game.jsx usage
+import { useNavigate } from "react-router-dom";
 
 const pageStyle = {
   display: 'flex',
@@ -36,11 +37,12 @@ const getDelay = (index) => {
 };
 
 function Loading() {
+  const navigate = useNavigate();
   
   return (
     <div style={pageStyle}>
       {/* Include Header for layout stability */}
-      <Header showBack={false} /> 
+      <Header showBack={true} onNavigate={() => navigate('/')}/> 
 
       {/* Inject CSS for the pulse animation */}
       <style>

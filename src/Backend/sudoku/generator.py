@@ -53,7 +53,8 @@ class Generator:
                 continue
                 
             # Remove clues to create puzzle
-            puzzle = self._remove_clues(grid, difficulty, start_time, max_time, verbose)
+            puzzle_grid = grid.copy()
+            puzzle = self._remove_clues(puzzle_grid, difficulty, start_time, max_time, verbose)
             
             if puzzle is not None:
                 elapsed = time.time() - start_time
@@ -122,17 +123,16 @@ class Generator:
     
     def _remove_clues(self, grid, target_difficulty, start_time, max_time, verbose):
         """
-        Remove clues from solved grid to create a puzzle of target difficulty.
-        Uses incremental solving to optimize performance.
+        Remove clues with difficulty awareness.
         """
-        # Create list of all cell positions
         cells = [(r, c) for r in range(9) for c in range(9)]
         random.shuffle(cells)
         
         removed_count = 0
+        last_difficulty_check = 0
+        current_difficulty = Difficulty.BASIC
         
         for r, c in cells:
-            # Check timeout
             if time.time() - start_time > max_time:
                 return None
             
@@ -141,17 +141,35 @@ class Generator:
             grid.values[r, c] = 0
             grid.types[r, c] = CellValue.ENTERED
             
-            # Check if puzzle is still valid and has unique solution
-            if self._check_valid_puzzle(grid, target_difficulty):
-                removed_count += 1
-                if verbose and removed_count % 10 == 0:
-                    clues_left = 81 - removed_count
-                    print(f"    Removed {removed_count} clues ({clues_left} remaining)...")
-            else:
-                # Restore the clue
+            # Check uniqueness first (fast check)
+            if not self._has_unique_solution(grid):
                 grid.values[r, c] = saved_value
+                continue
+            
+            # Every 5 removals, check actual difficulty
+            if removed_count - last_difficulty_check >= 5:
+                current_difficulty = self._get_puzzle_difficulty(grid, target_difficulty + 1)
+                last_difficulty_check = removed_count
+                
+                if verbose:
+                    print(f"    Removed {removed_count}, current difficulty: {Difficulty(current_difficulty).name}")
+                
+                # If we've reached target difficulty, try to maintain it
+                if current_difficulty >= target_difficulty:
+                    # Be more selective about further removals
+                    # Only remove if it maintains or increases difficulty
+                    test_diff = self._get_puzzle_difficulty(grid, target_difficulty + 1)
+                    if test_diff < target_difficulty:
+                        grid.values[r, c] = saved_value
+                        continue
+            
+            removed_count += 1
+            
+            if verbose and removed_count % 10 == 0:
+                clues_left = 81 - removed_count
+                print(f"    Removed {removed_count} clues ({clues_left} remaining)...")
         
-        # Set types after generation is complete
+        # Set types
         for r in range(9):
             for c in range(9):
                 if grid.values[r, c] > 0:
@@ -160,24 +178,24 @@ class Generator:
                     grid.types[r, c] = CellValue.ENTERED
         
         # Final validation
-        if self._validate_final_puzzle(grid, target_difficulty):
+        final_difficulty = self._get_puzzle_difficulty(grid, target_difficulty + 1)
+        
+        if verbose:
+            print(f"    Final difficulty: {Difficulty(final_difficulty).name} (target: {Difficulty(target_difficulty).name})")
+        
+        # Accept if at target or within 1 level
+        if final_difficulty >= target_difficulty - 1:
             return grid
         
         return None
     
     def _check_valid_puzzle(self, grid, target_difficulty):
         """
-        Check if puzzle is valid (unique solution at target difficulty).
-        This is the main bottleneck in generation.
+        Quick check during removal - just verify uniqueness.
+        We'll do full difficulty check less frequently.
         """
         # Quick uniqueness check using backtracking
-        if not self._has_unique_solution(grid):
-            return False
-        
-        # Check if solvable at target difficulty
-        difficulty = self._get_puzzle_difficulty(grid, target_difficulty)
-        
-        return difficulty <= target_difficulty
+        return self._has_unique_solution(grid)
     
     def _validate_final_puzzle(self, grid, target_difficulty):
         """Final validation that puzzle requires target difficulty."""
@@ -264,6 +282,7 @@ class Generator:
             
             if solve_grid.solve_hidden_singles() > 0:
                 made_progress = True
+                max_difficulty_found = max(max_difficulty_found, Difficulty.EASY)
                 continue
             
             # EASY: Pointing, claiming
