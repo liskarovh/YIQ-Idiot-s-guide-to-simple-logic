@@ -77,7 +77,6 @@ function Selection() {
         };
 
         return (
-            // FIX: Passed boxSizing via style prop
             <Box width="100%" height="auto" style={{ boxSizing: "border-box", padding: '1rem 2rem 1rem 2rem'}}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 'clamp(0.8rem, 1.5vw, 1rem)' }}>
                     <div style={{ flex: '1 1 0', minWidth: '200px' }}>
@@ -86,7 +85,6 @@ function Selection() {
                             <span style={{ fontWeight: '700' }}>{gameInfo.mode}</span>
                             <span style={{ opacity: 0.7, fontSize: 'clamp(0.85rem, 1.7vw, 0.95rem)' }}>{gameInfo.difficulty}</span>
                             
-                            {/* FIX: Conditional rendering added here */}
                             {gameInfo.timer != null && (
                                 <span style={{ fontFamily: 'monospace', background: 'rgba(255,255,255,0.1)', padding: '2px 8px', borderRadius: '4px', fontSize: 'clamp(0.85rem, 1.7vw, 0.95rem)' }}>
                                     {formatTime(gameInfo.timer)}
@@ -95,10 +93,17 @@ function Selection() {
                         </div>
                     </div>
                     
+                    {/* Smaller Continue Button */}
                     <BoxButton 
                         title="Continue"
-                        icon={<Play color={colors.text_header} fill={colors.text_header} size={16} />} 
+                        icon={<Play color={colors.text_header} fill={colors.text_header} size={14} />} 
                         onClick={() => absoluteSetView('Game')}
+                        style={{
+                            padding: '0.5rem 1rem',
+                            fontSize: '0.9rem',
+                            gap: '0.4rem',
+                            minWidth: 'auto'
+                        }}
                     />
                 </div>
             </Box>
@@ -106,8 +111,17 @@ function Selection() {
     };
 
     const GameSetupCard = () => {
+        // Dynamic description for modes
+        const getModeDescription = (mode) => {
+            switch(mode) {
+                case "Learn": return "Master specific techniques step-by-step.";
+                case "Prebuilt": return "Curated puzzles with calibrated difficulty.";
+                case "Generated": return "Infinite randomized puzzles.";
+                default: return "";
+            }
+        };
+
         return (
-            // FIX: Passed boxSizing via style prop
             <Box width="100%" height="auto" style={{ boxSizing: "border-box" }}>
                 <SectionHeader title="New Game" icon={BrainCircuit} />
                 
@@ -119,6 +133,14 @@ function Selection() {
                             selected={options["mode"]}
                             onChange={(e) => handleOptionChange("mode", e)}
                         />
+                         <span style={{ 
+                             fontSize: 'clamp(0.7rem, 1.3vw, 0.75rem)', 
+                             color: colors.text_faded, 
+                             marginLeft: '0.2rem',
+                             opacity: 0.8
+                        }}>
+                            {getModeDescription(options["mode"])}
+                        </span>
                     </div>
 
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 'clamp(0.4rem, 0.8vw, 0.5rem)' }}>
@@ -186,8 +208,17 @@ function Selection() {
     };
 
     const PreferencesCard = () => {
+        // Dynamic description for error checking
+        const getErrorCheckDescription = (type) => {
+            switch(type) {
+                case "Immediate": return "Checks against the solution.";
+                case "Conflict": return "Checks for direct rule breaks.";
+                case "OFF": return "No automatic checking.";
+                default: return "";
+            }
+        };
+
         return (
-            // FIX: Passed boxSizing via style prop
             <Box width="100%" height="auto" style={{ boxSizing: "border-box" }}>
                 <SectionHeader title="Preferences" icon={Settings2} />
 
@@ -241,12 +272,12 @@ function Selection() {
                     />
                      <ControlRow 
                         label="Error Checking" 
+                        description={getErrorCheckDescription(options["checkMistakes"])}
                         control={
                             <ButtonSelect 
                                 options={["Immediate", "Conflict", "OFF"]}
                                 selected={options["checkMistakes"]}
                                 onChange={(e) => handleOptionChange("checkMistakes", e)}
-                                style={{ fontSize: 'clamp(0.75rem, 1.4vw, 0.8rem)' }} 
                             />
                         }
                     />

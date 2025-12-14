@@ -641,11 +641,13 @@ export function useNewGame() {
   const { setLoading } = useLoading();
   const { setRelativeView } = useSudokuNavigation();
   const { clearHints } = useStatus();
+    const { clearHistory } = useHistory();
 
   async function newGame() {
         setLoading(true);
 
         clearHints();
+        clearHistory();
 
         // 1. Determine the correct difficulty based on the current Mode
         let difficulty;

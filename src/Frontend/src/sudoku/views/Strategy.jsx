@@ -90,7 +90,6 @@ const STRATEGY_CONTENT = {
                 </ul>
             </>
         ),
-        // Simple solved grid example
         gridData: fillGrid([
           {r: 0, c: 1, val: 1}, {r: 1, c: 0, val: 5}, {r: 1, c: 1, val: 6}, {r: 1, c: 2, val: 9},
           {r: 1, c: 3, val: 1}, {r: 1, c: 4, val: 4}, {r: 1, c: 5, val: 2}, {r: 1, c: 6, val: 3}, 
@@ -102,7 +101,6 @@ const STRATEGY_CONTENT = {
         ]),
         highlightedAreas: (() => {
             const arr = Array(9).fill(null).map(() => Array(9).fill(false));
-            // Highlight a Row, Col, and Box to visualize the rules
             for(let i=0; i<9; i++) arr[1][i] = true;
             for(let i=0; i<9; i++) arr[i][1] = true;
             for(let i=6; i<9; i++) { for(let j=6; j<9; j++) arr[i][j] = true; }
@@ -121,19 +119,12 @@ const STRATEGY_CONTENT = {
             </>
         ), 
         gridData: fillGrid([
-            // The surrounding 5s
             {r: 0, c: 5, val: 5}, 
             {r: 1, c: 8, val: 5},
             {r: 4, c: 2, val: 5},
-            
-            // The Pencil marks in Box 0 showing where 5 is NOT possible
-            // (We leave the invalid spots empty to make it obvious, or fill with junk)
-            {r: 2, c: 1, val: [5], type: 'Pencil'}, // The answer
-            
-            // Filler to make it look like a game
+            {r: 2, c: 1, val: [5], type: 'Pencil'},
             {r: 0, c: 0, val: 1}, {r: 1, c: 1, val: 2}, {r: 2, c: 0, val: 3},
         ]),
-        // PURPLE highlight for the correct spot
         highlightedAreas: (() => {
             const arr = Array(9).fill(null).map(() => Array(9).fill(false));
             arr[2][1] = true; 
@@ -158,21 +149,13 @@ const STRATEGY_CONTENT = {
             </>
         ), 
         gridData: fillGrid([
-            // Blocking 7s
             {r: 3, c: 0, val: 7}, 
             {r: 5, c: 8, val: 7},
-            
-            // The Pointing Pair
             {r: 4, c: 3, val: [7, 1]}, 
             {r: 4, c: 4, val: [7, 2]}, 
-            
-            // The Victim (Target)
             {r: 4, c: 7, val: [7, 9]}, 
-            
-            // Filler
             {r: 4, c: 0, val: 1}, {r: 4, c: 1, val: 2}, 
         ]),
-        // PURPLE for Pointing Pair, RED for Mistake/Target
         hintHighlights: (() => {
             const arr = Array(9).fill(null).map(() => Array(9).fill(false));
             arr[4][3] = true; arr[4][4] = true;
@@ -190,45 +173,168 @@ const STRATEGY_CONTENT = {
         title: 'X-Wing', 
         text: (
             <>
-                <p style={{ marginTop: 0 }}>An <strong>X-Wing</strong> happens when a candidate appears in exactly the same two columns for two different rows (or vice versa).</p>
+                <p style={{ marginTop: 0 }}>An <strong>X-Wing</strong> happens when a candidate appears in exactly the same two columns for two different rows.</p>
                 <p>Look at the number <strong>4</strong> in Rows 1 and 6. It only appears in Column 1 and Column 8 (Purple).</p>
                 <p>This forms a locked rectangle. One corner must be true, forcing the opposite corner to also be true.</p>
                 <p>This means no other 4s can exist in Columns 1 and 8. We can remove the 4 from the <span style={{color: '#ff5555', fontWeight:'bold'}}>red cell</span>.</p>
             </>
         ), 
         gridData: fillGrid([
-            // Row 1 Setup (only two spots for 4)
-            {r: 1, c: 1, val: [4, 5]}, 
-            {r: 1, c: 8, val: [4, 6]},
+            {r: 1, c: 1, val: [4, 5]}, {r: 1, c: 8, val: [4, 6]},
             {r: 1, c: 0, val: 1}, {r: 1, c: 2, val: 2}, {r: 1, c: 3, val: 3}, 
             {r: 1, c: 4, val: 8}, {r: 1, c: 5, val: 9}, {r: 1, c: 6, val: 7}, {r: 1, c: 7, val: 5},
-
-            // Row 6 Setup (only two spots for 4, same cols)
-            {r: 6, c: 1, val: [4, 9]}, 
-            {r: 6, c: 8, val: [4, 8]},
+            {r: 6, c: 1, val: [4, 9]}, {r: 6, c: 8, val: [4, 8]},
             {r: 6, c: 0, val: 7}, {r: 6, c: 2, val: 1}, {r: 6, c: 3, val: 2}, 
             {r: 6, c: 4, val: 3}, {r: 6, c: 5, val: 5}, {r: 6, c: 6, val: 6}, {r: 6, c: 7, val: 9},
-
-            // The Victim (Target to eliminate)
-            {r: 5, c: 1, val: [4, 1]}, // A 4 in the same column
+            {r: 5, c: 1, val: [4, 1]}, 
         ]),
         hintHighlights: (() => {
             const arr = Array(9).fill(null).map(() => Array(9).fill(false));
-            // The X-Wing base corners
             arr[1][1] = true; arr[1][8] = true;
             arr[6][1] = true; arr[6][8] = true;
             return arr;
         })(),
         mistakes: (() => {
             const arr = Array(9).fill(null).map(() => Array(9).fill(false));
-            // The eliminated candidate
             arr[5][1] = true; 
             return arr;
         })()
     },
-    wings: { id: 'wings', label: 'Wings', title: 'XY-Wing', text: <p>Coming soon...</p>, gridData: createEmptyGrid() },
-    unique: { id: 'unique', label: 'Unique rectangles', title: 'Unique Rectangles', text: <p>Coming soon...</p>, gridData: createEmptyGrid() },
-    chains: { id: 'chains', label: 'Forcing chains', title: 'Forcing Chains', text: <p>Coming soon...</p>, gridData: createEmptyGrid() },
+    wings: { 
+        id: 'wings', 
+        label: 'Wings', 
+        title: 'XY-Wing (Y-Wing)', 
+        text: (
+            <>
+                <p style={{ marginTop: 0 }}>An <strong>XY-Wing</strong> uses three cells that each have only two candidates. One "Pivot" cell connects to two "Pincer" cells.</p>
+                <p>The Pivot (Center) is <strong>[5, 7]</strong>. </p>
+                <ul style={{ paddingLeft: '1.2rem', marginTop: '0.5rem', marginBottom: '0.5rem' }}>
+                    <li>If the Pivot is <strong>5</strong>, the left Pincer must be <strong>2</strong>.</li>
+                    <li>If the Pivot is <strong>7</strong>, the top Pincer must be <strong>2</strong>.</li>
+                </ul>
+                <p>In either case, one of the Pincers <strong>must be 2</strong>. Any cell that sees <i>both</i> Pincers (the red cell) cannot contain a 2.</p>
+            </>
+        ),
+        gridData: fillGrid([
+            // Pivot
+            {r: 4, c: 4, val: [5, 7]}, 
+            // Pincer 1 (Row neighbor)
+            {r: 4, c: 1, val: [5, 2]},
+            // Pincer 2 (Column neighbor)
+            {r: 1, c: 4, val: [7, 2]},
+            
+            // The Target (Intersection of Pincers)
+            {r: 1, c: 1, val: [2, 9]}, 
+
+            // Visual Noise/Context
+            {r: 0, c: 0, val: 8}, {r: 0, c: 1, val: 3}, {r: 1, c: 0, val: 6},
+            {r: 3, c: 3, val: 1}, {r: 5, c: 5, val: 4}
+        ]),
+        hintHighlights: (() => {
+            const arr = Array(9).fill(null).map(() => Array(9).fill(false));
+            arr[4][4] = true; // Pivot
+            arr[4][1] = true; // Pincer
+            arr[1][4] = true; // Pincer
+            return arr;
+        })(),
+        highlightedAreas: (() => {
+            const arr = Array(9).fill(null).map(() => Array(9).fill(false));
+            // Highlight the lines connecting them
+            for(let i=1; i<=4; i++) arr[4][i] = true; // Row connection
+            for(let i=1; i<=4; i++) arr[i][4] = true; // Col connection
+            return arr;
+        })(),
+        mistakes: (() => {
+            const arr = Array(9).fill(null).map(() => Array(9).fill(false));
+            arr[1][1] = true; 
+            return arr;
+        })()
+    },
+    unique: { 
+        id: 'unique', 
+        label: 'Unique rectangles', 
+        title: 'Unique Rectangle (Type 1)', 
+        text: (
+            <>
+                <p style={{ marginTop: 0 }}>Every Sudoku puzzle must have exactly one solution. A "Deadly Pattern" occurs if four cells forming a rectangle contain only the same two candidates (e.g., [1, 9]). This would allow two solutions, which is invalid.</p>
+                <p>Look at the rectangle formed by the purple cells. They all contain <strong>[1, 9]</strong>. </p>
+                <p>The fourth corner (Red) currently has candidates <strong>[1, 9, 5]</strong>.</p>
+                <p>If that cell were 1 or 9, we would have a Deadly Pattern. To avoid this, the cell <strong>must</strong> be 5.</p>
+            </>
+        ), 
+        gridData: fillGrid([
+            // Floor 1
+            {r: 2, c: 1, val: [1, 9]}, 
+            {r: 2, c: 6, val: [1, 9]},
+            
+            // Floor 2
+            {r: 7, c: 1, val: [1, 9]},
+            // Target Corner
+            {r: 7, c: 6, val: [1, 9, 5]},
+
+            // Context
+            {r: 2, c: 0, val: 4}, {r: 7, c: 0, val: 3},
+            {r: 2, c: 7, val: 8}, {r: 7, c: 7, val: 2}
+        ]),
+        hintHighlights: (() => {
+            const arr = Array(9).fill(null).map(() => Array(9).fill(false));
+            arr[2][1] = true; 
+            arr[2][6] = true;
+            arr[7][1] = true;
+            return arr;
+        })(),
+        mistakes: (() => {
+            const arr = Array(9).fill(null).map(() => Array(9).fill(false));
+            arr[7][6] = true; // Highlighting the cell where 1,9 are mistakes
+            return arr;
+        })()
+    },
+    chains: { 
+        id: 'chains', 
+        label: 'Forcing chains', 
+        title: 'XY-Chain', 
+        text: (
+            <>
+                <p style={{ marginTop: 0 }}>An <strong>XY-Chain</strong> connects multiple bivalue cells. We start at one end and trace the implications.</p>
+                <p>Start at the top cell (Start): <strong>[1, 2]</strong>.</p>
+                <p>If Start is <strong>1</strong>, we are done. If Start is NOT 1, it must be 2 → Middle becomes 5 → End becomes <strong>1</strong>.</p>
+                <p>Regardless of the path, either the Start or the End contains a <strong>1</strong>. Therefore, any cell that sees <i>both</i> ends (the Red cell) cannot contain a 1.</p>
+            </>
+        ), 
+        gridData: fillGrid([
+            // Link 1 (Start)
+            {r: 2, c: 2, val: [1, 2]},
+            // Link 2 (Middle)
+            {r: 2, c: 6, val: [2, 5]},
+            // Link 3 (End)
+            {r: 6, c: 6, val: [5, 1]},
+            
+            // Target Intersection
+            {r: 6, c: 2, val: [1, 9]},
+
+            // Context
+            {r: 2, c: 0, val: 8}, {r: 6, c: 0, val: 7}
+        ]),
+        hintHighlights: (() => {
+            const arr = Array(9).fill(null).map(() => Array(9).fill(false));
+            arr[2][2] = true; 
+            arr[2][6] = true;
+            arr[6][6] = true;
+            return arr;
+        })(),
+        highlightedAreas: (() => {
+            const arr = Array(9).fill(null).map(() => Array(9).fill(false));
+            // Visualize the chain links
+            for(let i=2; i<=6; i++) arr[2][i] = true; // Row link
+            for(let i=2; i<=6; i++) arr[i][6] = true; // Col link
+            return arr;
+        })(),
+        mistakes: (() => {
+            const arr = Array(9).fill(null).map(() => Array(9).fill(false));
+            arr[6][2] = true; 
+            return arr;
+        })()
+    },
 };
 
 const STRATEGY_KEYS = Object.keys(STRATEGY_CONTENT);
