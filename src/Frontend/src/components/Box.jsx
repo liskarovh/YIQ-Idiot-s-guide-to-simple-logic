@@ -2,21 +2,26 @@ import React from "react";
 import colors from "../Colors";
 
 /**
- * BOX COMPONENT - Container for content
+ * @brief A styled box container with optional title and customizable styles.
  *
- * Props:
- * - width: string - Box width (e.g., '600px', '100%')
- * - height: string - Box height (e.g., '400px', 'auto')
- * - children: ReactNode - Content inside the box
- * - style: object - Additional custom styles (optional)
+ * @param width Width of the box.
+ * @param height Height of the box.
+ * @param title Optional title displayed at the top of the box.
+ * @param children Content to be rendered inside the box.
+ * @param style Additional styles for the box container.
+ * @param titleStyle Additional styles for the title.
+ * @param replaceTitleStyle If passed, replaces the default title styles instead of merging.
+ * @param transparent If true, makes the box background transparent and removes borders/shadows.
  */
-
 function Box({
                  width,
                  height,
                  title,
                  children,
-                 style = {}
+                 style = {},
+                 titleStyle = {},
+                 replaceTitleStyle = null,
+                 transparent = false
              }) {
     const boxStyle = {
         width: width,
@@ -31,19 +36,29 @@ function Box({
         ...style  // Allows additional custom styles to be passed in
     };
 
-    const titleStyle = {
-        margin: 0,
-        marginBottom: "15px",
-        color: colors.text_header,
-        fontWeight: 700,
-        fontSize: "45px",
-        textAlign: "center"
-    };
+    if(transparent) {
+        boxStyle.backgroundColor = "transparent";
+        boxStyle.boxShadow = "none";
+        boxStyle.border = "none";
+        boxStyle.padding = 0;
+        boxStyle.margin = 0;
+    }
+
+    const finalTitleStyle = replaceTitleStyle ? replaceTitleStyle
+                                              : {
+                margin: 0,
+                marginBottom: "15px",
+                color: colors.text_header,
+                fontWeight: 700,
+                fontSize: "45px",
+                textAlign: "center",
+                ...titleStyle  // Allows additional custom title styles to be passed in
+            };
 
     return (
             <div style={boxStyle}>
                 {title &&
-                 <h3 style={titleStyle}>{title}</h3>}
+                 <h3 style={finalTitleStyle}>{title}</h3>}
                 {children}
             </div>
     );
