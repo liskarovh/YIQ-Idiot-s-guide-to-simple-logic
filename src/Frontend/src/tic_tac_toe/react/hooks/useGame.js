@@ -786,8 +786,18 @@ export function useGame() {
                     }
 
                     // Game is finished
-                    sessionStorage.removeItem('ttt.lastGameId');
-                    startFresh();
+                    setGame(g);
+                    if (g?.id) sessionStorage.setItem('ttt.lastGameId', g.id);
+
+                    setMode(g?.mode || Mode.PVP);
+                    setStartMark(g?.startMark || StartMark.X);
+                    setDifficulty(g?.difficulty || Difficulty.EASY);
+
+                    if (g?.players) setPlayers(extractPlayers(g.players));
+
+                    setHint(null);
+                    setPendingMove(null);
+                    setLastAi(null);
                 } catch (e) {
                     console.warn('[useGame] resume/status ×', e);
                     sessionStorage.removeItem('ttt.lastGameId');
