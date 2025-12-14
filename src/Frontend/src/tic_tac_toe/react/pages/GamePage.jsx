@@ -49,13 +49,7 @@ import colors from '../../../Colors';
 export default function GamePage() {
     const navigate = useNavigate();
     const location = useLocation();
-    const fromHere = `${location.pathname}${location.search || ''}`;
-    const goStrategy = useCallback(() => {
-        const from = endedSpectator ? '/' : fromHere;
 
-        sessionStorage.setItem('ttt_strategy_from', from);
-        navigate('/tic-tac-toe/strategy', { state: { from } });
-    }, [navigate, fromHere, endedSpectator]);
 
     /**
      * Core game state pulled from shared context.
@@ -112,6 +106,13 @@ export default function GamePage() {
     const ended = ['win', 'draw', 'timeout', 'forfeit'].includes(status);
 
     const endedSpectator = !!isSpectator && !!ended;
+    const fromHere = `${location.pathname}${location.search || ''}`;
+    const goStrategy = useCallback(() => {
+        const from = endedSpectator ? '/' : fromHere;
+
+        sessionStorage.setItem('ttt_strategy_from', from);
+        navigate('/tic-tac-toe/strategy', { state: { from } });
+    }, [navigate, fromHere, endedSpectator]);
 
     const leaveEndedSpectatorTooltip = endedSpectator
             ? 'Finished spectator game: leaving will return to Home.'
