@@ -60,7 +60,7 @@ function SectionHeader({ title, icon: Icon }) {
 }
 
 function Selection() {
-    const {navigate} = useNavigate();
+    const navigate = useNavigate();
     const {newGame} = useNewGame();
     const {goBack, setRelativeView, absoluteSetView} = useSudokuNavigation();
     const { options, handleOptionChange } = useOptionsController();

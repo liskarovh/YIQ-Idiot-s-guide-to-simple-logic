@@ -56,8 +56,8 @@ function Home() {
                                 image={SudokuIcon}
                                 onCardClick={() => navigate("/sudoku")}
                                 onPlayNowClick={() => navigate("/sudoku")}
-                                onSettingsClick={() => navigate("/")}
-                                onStrategyClick={() => navigate("/")}
+                                onSettingsClick={() => {navigate("/sudoku", { state: { view: "Selection" }})}}
+                                onStrategyClick={() => navigate("/sudoku", { state: { view: "Strategy" }})}
                         />
                         <GameCard
                                 title="Tic-Tac-Toe"
