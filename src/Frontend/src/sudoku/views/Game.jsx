@@ -1,3 +1,9 @@
+/**
+ * @file Game.jsx
+ * @brief Main Sudoku game component, handling grid display, user input, controls, and game state display (info, timer, status).
+ *
+ * @author David Krejčí <xkrejcd00>
+ */
 import { DndContext, DragOverlay, useSensor, useSensors, PointerSensor, pointerWithin } from '@dnd-kit/core';
 import Header from "../../components/Header";
 import SudokuGrid from "../components/Grid";
@@ -11,6 +17,9 @@ import useMeasure from "react-use-measure";
 import colors from "../../Colors";
 import { useMemo, useState } from "react";
 
+/**
+ * @brief Styles for the main page container.
+ */
 const pageStyle = {
   display: 'flex',
   flexDirection: 'column',
@@ -20,7 +29,9 @@ const pageStyle = {
   touchAction: 'none', 
 };
 
-// Grid layout for desktop (wide screens)
+/**
+ * @brief Grid layout for desktop (wide screens).
+ */
 const desktopGridStyle = {
   display: 'grid',
   gridTemplateColumns: 'auto minmax(0, 1fr) auto auto',
@@ -31,7 +42,9 @@ const desktopGridStyle = {
   minHeight: 0,
 };
 
-// Grid layout for mobile (narrow screens)
+/**
+ * @brief Grid layout for mobile (narrow screens).
+ */
 const mobileGridStyle = {
   display: 'grid',
   gridTemplateColumns: '1fr',
@@ -42,6 +55,9 @@ const mobileGridStyle = {
   minHeight: 0,
 };
 
+/**
+ * @brief General style for game information text.
+ */
 const gameInfoStyle = {
   color: colors.text,
   fontSize: '15cqmin',
@@ -49,6 +65,9 @@ const gameInfoStyle = {
   marginBottom: '2cqh', 
 };
 
+/**
+ * @brief Style for white text.
+ */
 const whiteTextStyle = {
   color: "#FFFFFF",
   fontSize: '8cqmin',
@@ -56,6 +75,9 @@ const whiteTextStyle = {
   margin: '1cqmin', 
 };
 
+/**
+ * @brief Style for the timer display.
+ */
 const timeStyle = {
   color: "#FFFFFF",
   fontSize: '20cqmin',
@@ -64,6 +86,9 @@ const timeStyle = {
   marginBottom: '5cqh',
 };
 
+/**
+ * @brief Style for the status/hint title.
+ */
 const hintTitleStyle = {
   color: "#FFFFFF",
   fontSize: '1.5rem',
@@ -71,6 +96,9 @@ const hintTitleStyle = {
   marginBottom: '0.5rem',
 };
 
+/**
+ * @brief Style for the status/hint body text.
+ */
 const hintTextStyle = {
   color: "rgba(255, 255, 255, 0.9)",
   fontSize: '1.1rem',
@@ -78,6 +106,9 @@ const hintTextStyle = {
   whiteSpace: 'pre-wrap',
 };
 
+/**
+ * @brief Style for the hint/status action button.
+ */
 const hintButtonStyle = {
   backgroundColor: colors.primary,
   color: "#FFFFFF",
@@ -93,6 +124,9 @@ const hintButtonStyle = {
   transition: 'transform 0.1s active',
 };
 
+/**
+ * @brief Grid area style for the Sudoku grid (Desktop).
+ */
 const gridCellStyle = {
   gridColumn: '3',
   gridRow: '1',
@@ -105,6 +139,9 @@ const gridCellStyle = {
   maxHeight: '100%',
 };
 
+/**
+ * @brief Grid area style for the number selector (Desktop).
+ */
 const numberSelectorCellStyle = {
   gridColumn: '4',
   gridRow: '1',
@@ -115,6 +152,9 @@ const numberSelectorCellStyle = {
   minHeight: 0,
 };
 
+/**
+ * @brief Grid area style for the control buttons (Desktop).
+ */
 const buttonsCellStyle = {
   gridColumn: '3 / 5', 
   gridRow: '3',
@@ -123,6 +163,9 @@ const buttonsCellStyle = {
   width: '100%',
 };
 
+/**
+ * @brief Flex container for the game area (grid and number selector) on Mobile.
+ */
 const mobileGameAreaStyle = {
   display: 'flex',
   gap: '0.5rem', 
@@ -133,6 +176,11 @@ const mobileGameAreaStyle = {
   minHeight: 0,
 };
 
+/**
+ * @brief Dnd-kit modifier to snap the drag overlay center to the pointer position and shift it up slightly.
+ * @param {object} args - Dnd-kit transform arguments.
+ * @returns {object} Modified transform object.
+ */
 const snapCenterAndShiftUp = ({ transform, activatorEvent, draggingNodeRect }) => {
   if (!activatorEvent || !draggingNodeRect) {
     return transform;
@@ -151,12 +199,19 @@ const snapCenterAndShiftUp = ({ transform, activatorEvent, draggingNodeRect }) =
   };
 };
 
+/**
+ * @brief Main component for the Sudoku game screen.
+ * @returns {JSX.Element} The Game component.
+ */
 function Game() {
+  /** @brief Hook to measure the size of the main page container. */
   const [ref, bounds] = useMeasure();
+  /** @brief Hook to measure the size of the Sudoku grid wrapper. */
   const [gridRef, gridBounds] = useMeasure();
   const { setRelativeView, goBack } = useSudokuNavigation();
   const { newGame } = useNewGame(); 
   
+  /** @brief Destructure all game state and controller functions. */
   const {
     gridData, selectedCell, selectedNumber, eraseOn, notesOn, inputMethod,
     mode, difficulty, timer, mistakes, completedNumbers, highlightNumbers, highlightAreas,
@@ -167,11 +222,14 @@ function Game() {
 
   const isVictory = gameStatus?.type === 'completed';
 
+  /** @brief Memoized check to determine if the view should render in mobile layout. */
   const isMobile = useMemo(() => {
     if (!bounds.width || !bounds.height) return false;
+    // Check for narrow width or very tall/narrow ratio
     return bounds.width < 1000 || bounds.width < bounds.height * 1.2; 
   }, [bounds.width, bounds.height]);
 
+  /** @brief Memoized calculation of dynamic icon and button font sizes based on screen width. */
   const { iconSize, buttonFontSize } = useMemo(() => {
     if (!bounds.width) return { iconSize: 24, buttonFontSize: "1rem" };
     const iSize = Math.max(12, Math.min(28, bounds.width / 22));
@@ -179,6 +237,7 @@ function Game() {
     return { iconSize: iSize, buttonFontSize: `${fSizeRaw}px` };
   }, [bounds.width]);
 
+  /** @brief Memoized calculation of layout dimensions based on grid size. */
   const { infoWidth, infoHeight, numberSelectorWidth, gridSize } = useMemo(() => {
     if (!gridBounds.width || !gridBounds.height) {
       return { infoWidth: 400, infoHeight: 600, numberSelectorWidth: 150, gridSize: 0 };
@@ -190,6 +249,10 @@ function Game() {
     return { infoWidth, infoHeight, numberSelectorWidth, gridSize };
   }, [gridBounds.width, gridBounds.height]);
 
+  /**
+   * @brief Gets descriptive text for control buttons based on current state.
+   * @returns {object} Object containing descriptions for 'erase', 'notes', and 'inputMethod'.
+   */
   function getDescriptions() {
     let erase
     if (inputMethod === "Number") {
@@ -204,6 +267,12 @@ function Game() {
     }
   }
 
+  /**
+   * @brief Component for displaying the game timer.
+   * @param {object} props - The component props.
+   * @param {object} props.customStyle - Optional custom styles for the timer.
+   * @returns {JSX.Element} The Timer component.
+   */
   function Timer({ customStyle }) {
     if (timer === null) return <></>;
     const minutes = Math.floor(timer / 60);
@@ -212,6 +281,7 @@ function Game() {
     return <span style={customStyle || timeStyle}>{timeStr}</span>;
   }
 
+  /** @brief Style for the status message container. */
   const statusContainerStyle = {
     width: '100%',
     paddingTop: '1rem',
@@ -222,6 +292,7 @@ function Game() {
     overflow: 'hidden',
   };
 
+  /** @brief Style for the status message text. */
   const statusTextStyle = {
     color: "rgba(255, 255, 255, 0.9)",
     lineHeight: '1.4',
@@ -229,8 +300,10 @@ function Game() {
     whiteSpace: 'pre-wrap',
   };
 
+  /** @brief State for the active draggable ID (used for drag overlay). */
   const [activeId, setActiveId] = useState(null);
 
+  /** @brief Dnd-kit sensors configuration. */
   const sensors = useSensors(
     useSensor(PointerSensor, {
       activationConstraint: {
@@ -239,10 +312,18 @@ function Game() {
     })
   );
 
+  /**
+   * @brief Dnd-kit handler for drag start.
+   * @param {object} event - The Dnd-kit drag start event.
+   */
   function handleDragStart(event) {
     setActiveId(event.active.id);
   }
 
+  /**
+   * @brief Dnd-kit handler for drag end (dropping a number).
+   * @param {object} event - The Dnd-kit drag end event.
+   */
   function handleDragEnd(event) {
     const { active, over } = event;
     setActiveId(null); 
@@ -255,7 +336,16 @@ function Game() {
     dragInput(Number(numberDropped), Number(row), Number(col));
   }
 
+  /**
+   * @brief Component to display game information (Mode, Difficulty, Timer, Status/Hint).
+   * @returns {JSX.Element} The Info component.
+   */
   function Info() {
+    /**
+     * @brief Renders the content of the game status/hint area.
+     * @param {string} fontSize - Base font size for dynamic scaling.
+     * @returns {JSX.Element} The status content.
+     */
     const renderStatusContent = (fontSize) => {
       const dynamicTextStyle = { ...statusTextStyle, fontSize: fontSize };
 
@@ -334,6 +424,7 @@ function Game() {
       )
     }
 
+    // Desktop Styles
     const desktopBoxStyle = {
       padding: '2rem', 
       boxSizing: 'border-box',
@@ -379,6 +470,10 @@ function Game() {
     )
   }
 
+  /**
+   * @brief Component to render the game control buttons (Undo, Hint, Erase, etc.).
+   * @returns {JSX.Element} The Controls component.
+   */
   function Controls() {
     if (isVictory) {
       return (
@@ -410,23 +505,23 @@ function Game() {
     );
   }
 
-  // --- DRAG OVERLAY STYLE UPDATE ---
-  // Matches the new "Selected" style in NumberSelect.jsx
+  /** @brief Style configuration for the number drag overlay. */
   const dragOverlayStyle = {
     width: '60px', 
     height: '60px', 
-    backgroundColor: '#d8e0eb', // Unified Light Blue/White
-    color: '#0f172a', // Dark Text
-    borderRadius: '12px', // Rounded corners
+    backgroundColor: '#d8e0eb', 
+    color: '#0f172a', 
+    borderRadius: '12px', 
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
     fontSize: '2rem',
     fontWeight: 'bold',
-    boxShadow: '0 10px 20px rgba(0,0,0,0.3)', // deeper shadow for lifting effect
+    boxShadow: '0 10px 20px rgba(0,0,0,0.3)', 
     opacity: 0.95,
   };
 
+  // --- MOBILE LAYOUT RENDER ---
   if (isMobile) {
     const actualGridHeight = gridBounds.width || 0;
     
@@ -503,7 +598,7 @@ function Game() {
     );
   }
 
-  // Desktop
+  // --- DESKTOP LAYOUT RENDER ---
   return (
     <DndContext 
       sensors={sensors}

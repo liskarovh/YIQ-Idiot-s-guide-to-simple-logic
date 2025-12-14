@@ -1,3 +1,9 @@
+/**
+ * @file GameController.jsx
+ * @brief Main controller hook for the Sudoku game. It manages all game logic, user actions (input, undo, hint), state transitions (victory, errors), and coordinates updates across Grid, Info, Options, History, and Status models.
+ *
+ * @author David Krejčí <xkrejcd00>
+ */
 import { useState, useEffect, useRef } from 'react';
 import { useGrid } from '../models/GridModel';
 import { useGameInfo } from '../models/GameInfoModel';
@@ -14,11 +20,9 @@ import {
 import { useHistory } from '../models/HistoryModel';
 
 /**
- * SUDOKU CONTROLLER - MVC Structure
- * * This hook manages the game state and logic for Sudoku
- * Uses GridContext, GameOptionsContext, and StatusContext for state management
+ * @brief Hook that manages the core game state, input handling, and logic.
+ * @returns {object} The game state and action functions exposed to the Game view.
  */
-
 export function useGameController() {
   // ==================== CONTEXTS ====================
   
@@ -31,24 +35,31 @@ export function useGameController() {
   
   // ==================== LOCAL STATE ====================
   
+  /** @brief State for highlighting incorrect user input (based on checkMistakes setting). */
   const [mistakes, setMistakes] = useState(
     Array(9).fill(null).map(() => Array(9).fill(false))
   );
+  /** @brief State for numbers (1-9) that are fully completed and correct. */
   const [completedNumbers, setCompletedNumbers] = useState([])
+  /** @brief State for highlighting cells that contain the selected number. */
   const [highlightNumbers, setHighlightNumbers] = useState(
     Array(9).fill(null).map(() => Array(9).fill(false))
   )
+  /** @brief State for highlighting the row, column, and box of the selected cell. */
   const [highlightAreas, setHighlightAreas] = useState(
     Array(9).fill(null).map(() => Array(9).fill(false))
   )
 
-  // Helper to check if game is locked
+  // Helper to check if game is locked (e.g., victory screen is up)
   const isLocked = status?.type === 'completed';
+  // Helper to check if the user is in the mode waiting to select a cell to reveal
   const isRevealing = status?.type === 'revealWaiting';
 
-  // Prevent fast mistake checking through server API
+  /** @brief Ref to prevent multiple simultaneous mistake checking API calls. */
   const checkingMistakesRef = useRef(false);
 
+  // ==================== EFFECTS (Timer) ====================
+  
   useEffect(() => {
           if (gameInfo.timer === null || isLocked) return;
           const interval = setInterval(() => {
@@ -60,7 +71,9 @@ export function useGameController() {
           return () => clearInterval(interval);
       }, [gameInfo.timer, setGameInfo, isLocked]);
 
-
+  // ==================== EFFECTS (Updates on Data Change) ====================
+  
+  /** @brief Master update loop triggered whenever core grid values change. */
   useEffect(() => {
     updateAll();
   }, [gridData.values,
@@ -71,6 +84,7 @@ export function useGameController() {
     status?.type
   ]);
 
+  /** @brief Update loop for highlights related to cell/number selection. */
   useEffect(() => {
     generalUpdateNumberHighlights()
     generalUpdateAreaHighlights()
@@ -82,11 +96,12 @@ export function useGameController() {
     gameOptions.explainSmartHints
   ]);
 
-  // ==================== HELPER: CAPTURE STATE ====================
+  // ==================== HELPER: UNDO HISTORY ====================
 
   /**
-   * Captures the current state of a specific cell and pushes it to the stack
-   * effectively creating the "Inverse Operation" before we make a change.
+   * @brief Captures the current state of a specific cell and pushes it to the history stack.
+   * @param {number} row - The row index.
+   * @param {number} col - The column index.
    */
   function saveStateForUndo(row, col) {
     const currentState = {
@@ -99,6 +114,13 @@ export function useGameController() {
     addHistoryItem(currentState);
   }
 
+  /**
+   * @brief Determines if the current user action on a cell is meaningful enough to save to history.
+   * @param {number} row - The row index.
+   * @param {number} col - The column index.
+   * @param {boolean} isClearAction - True if the action is an erase/clear attempt.
+   * @returns {boolean} True if the action should be saved for undo.
+   */
   function shouldSaveState(row, col, isClearAction) {
     const type = gridData.types[row][col];
     const value = gridData.values[row][col];
@@ -123,8 +145,11 @@ export function useGameController() {
   
   
   /**
-   * Centralizes the logic for modifying the grid.
-   * Handles checking validity, saving to undo history, and executing the move.
+   * @brief Centralizes grid modification logic: saves undo state, then executes the move.
+   * @param {number} row - The row index.
+   * @param {number} col - The column index.
+   * @param {boolean} isClear - True if clearing the cell.
+   * @param {number | null} [value=null] - The value to set (used in Cell-First strategy).
    */
   const executeMove = (row, col, isClear, value = null) => {
     
@@ -141,6 +166,9 @@ export function useGameController() {
     }
   };
 
+  // ==================== INPUT STRATEGIES ====================
+
+  /** @brief Logic specific to the "Number First" input method. */
   const NumberFirstStrategy = {
     cellClicked: (row, col) => {
       executeMove(row, col, gameOptions.clear);
@@ -159,6 +187,7 @@ export function useGameController() {
     }
   }
 
+  /** @brief Logic specific to the "Cell First" input method. */
   const CellFirstStrategy = {
     cellClicked: (row, col) => {
       updateOption('selectedCell', {row: row, col: col})
@@ -187,7 +216,11 @@ export function useGameController() {
     }
   }
 
-  // Helper to clear artifacts when user interacts with the game
+  // ==================== INPUT ACTIONS ====================
+
+  /**
+   * @brief Clears any active status or hint highlights.
+   */
   function clearActiveHints() {
     if (status || hintHighlights) {
       setStatus(null);
@@ -195,6 +228,11 @@ export function useGameController() {
     }
   }
 
+  /**
+   * @brief Handles a click on a Sudoku cell.
+   * @param {number} row - The row index.
+   * @param {number} col - The column index.
+   */
   function cellClicked(row, col) {
     if (isLocked) return;
 
@@ -216,13 +254,15 @@ export function useGameController() {
     strategy.cellClicked(row,col)
   }
 
+  /**
+   * @brief Handles a click on a number in the selector bar.
+   * @param {number} num - The selected number (1-9).
+   */
   function numberClicked(num) {
     if (isLocked) return;
 
     if (isRevealing) {
         setStatus(null);
-        // Note: We don't necessarily clear hints here as we are cancelling reveal, 
-        // but it's safer to clear everything to return to neutral state
         clearHints(); 
     } else {
         // Clean up hint highlights on interaction
@@ -239,10 +279,19 @@ export function useGameController() {
     strategy.numberClicked(num)
   }
 
+  /**
+   * @brief Handles drag and drop input.
+   * @param {number} num - The number being dragged.
+   * @param {number} row - The row index of the drop target.
+   * @param {number} col - The column index of the drop target.
+   */
   function dragInput(num, row, col) {
     executeMove(row, col, false, num);
   }
 
+  /**
+   * @brief Toggles erase mode (Number-First) or executes erase on selected cell (Cell-First).
+   */
   function eraseClicked() {
     if (isLocked) return;
 
@@ -264,6 +313,9 @@ export function useGameController() {
     strategy.eraseClicked()
   }
 
+  /**
+   * @brief Reverts the last action by popping and executing the inverse operation from history.
+   */
   function undoClicked() {
     if (isLocked) return;
 
@@ -285,6 +337,9 @@ export function useGameController() {
     }
   }
 
+  /**
+   * @brief Toggles the notes/pencil mark input mode.
+   */
   function notesClicked() {
     updateOption('notes', !gameOptions.notes)
 
@@ -293,6 +348,9 @@ export function useGameController() {
     clearHints();
   }
 
+  /**
+   * @brief Toggles the input method between "Number First" and "Cell First".
+   */
   function inputClicked() {
     let newOpt
     if (gameOptions["selectMethod"] === "Number") {newOpt="Cell"} else {newOpt="Number"}
@@ -304,8 +362,11 @@ export function useGameController() {
     updateOption('selectMethod', newOpt)
   }
 
-  // ==================== HINT LOGIC ====================
+  // ==================== HINT & REVEAL LOGIC ====================
 
+  /**
+   * @brief Requests a Smart Hint from the backend API.
+   */
   async function smartHintClicked() {
     if (isLocked) return;
     
@@ -323,8 +384,6 @@ export function useGameController() {
         }
 
         // 3. Logic for Status/Text
-        // If explanations are OFF, we force status to null (clearing any old status)
-        // If ON, we show the hint status
         if (!gameOptions.explainSmartHints) {
            setStatus(null);
         } else {
@@ -347,17 +406,20 @@ export function useGameController() {
     }
   }
 
+  /**
+   * @brief Initiates the reveal process, either directly or by entering selection mode.
+   */
   function revealHintClicked() {
     if (isLocked) return;
 
     // Clear any existing smart hints
     clearHints();
 
-    // Strategy 1: Cell First
+    // Strategy 1: Cell First (reveal the selected cell immediately)
     if (gameOptions.selectMethod === "Cell") {
         performReveal(gameOptions.selectedCell.row, gameOptions.selectedCell.col);
     } 
-    // Strategy 2: Number First
+    // Strategy 2: Number First (enter selection mode)
     else {
         // Enter "Selection Mode"
         setStatus({
@@ -369,6 +431,11 @@ export function useGameController() {
     }
   }
 
+  /**
+   * @brief Fetches the solved value for a cell and inserts it into the grid.
+   * @param {number} row - The row index.
+   * @param {number} col - The column index.
+   */
   async function performReveal(row, col) {
     // Basic validation
     if (gridData.values[row][col] !== null) {
@@ -394,6 +461,8 @@ export function useGameController() {
         // 3. Clear States
         setStatus(null);
         clearHints(); // Ensure no leftover highlights
+        // Increment hints used count
+        setGameInfo(prev => ({...prev, hintsUsed: prev.hintsUsed + 1}));
     } else {
         setStatus({
             type: 'error',
@@ -404,6 +473,9 @@ export function useGameController() {
     }
   }
 
+  /**
+   * @brief Handles dismissing the current status message (hint, error, etc.).
+   */
   function dismissStatus() {
     if (!status) return;
 
@@ -415,12 +487,13 @@ export function useGameController() {
         break;
       
       case 'error':
-        // For errors: Just clear text
+      case 'revealWaiting':
+        // For errors/waiting: Just clear text
         setStatus(null);
         break;
 
       case 'completed':
-        // TODO New game or something
+        // Victory status is permanent until a new game starts
         break;
         
       default:
@@ -428,8 +501,11 @@ export function useGameController() {
     }
   }
 
-  // ==================== UPDATE STATE ====================
+  // ==================== UPDATE STATE HELPERS ====================
 
+  /**
+   * @brief Executes all necessary update logic (completion, conflicts, highlights) after a user action.
+   */
   function updateAll() {
     const conflicts = getConflicts()
     updatePuzzleCompletion(conflicts)
@@ -439,13 +515,14 @@ export function useGameController() {
     generalUpdateAreaHighlights()
   }
 
+  /**
+   * @brief Checks if the puzzle is complete and conflict-free, setting the 'completed' status if true.
+   * @param {Array<Array<number>>} conflicts - Current list of conflicting cell coordinates.
+   */
   function updatePuzzleCompletion(conflicts) {
-    console.log("Checking copleted")
     if (status?.type === 'completed') return;
-    console.log("Checking copleted after return")
 
     if (isFilled() && (conflicts.length === 0)) {
-      console.log("Checking copleted inside")
       // Set the global status to Completed
       // This will set isLocked = true
       setStatus({
@@ -458,6 +535,10 @@ export function useGameController() {
     }
   }
 
+  /**
+   * @brief Updates the list of numbers (1-9) that have been correctly completed (9 instances with no conflict).
+   * @param {Array<Array<number>>} conflicts - Current list of conflicting cell coordinates.
+   */
   function updateNumberCompletion(conflicts) {
     if (!gameOptions.highlightCompleted) return;
 
@@ -484,10 +565,14 @@ export function useGameController() {
     setCompletedNumbers(completed);
   }
 
-
+  /**
+   * @brief Updates the list of incorrect cells based on the configured mistake checking mode.
+   * @param {Array<Array<number>>} conflicts - Current list of local conflicting cell coordinates.
+   */
   async function updateMistakes(conflicts) {
     
     if (gameOptions.checkMistakes === "OFF") return;
+
     if (gameOptions.checkMistakes === "Conflict") {
       let mistakes = Array(9).fill(null).map(() => Array(9).fill(false))
       for (let conflict of conflicts) {
@@ -498,6 +583,7 @@ export function useGameController() {
       }
       setMistakes(mistakes)
     } else {
+      // Check Mistakes: Immediate/Solution
       if (checkingMistakesRef.current) return; 
       checkingMistakesRef.current = true;
 
@@ -513,6 +599,9 @@ export function useGameController() {
     }
   }
 
+  /**
+   * @brief Calls the appropriate strategy method to update area highlights based on input mode.
+   */
   function generalUpdateAreaHighlights() {
     if (!gameOptions.highlightAreas) {
       // Clear
@@ -526,6 +615,9 @@ export function useGameController() {
     }
   }
 
+  /**
+   * @brief Calls the appropriate strategy method to update number highlights based on input mode.
+   */
   function generalUpdateNumberHighlights() {
     if (!gameOptions.highlightNumbers) return;
     if (gameOptions.selectMethod === "Number") {
@@ -535,6 +627,10 @@ export function useGameController() {
     }
   }
 
+  /**
+   * @brief Sets highlight state for all cells containing a specific number.
+   * @param {number} num - The number to highlight.
+   */
   function updateNumberHighlights(num) {
     const cells = getNumCells(num)
     let highlights = Array(9).fill(null).map(() => Array(9).fill(false))
@@ -544,6 +640,11 @@ export function useGameController() {
     setHighlightNumbers(highlights)
   }
 
+  /**
+   * @brief Sets highlight state for the row, column, and 3x3 box of a given cell.
+   * @param {number} row - The row index.
+   * @param {number} col - The column index.
+   */
   function updateAreaHighlights(row, col) {
     const highlights = Array(9).fill(null).map(() => Array(9).fill(false));
 
@@ -567,6 +668,10 @@ export function useGameController() {
   
   // ==================== CONVERT GRID FOR VIEW ====================
   
+  /**
+   * @brief Formats the internal grid data (values, pencils, types) into the unified structure expected by the SudokuGrid component.
+   * @returns {Array<Array<object>>} The 9x9 grid array suitable for the view component.
+   */
   function getGridDataForView() {
 
     if (!gridData.types) {
@@ -581,6 +686,7 @@ export function useGameController() {
       const rowData = [];
       for (let col = 0; col < 9; col++) {
         const type = gridData.types[row][col];
+        // If cell type is Pencil, the value property should hold the pencil mark array.
         const value = type === "Pencil" 
           ? gridData.pencils[row][col] 
           : gridData.values[row][col];
@@ -634,15 +740,22 @@ export function useGameController() {
   };
 }
 
+/**
+ * @brief Hook specifically for initiating a new game session.
+ * @returns {object} Object containing the `newGame` function.
+ */
 export function useNewGame() {
   const { setOptions: setGridData } = useGrid();
-  const { setOptions: setGameInfo } = useGameInfo();
+  const { setOptions: setGameInfo, options: gameInfo } = useGameInfo();
   const { options: gameOptions } = useGameOptions();
   const { setLoading } = useLoading();
   const { setRelativeView } = useSudokuNavigation();
   const { clearHints } = useStatus();
-    const { clearHistory } = useHistory();
+  const { clearHistory } = useHistory();
 
+  /**
+   * @brief Initializes and fetches a new Sudoku game based on current user options.
+   */
   async function newGame() {
         setLoading(true);
 
@@ -678,6 +791,7 @@ export function useNewGame() {
             setGridData(prev => ({ ...prev, ...data }));
         } else {
             console.error("Error fetching Sudoku state:", newGrid.err);
+            // Optionally set error status if fetching fails
         }
         
         setRelativeView("Game");

@@ -1,16 +1,30 @@
+/**
+ * @file NumberSelect.jsx
+ * @brief Component providing a draggable selector bar for numbers 1 through 9, used for inputting values into the Sudoku grid.
+ *
+ * @author David Krejčí <xkrejcd00>
+ */
 import React, { useState } from 'react';
 import { useDraggable } from '@dnd-kit/core';
 import colors from '../../Colors';
 
 /**
- * INTERNAL COMPONENT: DRAGGABLE NUMBER
+ * @brief INTERNAL COMPONENT: A single draggable number button in the selector.
+ * @param {object} props - The component props.
+ * @param {number} props.number - The number displayed (1-9).
+ * @param {object} props.style - The base CSS style for the div.
+ * @param {object} props.textStyle - The CSS style for the number text.
+ * @param {function} props.onClick - Handler for when the number is clicked.
+ * @returns {JSX.Element} The DraggableNumber component.
  */
 function DraggableNumber({ number, style, textStyle, onClick }) {
+  /** @brief Hook to make the component draggable via DndContext. */
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
     id: number.toString(),
     data: { number },
   });
 
+  /** @brief State to handle hover visual feedback. */
   const [isHovered, setIsHovered] = useState(false);
 
   const combinedStyle = {
@@ -38,16 +52,23 @@ function DraggableNumber({ number, style, textStyle, onClick }) {
 }
 
 /**
- * MAIN COMPONENT: NUMBER SELECTOR
+ * @brief MAIN COMPONENT: The container for the 1-9 number selector buttons.
+ * @param {object} props - The component props.
+ * @param {number} props.selectedNumber - The currently selected number (for highlighting).
+ * @param {function} props.onNumberSelect - Handler for when a number is selected.
+ * @param {number[]} [props.completedNumbers=[]] - Array of numbers that are completed and correct.
+ * @param {boolean} [props.isColumn=true] - If true, displays numbers vertically; otherwise, horizontally.
+ * @param {object} [props.style={}] - Custom styles for the container.
+ * @returns {JSX.Element} The NumberSelector component.
  */
 function NumberSelector({ selectedNumber, onNumberSelect, completedNumbers = [], isColumn = true, style = {} }) {
   
+  /** @brief Styles for the main container, handling column/row layout. */
   const containerStyle = {
     display: 'flex',
     flexDirection: isColumn ? 'column' : 'row',
-    gap: '0.5rem', // Consistent gap with other UI
+    gap: '0.5rem', 
     alignItems: 'center',
-    // Preserve layout sizing logic from Game.jsx
     width: isColumn ? '150px' : '100%',
     height: isColumn ? '100%' : '150px',
     padding: isColumn ? "3px 0px" : "0px 3px",
@@ -55,6 +76,11 @@ function NumberSelector({ selectedNumber, onNumberSelect, completedNumbers = [],
     ...style
   };
 
+  /**
+   * @brief Generates the dynamic visual style for an individual number button.
+   * @param {number} number - The number being styled.
+   * @returns {object} The style object.
+   */
   const getNumberStyle = (number) => {
     const isSelected = number === selectedNumber;
     const isCompleted = completedNumbers.includes(number);
@@ -71,7 +97,7 @@ function NumberSelector({ selectedNumber, onNumberSelect, completedNumbers = [],
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',
-      borderRadius: '12px', // Consistent rounded corner
+      borderRadius: '12px', 
       cursor: 'grab', 
       transition: 'all 0.2s ease', 
       
@@ -87,6 +113,11 @@ function NumberSelector({ selectedNumber, onNumberSelect, completedNumbers = [],
     };
   };
 
+  /**
+   * @brief Generates the dynamic style for the number text inside the button.
+   * @param {number} number - The number being styled.
+   * @returns {object} The style object.
+   */
   const getTextStyle = (number) => {
     const isSelected = number === selectedNumber;
     
@@ -95,7 +126,7 @@ function NumberSelector({ selectedNumber, onNumberSelect, completedNumbers = [],
     const inactiveColor = '#ffffff';
 
     return {
-      fontSize: '50cqmin', // Slightly reduced to breathe better inside the box
+      fontSize: '50cqmin', 
       fontWeight: isSelected ? '700' : '500',
       color: isSelected ? activeColor : inactiveColor,
       userSelect: 'none',

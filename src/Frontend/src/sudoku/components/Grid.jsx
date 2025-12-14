@@ -1,10 +1,32 @@
+/**
+ * @file Grid.jsx
+ * @brief Components for rendering the Sudoku grid, including individual cells with visual logic for selection, drag/drop, hints, mistakes, and highlighting.
+ *
+ * @author David Krejčí <xkrejcd00>
+ */
 import React from 'react';
 import { useDroppable } from '@dnd-kit/core';
 
+/**
+ * @brief Renders a single cell in the Sudoku grid.
+ * @param {object} props - The component props.
+ * @param {number|number[]} props.value - The cell value (number or array of pencil marks).
+ * @param {string} props.type - The cell type ("Given", "Value", "Pencil").
+ * @param {number} props.row - The cell's row index.
+ * @param {number} props.col - The cell's column index.
+ * @param {boolean} props.isSelected - True if the cell is currently selected.
+ * @param {boolean} props.isHint - True if the cell is highlighted as part of a hint.
+ * @param {boolean} props.isHighlightedArea - True if the cell is in the selected row/col/box.
+ * @param {boolean} props.isHighlightedNumber - True if the cell contains the selected number.
+ * @param {boolean} props.isMistake - True if the cell is marked as incorrect.
+ * @param {function} props.onClick - Handler for cell click events.
+ * @returns {JSX.Element} The SudokuCell component.
+ */
 function SudokuCell({ value, type, row, col, isSelected, isHint, isHighlightedArea, isHighlightedNumber, isMistake, onClick }) {
   const cellId = `cell-${row}-${col}`;
 
   // 1. Get isOver to show visual feedback when dragging
+  /** @brief Hook to make the cell a drop target for DndContext. */
   const { setNodeRef, isOver } = useDroppable({
     id: cellId,
   });
@@ -14,6 +36,7 @@ function SudokuCell({ value, type, row, col, isSelected, isHint, isHighlightedAr
   const boxCol = Math.floor(col / 3);
   const boxIndex = boxRow * 3 + boxCol;
 
+  /** @brief Color palette for visual feedback. */
   const COLORS = {
     white: '255, 255, 255',
     red: '255, 85, 85',
@@ -26,10 +49,14 @@ function SudokuCell({ value, type, row, col, isSelected, isHint, isHighlightedAr
   const baseAlpha = isDarkBox ? 0.08 : 0.16;
 
     // -- STYLE LOGIC --
+  /**
+   * @brief Determines the background color and text priority based on the cell state.
+   * @returns {object} Object containing background, text color, and font weight.
+   */
   const getCellAppearance = () => {
     const textColor = type == "Given" ? '#d8e0ebff' : '#FFFFFF'
     
-    // 0. DRAG OVER
+    // 0. DRAG OVER (Highest Priority)
     if (isOver) {
         return {
             backgroundColor: `rgba(${COLORS.blue}, 0.6)`,
@@ -47,6 +74,7 @@ function SudokuCell({ value, type, row, col, isSelected, isHint, isHighlightedAr
         };
     }
 
+    // 2. HINT
     if (isHint) {
         return {
             backgroundColor: `rgba(${COLORS.purple}, 0.6)`,
@@ -55,7 +83,7 @@ function SudokuCell({ value, type, row, col, isSelected, isHint, isHighlightedAr
         };
     }
 
-    // 2. SELECTED CELL
+    // 3. SELECTED CELL
     if (isSelected) {
         return {
             backgroundColor: `rgba(${COLORS.blue}, 0.5)`,
@@ -64,7 +92,7 @@ function SudokuCell({ value, type, row, col, isSelected, isHint, isHighlightedAr
         };
     }
 
-    // 3. SAME NUMBER
+    // 4. SAME NUMBER
     if (isHighlightedNumber) {
         return {
             backgroundColor: `rgba(${COLORS.blue}, 0.3)`,
@@ -73,7 +101,7 @@ function SudokuCell({ value, type, row, col, isSelected, isHint, isHighlightedAr
         };
     }
 
-    // 4. HIGHLIGHTED AREA
+    // 5. HIGHLIGHTED AREA
     if (isHighlightedArea) {
         return {
             backgroundColor: `rgba(${COLORS.white}, ${(baseAlpha) + 0.25})`,
@@ -82,7 +110,7 @@ function SudokuCell({ value, type, row, col, isSelected, isHint, isHighlightedAr
         };
     }
 
-    // 5. DEFAULT
+    // 6. DEFAULT
     return {
         backgroundColor: `rgba(${COLORS.white}, ${baseAlpha})`,
         textColor,
@@ -92,6 +120,7 @@ function SudokuCell({ value, type, row, col, isSelected, isHint, isHighlightedAr
 
   const appearance = getCellAppearance();
     
+  // Border logic for thick/thin lines
   const borderColor = isSelected ? 'rgba(255, 207, 76, 1)' : 'rgba(255, 255, 255, 0.6)'
   const outline = isSelected ? '0.15cqmin solid rgba(255, 207, 76, 1)' : 'none'
 
@@ -154,7 +183,7 @@ function SudokuCell({ value, type, row, col, isSelected, isHint, isHighlightedAr
       justifyContent: 'center',
     };
 
-    // 2. ATTACH THE REF HERE (setNodeRef)
+    // Render logic based on cell type (Value vs. Pencil)
     if (type === "Pencil") {
         return (
             <div ref={setNodeRef} style={cellStyle} onClick={() => onClick(row, col)}>
@@ -178,6 +207,18 @@ function SudokuCell({ value, type, row, col, isSelected, isHint, isHighlightedAr
     }
 }
 
+/**
+ * @brief Renders the 9x9 Sudoku grid container and maps data to individual cells.
+ * @param {object} props - The component props.
+ * @param {Array<Array<object>>} props.gridData - The 9x9 array of cell data {value, type}.
+ * @param {object} props.selectedCell - The {row, col} of the selected cell.
+ * @param {boolean[][]} [props.highlightedNumbers] - 9x9 boolean array for highlighting same numbers.
+ * @param {boolean[][]} [props.highlightedAreas] - 9x9 boolean array for highlighting row/col/box.
+ * @param {boolean[][]} [props.mistakes] - 9x9 boolean array for mistake cells.
+ * @param {boolean[][]} [props.hintHighlights] - 9x9 boolean array for hint highlights.
+ * @param {function} props.onCellClick - Handler for cell clicks.
+ * @returns {JSX.Element} The SudokuGrid component.
+ */
 function SudokuGrid({ 
   gridData, 
   selectedCell, 
@@ -225,7 +266,7 @@ function SudokuGrid({
 
             return (
               <SudokuCell
-                key={`${rowIndex}-${colIndex}`} // Added key for React performance
+                key={`${rowIndex}-${colIndex}`} 
                 value={cell.value}
                 type={cell.type}
                 row={rowIndex}

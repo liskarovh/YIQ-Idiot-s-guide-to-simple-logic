@@ -1,3 +1,9 @@
+/**
+ * @file Strategy.jsx
+ * @brief Component for displaying Sudoku strategy guides with interactive grid visualizations.
+ *
+ * @author David Krejčí <xkrejcd00>
+ */
 import React, { useState } from 'react';
 import Header from "../../components/Header";
 import Box from "../../components/Box";
@@ -6,35 +12,45 @@ import { useSudokuNavigation } from "../controllers/NavigationController";
 import useMeasure from "react-use-measure";
 import { ChevronRight } from "lucide-react";
 
+/**
+ * @brief Styles for the main page container.
+ */
 const pageStyle = {
   display: 'flex',
   flexDirection: 'column',
   height: '100vh',
-  width: '100%', // Changed from 100vw to prevent horizontal scroll
+  width: '100%', 
   overflow: 'hidden',
-  backgroundColor: '#0f172a',
 };
 
+/**
+ * @brief Styles for the scrollable content area.
+ */
 const scrollContainerStyle = {
   flex: 1,
   overflowY: 'auto',
-  overflowX: 'hidden', // Explicitly prevent horizontal scroll
+  overflowX: 'hidden', 
   width: '100%',
 };
 
+/**
+ * @brief Styles for the main content block, centered with max width.
+ */
 const contentStyle = {
   display: 'flex',
   flexDirection: 'column',
   alignItems: 'center',
-  // Matched padding from Game.jsx (7rem top)
   padding: '7rem 2rem 3rem 2rem', 
-  maxWidth: '1200px', // Restricted max-width slightly
+  maxWidth: '1200px', 
   margin: '0 auto',
   boxSizing: 'border-box',
   width: '100%',
 };
 
 // -- STYLES FOR PILL NAVIGATION --
+/**
+ * @brief Styles for the navigation pill container.
+ */
 const navContainerStyle = {
   display: 'flex',
   flexWrap: 'wrap',
@@ -44,6 +60,11 @@ const navContainerStyle = {
   width: '100%',
 };
 
+/**
+ * @brief Styles for an individual navigation pill button.
+ * @param {boolean} isActive - Whether the pill is currently active.
+ * @returns {object} The style object.
+ */
 const pillStyle = (isActive) => ({
   padding: '0.5rem 1.2rem',
   borderRadius: '999px',
@@ -56,9 +77,18 @@ const pillStyle = (isActive) => ({
   border: 'none',
 });
 
-// -- CONTENT DATA --
+// -- CONTENT DATA UTILITIES --
+/**
+ * @brief Creates an empty 9x9 Sudoku grid structure.
+ * @returns {Array<Array<object>>} The empty grid.
+ */
 const createEmptyGrid = () => Array(9).fill(null).map(() => Array(9).fill({ value: null, type: 'Input' }));
 
+/**
+ * @brief Fills a Sudoku grid with initial data and candidates.
+ * @param {Array<object>} data - Array of cell data {r, c, val, type}.
+ * @returns {Array<Array<object>>} The populated grid.
+ */
 const fillGrid = (data) => {
     const grid = createEmptyGrid();
     data.forEach(({r, c, val, type}) => {
@@ -73,6 +103,9 @@ const fillGrid = (data) => {
     return grid;
 };
 
+/**
+ * @brief Dictionary containing all Sudoku strategy guide content.
+ */
 const STRATEGY_CONTENT = {
     rules: {
         id: 'rules',
@@ -337,42 +370,58 @@ const STRATEGY_CONTENT = {
     },
 };
 
+/**
+ * @brief Array of keys for iterating through the strategy content.
+ */
 const STRATEGY_KEYS = Object.keys(STRATEGY_CONTENT);
 
+/**
+ * @brief Main component for the Sudoku Strategy guide page.
+ * @returns {JSX.Element} The Strategy component.
+ */
 function Strategy() {
   const { goBack } = useSudokuNavigation();
+  /** @brief State for the currently active strategy tab. */
   const [activeTab, setActiveTab] = useState('rules');
+  /** @brief Hook to measure the size of the container element. */
   const [ref, bounds] = useMeasure();
 
   const currentContent = STRATEGY_CONTENT[activeTab];
 
+  /**
+   * @brief Handles navigation to the next strategy tab in the sequence.
+   */
   const handleNext = () => {
     const currentIndex = STRATEGY_KEYS.indexOf(activeTab);
     const nextIndex = (currentIndex + 1) % STRATEGY_KEYS.length;
     setActiveTab(STRATEGY_KEYS[nextIndex]);
   };
 
+  /** @brief Check if the current view width is considered mobile. */
   const isMobile = bounds.width < 900;
   
+  /** @brief Styles for the main content layout (text + grid). */
   const layoutContainerStyle = {
     display: 'flex',
     flexDirection: isMobile ? 'column' : 'row',
     gap: '2rem',
-    alignItems: isMobile ? 'center' : 'flex-start', // Align top for better height handling
+    alignItems: isMobile ? 'center' : 'flex-start', 
     justifyContent: 'center',
     width: '100%',
   };
 
+  /** @brief Styles for the Sudoku grid wrapper. */
   const gridWrapperStyle = {
     width: isMobile ? '80%' : '45%',
-    maxWidth: '450px', // Reduced max width slightly to fit better
+    maxWidth: '450px', 
     aspectRatio: '1',
     display: 'flex',
     justifyContent: 'center',
     alignItems: 'center',
-    flexShrink: 0, // Prevent grid from shrinking too small
+    flexShrink: 0, 
   };
 
+  /** @brief Styles for the text explanation card. */
   const textCardStyle = {
     flex: isMobile ? 'initial' : 1,
     padding: '2rem',
@@ -384,8 +433,8 @@ function Strategy() {
     lineHeight: '1.6',
     fontSize: '1rem',
     boxSizing: 'border-box',
-    width: isMobile ? '100%' : 'auto', // Auto width on desktop to fill flex space
-    minWidth: 0, // Important for flex text wrapping
+    width: isMobile ? '100%' : 'auto', 
+    minWidth: 0, 
   };
 
   return (
@@ -446,7 +495,6 @@ function Strategy() {
                       selectedCell={currentContent.selectedCell || null}
                       onCellClick={() => {}}
                       highlightedNumbers={Array(9).fill(null).map(() => Array(9).fill(false))}
-                      // Make sure these two lines are pulling from currentContent
                       hintHighlights={currentContent.hintHighlights || Array(9).fill(null).map(() => Array(9).fill(false))}
                       mistakes={currentContent.mistakes || Array(9).fill(null).map(() => Array(9).fill(false))}
                   />
