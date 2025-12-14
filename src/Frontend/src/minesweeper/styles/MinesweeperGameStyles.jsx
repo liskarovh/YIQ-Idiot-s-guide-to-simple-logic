@@ -1,22 +1,7 @@
-const boxWidth = 350;
-const boxHeight = 630;
-
 const MinesweeperGameStyles = {
-
-    // Box sizes
-    boxWidth: boxWidth,
-    boxHeight: boxHeight,
-
-    // Autoscale preset
-    boxAutoscaleWidth: boxWidth,
-    boxAutoscaleHeight: boxHeight,
-    boxAutoscaleMaxScale: 1,
-    boxAutoscaleMinScale: 0.8,
-    boxAutoscaleCenter: true,
-
     // Page background and header spacing
     contentStyle: {
-        padding: "7rem 2rem 0.5rem 2rem",
+        padding: "7rem 1rem 0.5rem 0rem",
         minHeight: "100vh",
         boxSizing: "border-box"
     },
@@ -24,10 +9,11 @@ const MinesweeperGameStyles = {
     // Outer shell that keeps content centered and adds a left offset from viewport
     boxLayoutStyle: {
         display: "grid",
-        gridTemplateColumns: "clamp(280px, 22vw, 350px) minmax(0, 1fr)",
-        columnGap: "clamp(3rem, 6vw, 6rem)",
+        gridTemplateColumns: "clamp(240px, 20vw, 320px) minmax(auto, 1fr)",
+        columnGap: "clamp(2rem, 1.8vw, 3rem)",
+        rowGap: "1.5rem",
         padding: "0rem 1rem 0rem 2rem",
-        alignItems: "start",
+        alignItems: "center",
         boxSizing: "border-box"
     },
 
@@ -39,60 +25,23 @@ const MinesweeperGameStyles = {
         justifyContent: "flex-start",
         minWidth: 0,
         minHeight: 0,
-        overflow: "visible"
-    },
-
-    // Action panel wrapper (kept for reference). In normal mode we render actions inside boardArea.
-    actionUnderboard: {
-        position: "relative"
-    },
-
-    // Floating overlays
-    floatingBtn: {
-        position: "absolute",
-        width: 44,
-        height: 44,
-        borderRadius: 22,
-        background: "rgba(20,20,20,0.7)",
-        color: "#fff",
-        display: "grid",
-        placeItems: "center",
-        cursor: "pointer",
-        userSelect: "none",
-        WebkitUserSelect: "none"
-    },
-    statsTogglePos: {left: 12, bottom: 12},
-    actionsTogglePos: {right: 12, top: 12},
-
-    overlayPanel: {
-        position: "absolute",
-        background: "rgba(30,30,30,0.92)",
-        color: "#fff",
-        borderRadius: 12,
-        padding: 12,
-        maxWidth: 320,
-        maxHeight: "75vh",
         overflow: "visible",
-        boxShadow: "0 8px 20px rgba(0,0,0,0.35)"
+        flex: "1 1 auto"
     },
 
+    // Error banner wrapper
     errorWrap: {
         marginTop: 16
     },
-
-
-
 
     // Statistics Area styles
     statisticsAreaLeft: {
         display: "flex",
         flexDirection: "column",
-        maxWidth: boxWidth,
-        maxHeight: boxHeight
     },
     statisticsAreaAbove: {
         width: "100%",
-        marginBottom: "2rem",
+        marginBottom: "2rem"
     },
 
     // Board Area styles
@@ -100,25 +49,29 @@ const MinesweeperGameStyles = {
         width: "100%",
         display: "flex",
         flexDirection: "column",
+        flex: "1 1 auto",
         alignItems: "stretch",
+        outline: "none",
         gap: 0
     },
     boardAreaRight: {
-        height: "75vh",
+        height: "75vh"
     },
     mineGrid: {
         transition: "opacity 120ms"
     },
     mineGridPaused: {
-        opacity: 0.5,
+        opacity: 0.5
     },
     mineGridActive: {
-        opacity: 1,
+        opacity: 1
     },
 
     // Viewport styles
     viewportContent: {
         position: "relative",
+        display: "flex",
+        flexDirection: "column",
         overflow: "visible",
         borderRadius: 8,
         background: "rgba(0,0,0,0.08)",
@@ -134,10 +87,10 @@ const MinesweeperGameStyles = {
         right: 12,
         bottom: 12,
         display: "flex",
-        flexDirection: "column",
+        flexDirection: "row",
         gap: 8
     },
-    statisticsToggleButton: {
+    helpButton: {
         position: "absolute",
         right: 12,
         top: 12,

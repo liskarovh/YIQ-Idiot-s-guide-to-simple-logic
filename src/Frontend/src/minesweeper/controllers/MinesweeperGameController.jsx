@@ -423,17 +423,6 @@ export function useMinesweeperGameController() {
         await wrapRequest((opts) => postFlag(gameId, row, col, set, opts));
     }, [wrapRequest, gameId, view, canFlag]);
 
-    // TODO: implement doMoveFlag properly
-    const doMoveFlag = useCallback(async(fromRow, fromCol, toRow, toCol) => {
-        if(!view || !canFlag) {
-            return;
-        }
-        await wrapRequest(async(opts) => {
-            await postFlag(gameId, fromRow, fromCol, false, opts);
-            return postFlag(gameId, toRow, toCol, true, opts);
-        });
-    }, [wrapRequest, gameId, view, canFlag]);
-
     const doQuickFlagMode = useCallback(async() => {
         if(!view || !canUseActions) {
             return;
@@ -577,6 +566,439 @@ export function useMinesweeperGameController() {
         });
     }, [gameId, paused, navigate]);
 
+    // Play Again handler
+    const onPlayAgain = useCallback(async() => {
+        setError(null);
+
+        const abortCtrl = new AbortController();
+
+        // cancel previous create if any
+        if(detectPreviousCreateGame.current) {
+            detectPreviousCreateGame.current.abort();
+        }
+
+        detectPreviousCreateGame.current = abortCtrl;
+        setBusy(true);
+
+        try {
+            // Load last used create payload and prefs
+            let lastCreate = null;
+            try {
+                lastCreate = JSON.parse(localStorage.getItem(LAST_CREATE_PAYLOAD_KEY) || "null");
+            }
+            catch {
+                lastCreate = null;
+            }
+
+            let lastPrefs = null;
+            try {
+                lastPrefs = JSON.parse(localStorage.getItem(LAST_GAMEPLAY_PREFS_KEY) || "null");
+            }
+            catch {
+                lastPrefs = null;
+            }
+
+            // Build payload using last used or current view settings
+            const payload = {
+                preset: lastCreate?.preset ?? view?.preset ?? "Medium",
+                rows: Number(lastCreate?.rows ?? view?.rows ?? 16),
+                cols: Number(lastCreate?.cols ?? view?.cols ?? 16),
+                mines: Number(lastCreate?.mines ?? view?.mines ?? 40),
+                lives: Number(lastCreate?.lives ?? (view?.lives?.total ?? 3))
+            };
+
+            // Build prefs using last used or current prefs
+            const prefs = {
+                showTimer: lastPrefs?.showTimer ?? gameplayPrefs.showTimer ?? true,
+                allowUndo: lastPrefs?.allowUndo ?? gameplayPrefs.allowUndo ?? true,
+                enableHints: lastPrefs?.enableHints ?? gameplayPrefs.enableHints ?? true
+            };
+
+            // Create the new game
+            const result = await postCreateGame(payload, {signal: abortCtrl.signal});
+            if(!result || !result.view) {
+                throw new Error("No game view returned from server");
+            }
+
+            // Apply new view locally
+            const newView = normalizeView(result.view);
+            if(newView) {
+                setView(newView);
+                setQuickFlag(!!newView.quickFlag);
+                setSeekIndex(newView.cursor ?? 0);
+                setTimerSec(newView.elapsedTime ?? 0);
+            }
+
+            // Extract new gameId
+            const newGameId = result.view?.gameId;
+
+            // Persist last used settings
+            try {
+                localStorage.setItem(LAST_GAMEPLAY_PREFS_KEY, JSON.stringify(buildGameplayPrefs({gameId: newGameId, ...prefs})));
+                localStorage.setItem(LAST_CREATE_PAYLOAD_KEY, JSON.stringify(buildCreatePayload({gameId: newGameId, ...payload})));
+            }
+            catch {
+                // ignore
+            }
+
+            // Navigate to the new game using "location" header if present
+            const locationHeader = result.location;
+            if(locationHeader) {
+                try {
+                    const url = new URL(locationHeader, window.location.origin);
+                    const extractedId = url.pathname.split("/").pop();
+                    if(extractedId) {
+                        navigate("/minesweeper", {state: {id: extractedId}});
+                        return;
+                    }
+                }
+                catch {
+                    // ignore
+                }
+            }
+
+            // Fallback navigation
+            navigate("/minesweeper", {state: {id: newGameId}});
+        }
+        catch(e) {
+            if(isAbortLikeError(e)) {
+                return;
+            }
+            setError(String(e?.message || e));
+        }
+        finally {
+            detectPreviousCreateGame.current = null;
+            setBusy(false);
+        }
+    }, [navigate, view, gameplayPrefs, normalizeView, setView, setQuickFlag, setSeekIndex, setTimerSec]);
+
+    // Keyboard navigation state
+    const [focusedCell, setFocusedCell] = useState(null);
+    const [keyboardActive, setKeyboardActive] = useState(false);
+    const [keyboardDragging, setKeyboardDragging] = useState(false);
+    const [cursorPosition, setCursorPosition] = useState(null); // {x,y} in pixels
+    const keyboardHostRef = useRef(null);
+
+    // Click outside handler to disable keyboard navigation
+    useEffect(() => {
+        const handleClickOutside = (event) => {
+            const host = keyboardHostRef.current;
+            if(host && !host.contains(event.target)) {
+                setKeyboardActive(false);
+                setFocusedCell(null);
+                handleEndHold();
+            }
+        };
+
+        document.addEventListener("mousedown", handleClickOutside);
+        return () => document.removeEventListener("mousedown", handleClickOutside);
+    }, [handleEndHold]);
+
+    // Handler to drop flag at cursor position
+    const dropFlagAtCursor = useCallback(() => {
+        if(!cursorPosition) {
+            return false;
+        }
+
+        const cols = view?.cols;
+        const rows = view?.rows;
+
+        if(!cols || !rows) {
+            return false;
+        }
+
+        const gridElement = keyboardHostRef.current?.querySelector("[style*=\"grid-template-columns\"]");
+        if(!gridElement) {
+            return false;
+        }
+
+        const rect = gridElement.getBoundingClientRect();
+        const cellWidthScaled = rect.width / cols;
+        const cellHeightScaled = rect.height / rows;
+
+        let col = Math.floor(cursorPosition.x / cellWidthScaled);
+        let row = Math.floor(cursorPosition.y / cellHeightScaled);
+
+        col = Math.max(0, Math.min(cols - 1, col));
+        row = Math.max(0, Math.min(rows - 1, row));
+
+        const key = `${row},${col}`;
+        const isOpen = view?.board?.opened?.some(c => c.row === row && c.col === col);
+        const isPermaFlagged = permanentFlagsSet.has(key);
+        const lostOnCell = !!(view?.board?.lostOn && view.board.lostOn.row === row && view.board.lostOn.col === col);
+
+        const isFlaggable = !isOpen && !paused && !isPermaFlagged &&
+                            !lostOnCell && !beforeStart;
+
+        if(isFlaggable) {
+            void doFlag(row, col, true);
+            return true;
+        }
+
+        return false;
+    }, [cursorPosition, keyboardHostRef, view?.cols, view?.rows, view?.board?.opened, view?.board?.lostOn,
+        permanentFlagsSet, paused, beforeStart, doFlag]);
+
+    // Keyboard handler
+    const handleKeyDown = useCallback((event) => {
+        if(!view) {
+            return;
+        }
+
+        // Allow keyboard navigation before game starts
+        const allowKeyboard = canUseActions || beforeStart || event.key === "p" || event.key === "P" || event.key === "Escape";
+        if(!allowKeyboard) {
+            return;
+        }
+
+        const rows = view.rows;
+        const cols = view.cols;
+        let handled = false;
+
+        // Helper to clamp values
+        const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+
+        if(event.key !== "p" && event.key !== "P" && event.key !== "Escape") {
+
+            // Arrow keys require keyboard mode to be active
+            const isArrowKey = ["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(event.key);
+            if(isArrowKey && !keyboardActive) {
+                setKeyboardActive(true);
+
+                const row = Math.floor(rows / 2);
+                const col = Math.floor(cols / 2);
+
+                setFocusedCell({row, col});
+
+                event.preventDefault();
+                event.stopPropagation();
+                return;
+            }
+
+            // For non-arrow keys, activate keyboard mode but continue with action
+            if(!keyboardActive) {
+                setKeyboardActive(true);
+
+                const row = Math.floor(rows / 2);
+                const col = Math.floor(cols / 2);
+
+                setFocusedCell({row, col});
+
+                event.preventDefault();
+                event.stopPropagation();
+            }
+        }
+        // Determine current focused cell
+        const currentCell = focusedCell ?? {row: Math.floor(rows / 2), col: Math.floor(cols / 2)};
+
+        // Helper to move focus
+        const moveTo = (nextRow, nextCol) => {
+            nextRow = clamp(nextRow, 0, rows - 1);
+            nextCol = clamp(nextCol, 0, cols - 1);
+
+            if(nextRow === currentCell.row && nextCol === currentCell.col) {
+                return;
+            }
+
+            handleEndHold();
+            setFocusedCell({row: nextRow, col: nextCol});
+        };
+
+        // Handle key actions
+        switch(event.key) {
+            case "ArrowUp":
+                if(keyboardDragging && cursorPosition) {
+                    setCursorPosition(prev => {
+                        const gridRect = keyboardHostRef.current?.querySelector("[style*=\"gridTemplateColumns\"]")?.getBoundingClientRect();
+                        const maxY = gridRect?.height || 1000;
+                        return {
+                            x: prev.x,
+                            y: Math.max(0, Math.min(prev.y - 15, maxY))
+                        };
+                    });
+                }
+                else {
+                    moveTo(currentCell.row - 1, currentCell.col);
+                }
+                handled = true;
+                break;
+            case "ArrowDown":
+                if(keyboardDragging && cursorPosition) {
+                    setCursorPosition(prev => {
+                        const gridRect = keyboardHostRef.current?.querySelector("[style*=\"gridTemplateColumns\"]")?.getBoundingClientRect();
+                        const maxY = gridRect?.height || 1000;
+                        return {
+                            x: prev.x,
+                            y: Math.max(0, Math.min(prev.y + 15, maxY))
+                        };
+                    });
+                }
+                else {
+                    moveTo(currentCell.row + 1, currentCell.col);
+                }
+                handled = true;
+                break;
+            case "ArrowLeft":
+                if(keyboardDragging && cursorPosition) {
+                    setCursorPosition(prev => {
+                        const gridRect = keyboardHostRef.current?.querySelector("[style*=\"gridTemplateColumns\"]")?.getBoundingClientRect();
+                        const maxX = gridRect?.width || 1000;
+                        return {
+                            x: Math.max(0, Math.min(prev.x - 15, maxX)),
+                            y: prev.y
+                        };
+                    });
+                }
+                else {
+                    moveTo(currentCell.row, currentCell.col - 1);
+                }
+                handled = true;
+                break;
+            case "ArrowRight":
+                if(keyboardDragging && cursorPosition) {
+                    setCursorPosition(prev => {
+                        const gridRect = keyboardHostRef.current?.querySelector("[style*=\"gridTemplateColumns\"]")?.getBoundingClientRect();
+                        const maxX = gridRect?.width || 1000;
+                        return {
+                            x: Math.max(0, Math.min(prev.x + 15, maxX)),
+                            y: prev.y
+                        };
+                    });
+                }
+                else {
+                    moveTo(currentCell.row, currentCell.col + 1);
+                }
+                handled = true;
+                break;
+            case "d":
+            case "D":
+                if(keyboardDragging) {
+                    dropFlagAtCursor();
+                    setKeyboardDragging(false);
+                    setCursorPosition(null);
+                    handled = true;
+                }
+                else if(!beforeStart) {
+                    setKeyboardDragging(true);
+
+                    if(!focusedCell) {
+                        const row = Math.floor(rows / 2);
+                        const col = Math.floor(cols / 2);
+                        setFocusedCell({row, col});
+                    }
+
+                    setCursorPosition(null);
+                    handled = true;
+                }
+                break;
+            case "Enter":
+            case " ":
+                if(keyboardDragging && cursorPosition) {
+                    dropFlagAtCursor();
+                    setKeyboardDragging(false);
+                    setCursorPosition(null);
+                    handled = true;
+                    break;
+                }
+
+                if(focusedCell) {
+                    if(quickFlag) {
+                        if(isOpened(focusedCell.row, focusedCell.col) || permanentFlagsSet.has(`${focusedCell.row},${focusedCell.col}`)) {
+                            break;
+                        }
+                        const isFlagged = view.board?.flagged?.some(cell => cell.row === focusedCell.row && cell.col === focusedCell.col);
+                        void doFlag(focusedCell.row, focusedCell.col, !isFlagged);
+                    }
+                    else {
+                        void doReveal(focusedCell.row, focusedCell.col);
+                    }
+                    handled = true;
+                }
+                break;
+            case "f":
+            case "F":
+                if(focusedCell) {
+                    if(isOpened(focusedCell.row, focusedCell.col) || permanentFlagsSet.has(`${focusedCell.row},${focusedCell.col}`)) {
+                        break;
+                    }
+                    const isFlagged = view.board?.flagged?.some(cell => cell.row === focusedCell.row && cell.col === focusedCell.col);
+                    void doFlag(focusedCell.row, focusedCell.col, !isFlagged);
+                    handled = true;
+                }
+                break;
+            case "q":
+            case "Q":
+                void doQuickFlagMode();
+                handled = true;
+                break;
+            case "h":
+            case "H":
+                void doHint();
+                handled = true;
+                break;
+            case "p":
+            case "P":
+                setPaused(!paused);
+                handled = true;
+                break;
+            case "u":
+            case "U":
+                void doUndo();
+                handled = true;
+                break;
+            case "t":
+            case "T":
+                if(holdHighlight && focusedCell && isOpened(focusedCell.row, focusedCell.col)) {
+                    if(event.type === "keydown" && !event.repeat) {
+                        setHighlightCell(focusedCell);
+                    }
+                }
+                handled = true;
+                break;
+            case "Escape":
+                handleEndHold();
+                setKeyboardActive(false);
+                setFocusedCell(null);
+                setKeyboardDragging(false);
+                setCursorPosition(null);
+                handled = true;
+                break;
+            case "Home":
+                moveTo(0, 0);
+                handled = true;
+                break;
+            case "End":
+                moveTo(rows - 1, cols - 1);
+                handled = true;
+                break;
+            default:
+                break;
+        }
+
+        if(handled) {
+            event.preventDefault();
+            event.stopPropagation();
+        }
+    }, [view, canUseActions, beforeStart, focusedCell, keyboardActive, keyboardDragging,
+        cursorPosition, quickFlag, handleEndHold, doFlag, doReveal, doQuickFlagMode,
+        doHint, paused, doUndo, keyboardHostRef, permanentFlagsSet, dropFlagAtCursor]);
+
+    // Handler to release highlight on "t" key up
+    useEffect(() => {
+        const handleKeyUp = (event) => {
+            if((event.key === "t" || event.key === "T") && highlightCell) {
+                setHighlightCell(null);
+            }
+        };
+
+        document.addEventListener("keydown", handleKeyDown);
+        document.addEventListener("keyup", handleKeyUp);
+        return () => {
+            document.removeEventListener("keydown", handleKeyDown);
+            document.removeEventListener("keyup", handleKeyUp);
+        };
+    }, [handleKeyDown, highlightCell]);
+
     return {
         view,
         busy,
@@ -609,8 +1031,7 @@ export function useMinesweeperGameController() {
 
         doReveal,
         doFlag,
-        doMoveFlag,
-        toggleQuickFlag: doQuickFlagMode,
+        doQuickFlagMode,
         doUndo,
         doHint,
         doUndoAndRevive,
@@ -618,6 +1039,18 @@ export function useMinesweeperGameController() {
         handleSliderChange,
         handleBeginHold,
         handleEndHold,
-        onSettings
+
+        // Routing
+        onSettings,
+        onPlayAgain,
+
+        // Keyboard navigation
+        focusedCell: keyboardActive ? focusedCell : null,
+        keyboardDragging: keyboardActive ? keyboardDragging : false,
+        cursorPosition: keyboardActive ? cursorPosition : null,
+        setCursorPosition,
+        onDropFlag: doFlag,
+        handleKeyDown,
+        keyboardHostRef
     };
 }

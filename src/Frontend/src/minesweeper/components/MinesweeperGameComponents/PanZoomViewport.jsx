@@ -1,11 +1,11 @@
-import React, { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState } from "react";
+import React, {forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState} from "react";
 
 export default forwardRef(function PanZoomViewport({
                                                        children,
                                                        minScale = 0.5,
                                                        maxScale = 3,
                                                        initialScale = 1,
-                                                       autoFit = 'contain',
+                                                       autoFit = "contain"
                                                    }, ref) {
     const hostRef = useRef(null);
     const contentRef = useRef(null);
@@ -21,7 +21,7 @@ export default forwardRef(function PanZoomViewport({
     function clamp(val, lo, hi) { return Math.max(lo, Math.min(hi, val)); }
 
     const applyTransform = useCallback(() => {
-        if (contentRef.current) {
+        if(contentRef.current) {
             contentRef.current.style.transform = `translate(${tx}px, ${ty}px) scale(${scale})`;
         }
     }, [scale, tx, ty]);
@@ -31,26 +31,32 @@ export default forwardRef(function PanZoomViewport({
     }, [applyTransform]);
 
     function getMidpoint(a, b) {
-        return { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
+        return {x: (a.x + b.x) / 2, y: (a.y + b.y) / 2};
     }
 
     function dist(a, b) {
-        const dx = a.x - b.x; const dy = a.y - b.y; return Math.hypot(dx, dy);
+        const dx = a.x - b.x;
+        const dy = a.y - b.y;
+        return Math.hypot(dx, dy);
     }
 
     const toLocal = useCallback((clientX, clientY) => {
         const host = hostRef.current;
-        if (!host) return { x: 0, y: 0 };
+        if(!host) {
+            return {x: 0, y: 0};
+        }
         const rect = host.getBoundingClientRect();
         const x = clientX - rect.left;
         const y = clientY - rect.top;
-        return { x: (x - tx) / scale, y: (y - ty) / scale };
+        return {x: (x - tx) / scale, y: (y - ty) / scale};
     }, [scale, tx, ty]);
 
-    const fit = useCallback((mode = 'contain') => {
+    const fit = useCallback((mode = "contain") => {
         const host = hostRef.current;
         const content = contentRef.current;
-        if (!host || !content) return;
+        if(!host || !content) {
+            return;
+        }
 
         requestAnimationFrame(() => {
             const hw = host.clientWidth;
@@ -58,14 +64,20 @@ export default forwardRef(function PanZoomViewport({
             const cw = content.scrollWidth || content.offsetWidth || content.getBoundingClientRect().width;
             const ch = content.scrollHeight || content.offsetHeight || content.getBoundingClientRect().height;
 
-            if (!cw || !ch || !hw || !hh) {
+            if(!cw || !ch || !hw || !hh) {
                 return;
             }
 
             let s;
-            if (mode === 'width') s = hw / cw;
-            else if (mode === 'height') s = hh / ch;
-            else s = Math.min(hw / cw, hh / ch);
+            if(mode === "width") {
+                s = hw / cw;
+            }
+            else if(mode === "height") {
+                s = hh / ch;
+            }
+            else {
+                s = Math.min(hw / cw, hh / ch);
+            }
 
             s = clamp(s, minScale, maxScale);
             s = Math.min(s, 1);
@@ -84,7 +96,9 @@ export default forwardRef(function PanZoomViewport({
     const zoomTo = useCallback((targetScale, clientX = null, clientY = null) => {
         const host = hostRef.current;
         const content = contentRef.current;
-        if (!host || !content) return;
+        if(!host || !content) {
+            return;
+        }
         const hostRect = host.getBoundingClientRect();
         const cx = (clientX !== null && clientY !== null) ? clientX : (hostRect.left + hostRect.width / 2);
         const cy = (clientX !== null && clientY !== null) ? clientY : (hostRect.top + hostRect.height / 2);
@@ -105,24 +119,34 @@ export default forwardRef(function PanZoomViewport({
     }, [scale, minScale, maxScale, zoomTo]);
 
     useImperativeHandle(ref, () => ({
-        fitToContain: () => fit('contain'),
-        fitToWidth: () => fit('width'),
-        fitToHeight: () => fit('height'),
+        fitToContain: () => fit("contain"),
+        fitToWidth: () => fit("width"),
+        fitToHeight: () => fit("height"),
         zoomTo,
         zoomIn: (clientX = null, clientY = null) => zoomBy(1.2, clientX, clientY),
-        zoomOut: (clientX = null, clientY = null) => zoomBy(1 / 1.2, clientX, clientY),
+        zoomOut: (clientX = null, clientY = null) => zoomBy(1 / 1.2, clientX, clientY)
     }), [fit, zoomTo, zoomBy]);
 
     useEffect(() => {
-        if (!autoFit) return;
+        if(!autoFit) {
+            return;
+        }
         const host = hostRef.current;
         const content = contentRef.current;
-        if (!host || !content) return;
+        if(!host || !content) {
+            return;
+        }
 
         const recalc = () => {
-            if (autoFit === 'width') fit('width');
-            else if (autoFit === 'height') fit('height');
-            else fit('contain');
+            if(autoFit === "width") {
+                fit("width");
+            }
+            else if(autoFit === "height") {
+                fit("height");
+            }
+            else {
+                fit("contain");
+            }
         };
 
         let raf = requestAnimationFrame(recalc);
@@ -133,23 +157,27 @@ export default forwardRef(function PanZoomViewport({
         ro.observe(host);
         ro.observe(content);
 
-        window.addEventListener('resize', recalc);
+        window.addEventListener("resize", recalc);
         return () => {
             cancelAnimationFrame(raf);
             ro.disconnect();
-            window.removeEventListener('resize', recalc);
+            window.removeEventListener("resize", recalc);
         };
     }, [autoFit, fit]);
 
     const onWheel = useCallback((e) => {
-        if (!e.ctrlKey) return;
+        if(!e.ctrlKey) {
+            return;
+        }
         e.preventDefault();
         const zoomIntensity = 0.0015;
         const delta = -e.deltaY;
         const newScale = clamp(scale * (1 + delta * zoomIntensity), minScale, maxScale);
 
         const host = hostRef.current;
-        if (!host) return;
+        if(!host) {
+            return;
+        }
         const local = toLocal(e.clientX, e.clientY);
         const hostRect = host.getBoundingClientRect();
         const newTxAbs = e.clientX - (local.x * newScale);
@@ -163,13 +191,23 @@ export default forwardRef(function PanZoomViewport({
 
     const onPointerDown = useCallback((e) => {
         const el = hostRef.current;
-        if (!el) return;
-        pointers.current.set(e.pointerId, { x: e.clientX, y: e.clientY, sx: e.clientX, sy: e.clientY });
-        if (pointers.current.size === 2) {
-            try { el.setPointerCapture(e.pointerId); } catch { }
-            for (const [pid] of pointers.current) {
-                if (pid !== e.pointerId) {
-                    try { el.setPointerCapture(pid); } catch { }
+        if(!el) {
+            return;
+        }
+        pointers.current.set(e.pointerId, {x: e.clientX, y: e.clientY, sx: e.clientX, sy: e.clientY});
+        if(pointers.current.size === 2) {
+            try {
+                el.setPointerCapture(e.pointerId);
+            }
+            catch {
+            }
+            for(const [pid] of pointers.current) {
+                if(pid !== e.pointerId) {
+                    try {
+                        el.setPointerCapture(pid);
+                    }
+                    catch {
+                    }
                 }
             }
             isDraggingRef.current = true;
@@ -177,21 +215,28 @@ export default forwardRef(function PanZoomViewport({
     }, []);
 
     const onPointerMove = useCallback((e) => {
-        if (!pointers.current.has(e.pointerId)) return;
+        if(!pointers.current.has(e.pointerId)) {
+            return;
+        }
         const el = hostRef.current;
         const prev = pointers.current.get(e.pointerId);
-        const curr = { x: e.clientX, y: e.clientY, sx: prev.sx, sy: prev.sy };
+        const curr = {x: e.clientX, y: e.clientY, sx: prev.sx, sy: prev.sy};
         pointers.current.set(e.pointerId, curr);
 
         const pts = Array.from(pointers.current.values());
-        if (pts.length === 1) {
-            if (!isDraggingRef.current) {
+        if(pts.length === 1) {
+            if(!isDraggingRef.current) {
                 const mdx = curr.x - (curr.sx ?? curr.x);
                 const mdy = curr.y - (curr.sy ?? curr.y);
-                if ((mdx * mdx + mdy * mdy) >= dragThresholdSq) {
-                    try { el && el.setPointerCapture(e.pointerId); } catch { }
+                if((mdx * mdx + mdy * mdy) >= dragThresholdSq) {
+                    try {
+                        el && el.setPointerCapture(e.pointerId);
+                    }
+                    catch {
+                    }
                     isDraggingRef.current = true;
-                } else {
+                }
+                else {
                     return;
                 }
             }
@@ -204,7 +249,7 @@ export default forwardRef(function PanZoomViewport({
 
     const onPointerUpdate = useCallback(() => {
         const pts = Array.from(pointers.current.values());
-        if (pts.length === 2 && !pinchBase.current) {
+        if(pts.length === 2 && !pinchBase.current) {
             const [a, b] = pts;
             pinchBase.current = {
                 mid: getMidpoint(a, b),
@@ -213,19 +258,26 @@ export default forwardRef(function PanZoomViewport({
                 tx,
                 ty
             };
-        } else if (pts.length !== 2) {
+        }
+        else if(pts.length !== 2) {
             pinchBase.current = null;
         }
     }, [scale, tx, ty]);
 
     const onPointerMoveWithPinch = useCallback((e) => {
-        if (!pointers.current.has(e.pointerId)) return;
-        const curr = { x: e.clientX, y: e.clientY };
+        if(!pointers.current.has(e.pointerId)) {
+            return;
+        }
+        const curr = {x: e.clientX, y: e.clientY};
         pointers.current.set(e.pointerId, curr);
 
         const pts = Array.from(pointers.current.values());
-        if (pts.length !== 2) return;
-        if (!pinchBase.current) return;
+        if(pts.length !== 2) {
+            return;
+        }
+        if(!pinchBase.current) {
+            return;
+        }
 
         const [a, b] = pts;
         const d = dist(a, b);
@@ -242,29 +294,51 @@ export default forwardRef(function PanZoomViewport({
 
     const onPointerUp = useCallback((e) => {
         const el = hostRef.current;
-        if (!el) return;
-        try { el.releasePointerCapture(e.pointerId); } catch { }
+        if(!el) {
+            return;
+        }
+        try {
+            el.releasePointerCapture(e.pointerId);
+        }
+        catch {
+        }
         pointers.current.delete(e.pointerId);
-        if (pointers.current.size !== 2) pinchBase.current = null;
-        if (pointers.current.size === 0) isDraggingRef.current = false;
+        if(pointers.current.size !== 2) {
+            pinchBase.current = null;
+        }
+        if(pointers.current.size === 0) {
+            isDraggingRef.current = false;
+        }
     }, []);
+
+    const onDoubleClick = useCallback(() => {
+        fit("contain");
+    }, [fit]);
 
     useEffect(() => {
         const host = hostRef.current;
-        if (!host) return;
+        if(!host) {
+            return;
+        }
 
         const move = (e) => {
-            if (pointers.current.size === 2) onPointerMoveWithPinch(e);
-            else onPointerMove(e);
+            if(pointers.current.size === 2) {
+                onPointerMoveWithPinch(e);
+            }
+            else {
+                onPointerMove(e);
+            }
             onPointerUpdate();
         };
 
-        host.addEventListener("wheel", onWheel, { passive: false });
+        host.addEventListener("wheel", onWheel, {passive: false});
         host.addEventListener("pointerdown", onPointerDown);
         host.addEventListener("pointermove", move);
         host.addEventListener("pointerup", onPointerUp);
         host.addEventListener("pointercancel", onPointerUp);
         host.addEventListener("pointerleave", onPointerUp);
+        host.addEventListener("dblclick", onDoubleClick);
+
         return () => {
             host.removeEventListener("wheel", onWheel);
             host.removeEventListener("pointerdown", onPointerDown);
@@ -272,8 +346,9 @@ export default forwardRef(function PanZoomViewport({
             host.removeEventListener("pointerup", onPointerUp);
             host.removeEventListener("pointercancel", onPointerUp);
             host.removeEventListener("pointerleave", onPointerUp);
+            host.removeEventListener("dblclick", onDoubleClick);
         };
-    }, [onPointerDown, onPointerMove, onPointerMoveWithPinch, onPointerUp, onPointerUpdate, onWheel]);
+    }, [onPointerDown, onPointerMove, onPointerMoveWithPinch, onPointerUp, onPointerUpdate, onWheel, onDoubleClick]);
 
     const hostStyle = {
         width: "100%",
@@ -295,8 +370,12 @@ export default forwardRef(function PanZoomViewport({
     };
 
     return (
-            <div ref={hostRef} style={hostStyle}>
-                <div ref={contentRef} style={contentStyle}>
+            <div ref={hostRef}
+                 style={hostStyle}
+            >
+                <div ref={contentRef}
+                     style={contentStyle}
+                >
                     {children}
                 </div>
             </div>

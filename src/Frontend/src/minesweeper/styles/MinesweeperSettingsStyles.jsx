@@ -10,7 +10,7 @@ const MinesweeperSettingsStyles = {
     boxAutoscaleWidth: boxWidth + 100,
     boxAutoscaleHeight: boxHeight + 100,
     boxAutoscaleMaxScale: 1,
-    boxAutoscaleMinScale: 0,
+    boxAutoscaleMinScale: 0.6,
 
     // Settings row sizes and flags
     boxAutoscaleCenter: true,

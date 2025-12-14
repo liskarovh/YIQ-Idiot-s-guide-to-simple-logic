@@ -34,6 +34,7 @@ function MineCell({
                       // Special states
                       isHighlighted = false,
                       inHintRectangle = false,
+                      isFocused = false,
 
                       // Cell mutability
                       isFlaggable = true,
@@ -47,11 +48,8 @@ function MineCell({
                       onReveal,
                       onFlag,
                       onBeginHold,
-                      onEndHold,
-                      onFlagDragStart,
-                      onFlagDrop
+                      onEndHold
                   }) {
-
     const holdTimer = useRef(null);
     const hoverTimer = useRef(null);
     const [hovered, setHovered] = useState(false);
@@ -103,9 +101,10 @@ function MineCell({
     const flaggedCellStyle = {
         ...baseCell,
         backgroundImage: flaggedUrl ? `url(${flaggedUrl})` : "none",
-        backgroundSize: "cover",
+        backgroundSize: "105% 105%",
         backgroundRepeat: "no-repeat",
         backgroundPosition: "center",
+
         // Permanent flags have golden glow
         boxShadow: isPermaFlagged
                    ? "0 0 12px rgba(255,215,0,0.8), inset -1px -1px 0 rgba(0,0,0,0.45), inset 1px 1px 0 rgba(255,255,255,0.15)"
@@ -130,19 +129,24 @@ function MineCell({
 
     // Special effect styles
     const hintRectangleStyle = inHintRectangle ? {
-        boxShadow: "0 0 8px 3px rgba(96, 165, 250, 0.6), inset 0 0 8px rgba(96, 165, 250, 0.3)",
-        border: "2px solid rgba(96, 165, 250, 0.9)",
-    } : null; // TODO: change color when wifi is available to view pallete
+        boxShadow: "0 0 8px 3px rgba(255, 215, 0, 0.6), inset 0 0 8px rgba(255, 215, 0, 0.3)",
+        border: "2px solid rgba(255, 215, 0, 0.9)"
+    } : null;
 
     const highlightingRectangleStyle = isHighlighted ? {
         boxShadow: "0 0 8px 3px rgba(96, 165, 250, 0.6), inset 0 0 8px rgba(96, 165, 250, 0.3)",
-        border: "2px solid rgba(96, 165, 250, 0.9)",
+        border: "2px solid rgba(96, 165, 250, 0.9)"
     } : null;
 
-    // Lost on cells have special border (ti signal, they are perma-flagged)
+    const focusStyle = isFocused ? {
+        boxShadow: "0 0 0 2px rgba(34, 197, 94, 0.6)",
+        border: "2px solid rgba(34, 197, 94, 0.95)"
+    } : null;
+
+    // Lost on cells have special border
     const lostOnStyle = isLostOn ? {
         background: "linear-gradient(180deg, rgba(255,33,33,0.12), rgba(255,33,33,0.04))",
-        boxShadow: "inset 0 0 0 2px rgba(255,33,33,0.2)"
+        boxShadow: "0 0 8px 3px rgba(255,33,33,0.05), inset 0 0 8px rgba(255,33,33,0.15)"
     } : null;
 
     // Subtle hover effect
@@ -245,38 +249,10 @@ function MineCell({
         onEndHold?.(row, col);
     }
 
-    // Drag & drop for flags - disabled for permanent flags
-    const draggable = isFlagged && !isOpen && !isPermaFlagged;
-
-    function onDragStart(e) {
-        if(!draggable) {
-            return;
-        }
-        e.dataTransfer.setData("text/plain", JSON.stringify({row, col}));
-        onFlagDragStart?.(row, col);
-    }
-
-    function onDragOver(e) {
-        e.preventDefault();
-    }
-
-    function onDrop(e) {
-        e.preventDefault();
-        const txt = e.dataTransfer.getData("text/plain");
-        try {
-            const {row: fromRow, col: fromCol} = JSON.parse(txt || "{}");
-            if(Number.isInteger(fromRow) && Number.isInteger(fromCol)) {
-                onFlagDrop?.(fromRow, fromCol, row, col);
-            }
-        }
-        catch {
-        }
-    }
-
     // Final style (combine effects)
     const style = isOpen
-                  ? {...openedStyle, ...lostOnStyle, ...hintRectangleStyle, ...highlightingRectangleStyle}
-                  : {...unopenedStyle, ...hintRectangleStyle, ...highlightingRectangleStyle, ...hoverEffect};
+                  ? {...openedStyle, ...lostOnStyle, ...hintRectangleStyle, ...highlightingRectangleStyle, ...focusStyle}
+                  : {...unopenedStyle, ...hintRectangleStyle, ...highlightingRectangleStyle, ...hoverEffect, ...focusStyle};
 
     // Cell content
     const content = (() => {
@@ -320,10 +296,8 @@ function MineCell({
                     onMouseUp={handleMouseUp}
                     onMouseLeave={handleMouseLeave}
                     onMouseEnter={handleMouseEnter}
-                    draggable={draggable}
-                    onDragStart={onDragStart}
-                    onDragOver={onDragOver}
-                    onDrop={onDrop}
+                    draggable={false}
+                    onDragStart={(event) => event.preventDefault()}
             >
                 {content}
             </div>
@@ -340,6 +314,7 @@ function areEqual(prev, next) {
             prev.quickFlagEnabled === next.quickFlagEnabled &&
             prev.isHighlighted === next.isHighlighted &&
             prev.inHintRectangle === next.inHintRectangle &&
+            prev.isFocused === next.isFocused &&
             prev.size === next.size &&
             prev.isPermaFlagged === next.isPermaFlagged &&
             prev.isFlaggable === next.isFlaggable &&

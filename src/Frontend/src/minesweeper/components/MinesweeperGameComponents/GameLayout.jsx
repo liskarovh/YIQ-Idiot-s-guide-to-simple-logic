@@ -12,14 +12,13 @@ function GameLayout({
                     }) {
     const statisticsAreaStyle = {
         ...MinesweeperGameStyles.statisticsAreaLeft,
-        ...(isNarrow
-            ? {
+        ...(isNarrow ? {
                             alignItems: "center",
                             maxWidth: "100%",
                             textAlign: "center",
                             justifyContent: "flex-start"
                         }
-            : {}
+                     : {}
         )
     };
 
@@ -44,13 +43,21 @@ function GameLayout({
                         gridTemplateRows: "auto",
                         rowGap: "clamp(1rem, 3vw, 2rem)",
                         columnGap: 0,
-                        padding: "0rem 1rem",
-                        alignItems: "center"
+                        padding: 0,
+                        alignItems: "center",
+                        marginLeft: "1rem"
                     }}
                     >
                         <div style={MinesweeperGameStyles.rightPanel}>
                             {boardArea}
-                            <div style={{padding: "12px 0", width: "100%", display: "flex", justifyContent: "center", alignItems: "center"}}>
+                            <div style={{
+                                padding: "12px 0",
+                                width: "100%",
+                                display: "flex",
+                                justifyContent: "center",
+                                alignItems: "center"
+                            }}
+                            >
                                 {actionsArea}
                             </div>
                         </div>
@@ -70,13 +77,7 @@ function GameLayout({
                 {header}
 
                 <div style={{
-                    ...MinesweeperGameStyles.boxLayoutStyle,
-                    gridTemplateColumns: "clamp(280px, 22vw, 350px) minmax(0, 1fr)",
-                    gridTemplateRows: "auto auto",
-                    columnGap: "clamp(1rem, 4vw, 6rem)",
-                    rowGap: "1.5rem",
-                    padding: "0rem 0rem 0rem 2rem",
-                    alignItems: "center"
+                    ...MinesweeperGameStyles.boxLayoutStyle
                 }}
                 >
                     {/* Row 1, Column 1: Left panel */}

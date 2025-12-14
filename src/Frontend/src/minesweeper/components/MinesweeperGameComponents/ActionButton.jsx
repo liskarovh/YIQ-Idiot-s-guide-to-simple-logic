@@ -1,7 +1,7 @@
 import React from "react";
 import colors from "../../../Colors";
 
-export default function ActionButton({icon, label, disabled, onClick, active, style}) {
+export default function ActionButton({icon, label, disabled, onClick, active, style, draggable = false, onDragStart, onDragEnd}) {
     const actionButtonStyle = {
         display: "grid",
         placeItems: "center",
@@ -15,13 +15,22 @@ export default function ActionButton({icon, label, disabled, onClick, active, st
         ...style
     };
     const titleStyle = {
-        fontSize: 13,
+        fontSize: 16,
         textAlign: "center"
     };
 
     return (
             <div style={actionButtonStyle}
                  onClick={() => !disabled && onClick?.()}
+                 draggable={draggable && !disabled}
+                 onDragStart={(event) => {
+                     if(disabled) {
+                         event.preventDefault();
+                         return;
+                     }
+                     onDragStart?.(event);
+                 }}
+                 onDragEnd={(event) => onDragEnd?.(event)}
             >
                 <div>{icon}</div>
                 <div style={titleStyle}>{label}</div>

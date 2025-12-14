@@ -67,7 +67,7 @@ export function useDerivedGameState({view, paused, busy, explodedMode}) {
 
         // Mines and flags info
         const flaggedCount = view?.board?.flagged?.length ?? 0;
-        const permanentFlagsSet = new Set((view?.board?.permanentFlags || []).map(({r, c}) => `${r},${c}`));
+        const permanentFlagsSet = new Set((view?.board?.permanentFlags || []).map(({row, col}) => `${row},${col}`));
         const minesRemaining = Math.max(0, (view?.mines ?? 0) - flaggedCount);
 
         // Lives (hearts) info

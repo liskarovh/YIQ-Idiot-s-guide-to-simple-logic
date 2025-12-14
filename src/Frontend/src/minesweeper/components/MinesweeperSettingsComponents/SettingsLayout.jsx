@@ -2,8 +2,8 @@ import React, {useRef, useState, useEffect} from "react";
 import Header from "../../../components/Header";
 import AutoScale from "../../../components/AutoScale";
 import BoxButton from "../../../components/BoxButton";
-import {PlayIcon} from "../../../assets/icons/PlayIcon.jsx";
-import MinesweeperSettingsStyles from "../../styles/MinesweeperSettingsStyles.jsx";
+import {PlayIcon} from "../../../assets/icons/PlayIcon";
+import MinesweeperSettingsStyles from "../../styles/MinesweeperSettingsStyles";
 import Banner from "../../../components/Banner";
 import {RestartIcon} from "../../../assets/icons/RestartIcon";
 

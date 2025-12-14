@@ -1,42 +1,51 @@
-import {useRef, useState} from "react";
+import {useCallback, useEffect, useRef} from "react";
 import {useNavigate} from "react-router-dom";
+import {InformationCircleIcon, ArrowsPointingInIcon, MagnifyingGlassPlusIcon, MagnifyingGlassMinusIcon} from "@heroicons/react/24/outline";
 import MineGrid from "../components/MinesweeperGameComponents/MineGrid";
 import {useMinesweeperGameController} from "../controllers/MinesweeperGameController.jsx";
 import {GameInfoPanel} from "../components/MinesweeperGameComponents/GameInfoPanel.jsx";
-import {ActionPanel} from "../components/MinesweeperGameComponents/ActionPanel.jsx";
+import {ActionBar} from "../components/MinesweeperGameComponents/ActionBar.jsx";
 import {ReviewControls} from "../components/MinesweeperGameComponents/ReviewControls.jsx";
 import {GameOverControls} from "../components/MinesweeperGameComponents/GameOverControls.jsx";
 import GameLayout from "../components/MinesweeperGameComponents/GameLayout.jsx";
-import SettingsLoader from "../components/MinesweeperSettingsComponents/SettingsLoader";
 import MinesweeperGameStyles from "../styles/MinesweeperGameStyles.jsx";
 import PanZoomViewport from "../components/MinesweeperGameComponents/PanZoomViewport.jsx";
 import {useMediaQuery} from "../hooks/UseMediaQuery";
 import OverlayButton from "../components/MinesweeperGameComponents/OverlayButton";
+import GameLoader from "../components/MinesweeperGameComponents/GameLoader";
 
 function MinesweeperGameView() {
     const navigate = useNavigate();
     const ctrl = useMinesweeperGameController();
+
+    // Hooks for viewport and responsiveness
     const viewportRef = useRef(null);
-
     const isNarrow = useMediaQuery("(max-width: 800px)");
-    const [showStatsOverlay, setShowStatsOverlay] = useState(false);
 
+    // Attach keyboard listener to host element
+    useEffect(() => {
+        document.addEventListener("keydown", ctrl.handleKeyDown);
+        return () => document.removeEventListener("keydown", ctrl.handleKeyDown);
+    }, [ctrl.handleKeyDown]);
+
+    // Callback for cursor initialization
+    const handleCursorInit = useCallback((position) => {
+        ctrl.setCursorPosition?.(position);
+    }, [ctrl]);
+
+    // Show settings loader if no game view is present
     if(!ctrl.view) {
         return (
-                <GameLayout
+                <GameLoader
                         onSettings={() => {
                             navigate("/minesweeper/settings");
                         }}
-                        leftPanel={
-                            <SettingsLoader />}
-                        boardArea={
-                            <SettingsLoader />}
-                        actionsArea={null}
                         error={ctrl.error}
                 />
         );
     }
 
+    // Panels and areas
     const statisticsArea = (
             <GameInfoPanel
                     view={ctrl.view}
@@ -53,31 +62,46 @@ function MinesweeperGameView() {
     const mineGrid = (
             <div style={{...MinesweeperGameStyles.mineGrid, ...(ctrl.paused ? MinesweeperGameStyles.mineGridPaused : MinesweeperGameStyles.mineGridActive)}}>
                 <MineGrid
+                        /* Coordinates */
                         rows={ctrl.view.rows}
                         cols={ctrl.view.cols}
+
+                        /* State */
                         opened={ctrl.view.board?.opened ?? []}
                         flagged={ctrl.view.board?.flagged ?? []}
                         permanentFlags={ctrl.permanentFlagsSet}
                         lostOn={ctrl.view.board?.lostOn}
+                        mines={ctrl.view.board?.mines ?? []}
+
+                        /* Highlighting */
+                        holdHighlight={ctrl.holdHighlight}
                         hintRectangle={ctrl.hintRectangle}
+
+                        /* Mutability */
                         highlightCell={ctrl.highlightCell}
                         quickFlag={ctrl.quickFlag}
                         isPaused={ctrl.paused || ctrl.isExploded}
                         beforeStart={ctrl.beforeStart}
+
+                        /* Callbacks */
                         onReveal={(row, col) => ctrl.canReveal && ctrl.doReveal(row, col)}
                         onFlag={(row, col, set) => ctrl.canFlag && ctrl.doFlag(row, col, set)}
-                        onMoveFlag={(fromRow, fromCol, toRow, toCol) => ctrl.canFlag && ctrl.doMoveFlag(fromRow, fromCol, toRow, toCol)}
                         onBeginHold={ctrl.handleBeginHold}
                         onEndHold={ctrl.handleEndHold}
-                        holdHighlight={ctrl.holdHighlight}
-                        mines={ctrl.view.board?.mines ?? []}
+
+                        /* Keyboard mode */
+                        focusedCell={ctrl.focusedCell}
+                        keyboardDragging={ctrl.keyboardDragging}
+                        cursorPosition={ctrl.cursorPosition}
+                        onDropFlag={ctrl.onDropFlag}
+                        onCursorInit={handleCursorInit}
                 />
             </div>
     );
 
     // Determine which action controls to show
     const actionArea = (!ctrl.isGameOver && !ctrl.isExploded) ? (
-            <ActionPanel
+            <ActionBar
                     enableHints={ctrl.enableHints}
                     allowUndo={ctrl.allowUndo}
                     canUseActions={ctrl.canUseActions}
@@ -90,7 +114,7 @@ function MinesweeperGameView() {
                     hintDisabled={ctrl.hintCooldown}
                     onPauseToggle={() => ctrl.setPaused((p) => !p)}
                     onUndo={ctrl.doUndo}
-                    onToggleQuickFlag={ctrl.toggleQuickFlag}
+                    onToggleQuickFlag={ctrl.doQuickFlagMode}
             />
     ) : ctrl.isExploded ? (
             <ReviewControls
@@ -114,9 +138,15 @@ function MinesweeperGameView() {
         );
 
     const boardArea = (
-            <div style={{...MinesweeperGameStyles.boardArea, ...(!isNarrow ? MinesweeperGameStyles.boardAreaRight : {})}}>
-                {/* Stats panel - Shown above board when toggle is active */}
-                {isNarrow && showStatsOverlay && (
+            <div ref={ctrl.keyboardHostRef}
+                 tabIndex={0}
+                 style={{
+                     ...MinesweeperGameStyles.boardArea,
+                     ...(!isNarrow ? MinesweeperGameStyles.boardAreaRight : {})
+                 }}
+            >
+                {/* Stats panel - Above board when narrow */}
+                {isNarrow && (
                         <div style={MinesweeperGameStyles.statisticsAreaAbove}>
                             {statisticsArea}
                         </div>
@@ -134,34 +164,91 @@ function MinesweeperGameView() {
                         {mineGrid}
                     </PanZoomViewport>
 
-                    {/* Statistics toggle button - Top right corner */}
-                    {isNarrow && (
-                            <OverlayButton
-                                    icon={"ℹ️"}
-                                    title={showStatsOverlay ? "Hide stats" : "Show stats"}
-                                    ariaLabel={showStatsOverlay ? "Hide stats" : "Show stats"}
-                                    onClick={() => setShowStatsOverlay(v => !v)}
-                                    style={MinesweeperGameStyles.statisticsToggleButton}
-                                    size={44}
-                            />
-                    )}
+                    {/* Controls info button - Top right corner */}
+                    <OverlayButton
+                            icon={
+                                <InformationCircleIcon
+                                        style={{width: 35, height: 35}}
+                                        aria-hidden="true"
+                                />
+                            }
+                            title="Help"
+                            ariaLabel="Show controls help"
+                            onClick={() => {}}
+                            hoverContent={
+                                <div style={{
+                                    padding: "12px 16px",
+                                    backgroundColor: "rgba(0,0,0,0.9)",
+                                    color: "#fff",
+                                    borderRadius: "8px",
+                                    fontSize: "13px",
+                                    lineHeight: "1.6",
+                                    maxWidth: "280px",
+                                    whiteSpace: "pre-line"
+                                }}
+                                >
+                                    <strong>Mouse:</strong>{"\n"}
+                                    <emph>Normal Mode:</emph>
+                                    {"\n"}
+                                    • Click: Reveal{"\n"}
+                                    • Right-click: Flag{"\n"}
+                                    • Hold: Highlight area{"\n"}
+                                    <emph>Quick-Flag Mode:</emph>
+                                    {"\n"}
+                                    • Click: Toggle flag{"\n\n"}
+                                    <strong>Keyboard:</strong>{"\n"}
+                                    • <emph>Enable keyboard mode by pressing of the keys below.</emph>{"\n"}
+                                    • Arrows: Navigate{"\n"}
+                                    • Enter/Space: Reveal or Flag in Quick-Flag Mode{"\n"}
+                                    • F: Toggle flag{"\n"}
+                                    • T (hold): Highlight area{"\n"}
+                                    • D: Drag-a-Flag mode (drop with D/Enter){"\n"}
+                                    • Q: Quick flag mode{"\n"}
+                                    • H: Hint{"\n"}
+                                    • U: Undo{"\n"}
+                                    • P: Pause{"\n"}
+                                    • Esc: Exit keyboard mode{"\n\n"}
+                                    <strong>Pan view:</strong>{"\n"}
+                                    • Click + Drag: Move view{"\n"}
+                                    • Ctrl + Mouse Wheel: Zoom in/out{"\n"}
+                                    • Double Click: Fit to view
+                                </div>
+                            }
+                            style={MinesweeperGameStyles.helpButton}
+                            size={44}
+                    />
 
                     {/* Zoom controls - Bottom right corner */}
                     <div style={MinesweeperGameStyles.zoomControls}>
                         <OverlayButton
-                                icon={"+"}
+                                icon={
+                                    <MagnifyingGlassPlusIcon
+                                            style={{width: 35, height: 35}}
+                                            aria-hidden="true"
+                                    />
+                                }
                                 title="Zoom in"
                                 onClick={() => viewportRef.current?.zoomIn()}
                                 size={44}
                         />
                         <OverlayButton
-                                icon={"−"}
+                                icon={
+                                    <MagnifyingGlassMinusIcon
+                                            style={{width: 35, height: 35}}
+                                            aria-hidden="true"
+                                    />
+                                }
                                 title="Zoom out"
                                 onClick={() => viewportRef.current?.zoomOut()}
                                 size={44}
                         />
                         <OverlayButton
-                                icon={"⊡"}
+                                icon={
+                                    <ArrowsPointingInIcon
+                                            style={{width: 35, height: 35}}
+                                            aria-hidden="true"
+                                    />
+                                }
                                 title="Fit to view"
                                 onClick={() => viewportRef.current?.fitToContain()}
                                 size={44}
