@@ -568,13 +568,19 @@ export function useMinesweeperGameController() {
 
     // Play Again handler
     const onPlayAgain = useCallback(async() => {
-        setError(null);
+        const startTs = new Date().toISOString();
 
+        setError(null);
         const abortCtrl = new AbortController();
 
-        // cancel previous create if any
+        // Cancel previous create if any
         if(detectPreviousCreateGame.current) {
-            detectPreviousCreateGame.current.abort();
+            try {
+                detectPreviousCreateGame.current.abort();
+            }
+            catch {
+                // ignore
+            }
         }
 
         detectPreviousCreateGame.current = abortCtrl;
@@ -584,7 +590,7 @@ export function useMinesweeperGameController() {
             // Load last used create payload and prefs
             let lastCreate = null;
             try {
-                lastCreate = JSON.parse(localStorage.getItem(LAST_CREATE_PAYLOAD_KEY) || "null");
+                lastCreate = JSON.parse(localStorage.getItem(LAST_CREATE_PAYLOAD_KEY));
             }
             catch {
                 lastCreate = null;
@@ -592,7 +598,7 @@ export function useMinesweeperGameController() {
 
             let lastPrefs = null;
             try {
-                lastPrefs = JSON.parse(localStorage.getItem(LAST_GAMEPLAY_PREFS_KEY) || "null");
+                lastPrefs = JSON.parse(localStorage.getItem(LAST_GAMEPLAY_PREFS_KEY));
             }
             catch {
                 lastPrefs = null;
@@ -600,7 +606,7 @@ export function useMinesweeperGameController() {
 
             // Build payload using last used or current view settings
             const payload = {
-                preset: lastCreate?.preset ?? view?.preset ?? "Medium",
+                preset: lastCreate?.preset ?? view?.preset ?? "Custom",
                 rows: Number(lastCreate?.rows ?? view?.rows ?? 16),
                 cols: Number(lastCreate?.cols ?? view?.cols ?? 16),
                 mines: Number(lastCreate?.mines ?? view?.mines ?? 40),
@@ -616,6 +622,7 @@ export function useMinesweeperGameController() {
 
             // Create the new game
             const result = await postCreateGame(payload, {signal: abortCtrl.signal});
+
             if(!result || !result.view) {
                 throw new Error("No game view returned from server");
             }

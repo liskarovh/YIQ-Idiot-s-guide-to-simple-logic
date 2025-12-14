@@ -11,7 +11,7 @@ import {UndoIcon} from "../../../assets/icons/UndoIcon";
 import {useMediaQuery} from "../../hooks/UseMediaQuery";
 import {Flag} from "../../../assets/minesweeper/Flag";
 
-export function ActionBar({
+function ActionBar({
                               enableHints,
                               allowUndo,
                               canUseActions,
@@ -167,3 +167,5 @@ export function ActionBar({
             </>
     );
 }
+
+export default ActionBar;

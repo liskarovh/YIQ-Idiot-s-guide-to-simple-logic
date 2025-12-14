@@ -404,7 +404,6 @@ export function MinesweeperSettingsController() {
                 Number(oMines) !== Number(mines) ||
                 Number(oLives) !== Number(lives);
 
-        console.log({oShowTimer, showTimer, oAllowUndo, allowUndo, oEnableHints, enableHints});
         const featuresChanged =
                 (!!oShowTimer !== !!showTimer) ||
                 (!!oAllowUndo !== !!allowUndo) ||

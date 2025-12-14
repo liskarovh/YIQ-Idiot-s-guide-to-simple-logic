@@ -1,12 +1,12 @@
 import {useCallback, useEffect, useRef} from "react";
 import {useNavigate} from "react-router-dom";
 import {InformationCircleIcon, ArrowsPointingInIcon, MagnifyingGlassPlusIcon, MagnifyingGlassMinusIcon} from "@heroicons/react/24/outline";
-import MineGrid from "../components/MinesweeperGameComponents/MineGrid";
 import {useMinesweeperGameController} from "../controllers/MinesweeperGameController.jsx";
+import MineGrid from "../components/MinesweeperGameComponents/MineGrid";
 import GameInfoPanel from "../components/MinesweeperGameComponents/GameInfoPanel.jsx";
-import {ActionBar} from "../components/MinesweeperGameComponents/ActionBar.jsx";
-import {ReviewControls} from "../components/MinesweeperGameComponents/ReviewControls.jsx";
-import {GameOverControls} from "../components/MinesweeperGameComponents/GameOverControls.jsx";
+import ActionBar from "../components/MinesweeperGameComponents/ActionBar.jsx";
+import LostOnControls from "../components/MinesweeperGameComponents/LostOnControls.jsx";
+import GameOverControls from "../components/MinesweeperGameComponents/GameOverControls.jsx";
 import GameLayout from "../components/MinesweeperGameComponents/GameLayout.jsx";
 import MinesweeperGameStyles from "../styles/MinesweeperGameStyles.jsx";
 import PanZoomViewport from "../components/MinesweeperGameComponents/PanZoomViewport.jsx";
@@ -120,7 +120,7 @@ function MinesweeperGameView() {
                     onToggleQuickFlag={ctrl.doQuickFlagMode}
             />
     ) : ctrl.isExploded ? (
-            <ReviewControls
+            <LostOnControls
                     busy={ctrl.busy}
                     max={ctrl.view.totalActions ?? 0}
                     value={ctrl.view.cursor ?? 0}
@@ -128,15 +128,15 @@ function MinesweeperGameView() {
                     onSeek={ctrl.handleSliderChange}
                     onUndoAndRevive={ctrl.doUndoAndRevive}
                     onReviveFromMove={ctrl.doReviveFromMove}
-                    onPlayAgain={() => navigate("/minesweeper")}
+                    onPlayAgain={ctrl.onPlayAgain}
             />
     ) : (
                 <GameOverControls
                         max={ctrl.view.totalActions ?? 0}
                         seekValue={ctrl.seekIndex}
                         onSeek={ctrl.handleSliderChange}
-                        onPlayAgain={() => navigate("/minesweeper")}
-                        onExit={() => navigate("/")}
+                        onPlayAgain={ctrl.onPlayAgain}
+                        onExit={() => navigate("/", {replace: true})}
                 />
         );
 
@@ -161,15 +161,21 @@ function MinesweeperGameView() {
                 }}
                 >
                     {/* Viewport */}
-                    <PanZoomViewport
-                            ref={viewportRef}
-                            minScale={0.2}
-                            maxScale={3}
-                            initialScale={1}
-                            autoFit="contain"
+                    <div style={{
+                        flex: "1 1 auto",
+                        minHeight: 0
+                    }}
                     >
-                        {mineGrid}
-                    </PanZoomViewport>
+                        <PanZoomViewport
+                                ref={viewportRef}
+                                minScale={0.2}
+                                maxScale={3}
+                                initialScale={1}
+                                autoFit="contain"
+                        >
+                            {mineGrid}
+                        </PanZoomViewport>
+                    </div>
 
                     {/* Help button - Top right */}
                     <OverlayButton

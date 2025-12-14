@@ -4,7 +4,15 @@ import MinesweeperNumberField from "../MinesweeperCommonComponents/MinesweeperNu
 import MinesweeperBoxButton from "../MinesweeperCommonComponents/MinesweeperBoxButton";
 import colors from "../../../Colors";
 
-function GameOverControls({max, seekValue, onSeek, onPlayAgain, onExit}) {
+function LostOnControls({
+                            busy,
+                            max,
+                            value,
+                            onSeek,
+                            onUndoAndRevive,
+                            onReviveFromMove,
+                            onPlayAgain
+                        }) {
     return (
             <div
                     style={{
@@ -41,12 +49,13 @@ function GameOverControls({max, seekValue, onSeek, onPlayAgain, onExit}) {
                         <MinesweeperSlider
                                 min={0}
                                 max={max}
-                                value={seekValue}
+                                value={value}
                                 onChange={onSeek}
+                                width="100%"
                         />
                     </div>
                     <MinesweeperNumberField
-                            value={seekValue}
+                            value={value}
                             minValue={0}
                             maxValue={max}
                             onChange={onSeek}
@@ -64,8 +73,9 @@ function GameOverControls({max, seekValue, onSeek, onPlayAgain, onExit}) {
                         }}
                 >
                     <MinesweeperBoxButton
-                            title="Play Again"
-                            onClick={onPlayAgain}
+                            title="Undo & Revive"
+                            onClick={onUndoAndRevive}
+                            disabled={busy}
                             background={colors.secondary}
                             color={colors.text_header}
                             style={{
@@ -74,8 +84,19 @@ function GameOverControls({max, seekValue, onSeek, onPlayAgain, onExit}) {
                             }}
                     />
                     <MinesweeperBoxButton
-                            title="Exit Minesweeper"
-                            onClick={onExit}
+                            title={`Revive from Move ${value ?? 0}`}
+                            onClick={onReviveFromMove}
+                            disabled={busy}
+                            background={colors.secondary}
+                            color={colors.text_header}
+                            style={{
+                                fontSize: "clamp(13px, 1.8vw, 15px)",
+                                padding: "clamp(8px, 1.2vw, 12px) clamp(14px, 2vw, 20px)"
+                            }}
+                    />
+                    <MinesweeperBoxButton
+                            title="Play Again"
+                            onClick={onPlayAgain}
                             background={colors.secondary}
                             color={colors.text_header}
                             style={{
@@ -88,4 +109,4 @@ function GameOverControls({max, seekValue, onSeek, onPlayAgain, onExit}) {
     );
 }
 
-export default GameOverControls;
+export default LostOnControls;

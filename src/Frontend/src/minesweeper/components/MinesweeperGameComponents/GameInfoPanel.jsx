@@ -16,15 +16,6 @@ function GameInfoPanel({
                            forceTwoColumns = false,
                            columnGap: forcedColumnGap = undefined
                        }) {
-    // Determine heart size based on maxHeightPx
-    const heartSize = useMemo(() => {
-        if(Number.isFinite(maxHeightPx) && maxHeightPx > 0) {
-            const capByPanel = Math.max(12, Math.floor(maxHeightPx * 0.06));
-            return `clamp(12px, min(3vmin, ${capByPanel}px), 24px)`;
-        }
-        return `clamp(12px, 3vmin, 24px)`;
-    }, [maxHeightPx]);
-
     // Determine layout based on forceTwoColumns
     const effectiveColumns = forceTwoColumns ? 2 : 1;
     const effectiveColumnGap = (effectiveColumns === 2) ? (forcedColumnGap || "clamp(12px, 3.2vw, 22px)") : "clamp(12px, 2.8vw, 22px)";
@@ -32,16 +23,46 @@ function GameInfoPanel({
     // Font sizes
     const labelFontSize = effectiveColumns === 2 ? "clamp(12px, 1.6vw, 16px)" : "clamp(14px, 2vw, 18px)";
     const valueFontSize = effectiveColumns === 2 ? "clamp(12px, 1.6vw, 16px)" : "clamp(14px, 2vw, 18px)";
+    const heartFontSize = effectiveColumns === 2 ? "clamp(12px, 1.6vw, 16px)" : `clamp(12px, calc(${valueFontSize} * 2), 48px)`;
+
+    // Determine gradient and accent colors based on game state
+    const isWon = isGameOver && view.status === "won";
+    const isLost = isGameOver && view.status !== "won";
+
+    // Background gradient for special panel forms
+    const customStyle = (isWon || isLost) ? {
+        background: isWon
+                    ? "linear-gradient(180deg, #052E25 0%, #0F172A 100%)"
+                    : "linear-gradient(180deg, #2A0F0F 0%, #0F172A 100%)",
+        borderRadius: "clamp(20px, 3vw, 40px)",
+        filter: isWon
+                ? "drop-shadow(-2px 4px 6px rgba(0,255,170,0.25))"
+                : "drop-shadow(-2px 4px 6px rgba(255,80,80,0.25))"
+    } : {};
+
+    const accentColor = isWon
+                        ? "#00E6A8"
+                        : isLost
+                          ? "#FF6B6B"
+                          : colors?.text_header || "#FFFFFF";
+
+    const labelColor = isWon
+                       ? "#A7F3D0"
+                       : isLost
+                         ? "#FFC2C2"
+                         : colors?.text || "#E2E8F0";
+
+    const valueColor = "#FFFFFF";
 
     // Styles
-    const containerGrid = {
+    const containerGridStyle = {
         display: "grid",
         gridTemplateColumns: effectiveColumns === 1 ? "1fr" : "repeat(2, minmax(0, 1fr))",
         columnGap: effectiveColumnGap,
         rowGap: "clamp(8px, 1.6vw, 12px)"
     };
 
-    const pairRow = {
+    const pairRowStyle = {
         display: "flex",
         justifyContent: "space-between",
         alignItems: "center",
@@ -49,28 +70,29 @@ function GameInfoPanel({
         minWidth: 0
     };
 
-    const label = {
+    const labelStyle = {
         fontWeight: 600,
         fontSize: labelFontSize,
         lineHeight: 1.2,
         textAlign: "left",
         minWidth: 0,
         overflowWrap: "anywhere",
-        wordBreak: "break-word"
+        wordBreak: "break-word",
+        color: labelColor
     };
 
-    const value = {
+    const valueStyle = {
         fontWeight: 700,
         fontSize: valueFontSize,
         lineHeight: 1.2,
-        color: colors?.text_header || "#FFFFFF",
+        color: valueColor,
         textAlign: "right",
         minWidth: 0,
         overflowWrap: "anywhere",
         wordBreak: "break-word"
     };
 
-    const heartsContainer = {
+    const heartsContainerStyle = {
         display: "flex",
         flexDirection: "column",
         gap: "6px",
@@ -108,15 +130,22 @@ function GameInfoPanel({
         width: "100%"
     };
 
+    const heartsStyle = {
+        fontSize: heartFontSize,
+        display: "inline-block",
+        minWidth: 0,
+        verticalAlign: "middle"
+    };
+
     const timerStyle = {
         textAlign: "center",
-        color: colors?.text_header || "#FFFFFF",
+        color: valueColor,
         fontSize: "clamp(22px, 3.6vw, 32px)",
         fontWeight: 800,
         marginTop: "clamp(6px, 1.4vw, 8px)"
     };
 
-    const gameOverSection = {
+    const gameOverStyle = {
         marginTop: "clamp(10px, 2vw, 14px)",
         display: "grid",
         gap: "clamp(4px, 1vw, 6px)"
@@ -143,26 +172,36 @@ function GameInfoPanel({
         {key: "lives", label: "Lives left:", value: view.lives?.total === 0 ? "∞" : `${view.lives?.left}/${view.lives?.total}`},
     ];
 
+    const titleText = isGameOver
+                      ? (view.status === "won" ? "You Win! 🎉" : "Game Over 💀")
+                      : "Game Info";
+
     return (
             <MinesweeperInfoPanel
-                    title={isGameOver ? (view.status === "won" ? "Congratulations! 🎉" : "Game Over 💀") : "Game Info"}
+                    title={titleText}
                     maxHeightPx={maxHeightPx}
                     style={{
                         minWidth: 0,
                         width: "100%",
                         maxWidth: "100%",
-                        boxSizing: "border-box"
+                        boxSizing: "border-box",
+                        ...customStyle
                     }}
                     contentStyle={{
                         maxWidth: "100%",
                         minWidth: 0
                     }}
+                    titleStyle={(isWon || isLost) ? {
+                        color: accentColor,
+                        fontWeight: 900,
+                        fontSize: "clamp(28px, 4vw, 52px)"
+                    } : undefined}
             >
-                <div style={containerGrid}>
+                <div style={containerGridStyle}>
                     {pairs.map(p => (
-                            <div key={p.key} style={pairRow}>
-                                <div style={label}>{p.label}</div>
-                                <div style={value}>{p.value}</div>
+                            <div key={p.key} style={pairRowStyle}>
+                                <div style={labelStyle}>{p.label}</div>
+                                <div style={valueStyle}>{p.value}</div>
                             </div>
                     ))}
                 </div>
@@ -172,13 +211,13 @@ function GameInfoPanel({
                             display: "grid",
                             gridTemplateColumns: "1fr 1fr",
                             columnGap: effectiveColumnGap,
-                            marginTop: "clamp(8px, 1.6vw, 12px)"
+                            marginTop:"-0.2rem"
                         }}>
                             <div>
                                 {showTimer && (
-                                        <div style={pairRow}>
-                                            <div style={label}>Time:</div>
-                                            <div style={value}>{formatTime(timerSec)}</div>
+                                        <div style={pairRowStyle}>
+                                            <div style={labelStyle}>Time:</div>
+                                            <div style={valueStyle}>{formatTime(timerSec)}</div>
                                         </div>
                                 )}
                             </div>
@@ -187,7 +226,7 @@ function GameInfoPanel({
                                 {heartRows.map((row, ri) => (
                                         <div key={ri} style={heartsRowRightStyle}>
                                             {row.map((full, i) => (
-                                                    <span key={i} style={{fontSize: heartSize, lineHeight: 1}}>
+                                                    <span key={i} style={heartsStyle}>
                                                         {full ? "❤️" : "🖤"}
                                                     </span>
                                             ))}
@@ -196,40 +235,40 @@ function GameInfoPanel({
                             </div>
                         </div>
                 ) : (
-                         <>
-                             <div style={heartsContainer}>
-                                 {heartRows.map((row, ri) => (
-                                         <div key={ri} style={heartsRowStyle}>
-                                             {row.map((full, i) => (
-                                                     <span key={i} style={{fontSize: heartSize, lineHeight: 1}}>
+                        <>
+                            <div style={heartsContainerStyle}>
+                                {heartRows.map((row, ri) => (
+                                        <div key={ri} style={heartsRowStyle}>
+                                            {row.map((full, i) => (
+                                                    <span key={i} style={heartsStyle}>
                                                         {full ? "❤️" : "🖤"}
                                                     </span>
-                                             ))}
-                                         </div>
-                                 ))}
-                             </div>
+                                            ))}
+                                        </div>
+                                ))}
+                            </div>
 
-                             {showTimer && (
-                                     <div style={timerStyle}>
-                                         {formatTime(timerSec)}
-                                     </div>
-                             )}
-                         </>
-                 )}
+                            {showTimer && (
+                                    <div style={timerStyle}>
+                                        {formatTime(timerSec)}
+                                    </div>
+                            )}
+                        </>
+                )}
 
                 {isGameOver && (
-                        <div style={gameOverSection}>
-                            <div style={containerGrid}>
-                                <div style={pairRow}>
-                                    <div style={label}>Total Deaths:</div>
-                                    <div style={value}>
+                        <div style={gameOverStyle}>
+                            <div style={containerGridStyle}>
+                                <div style={pairRowStyle}>
+                                    <div style={labelStyle}>Total deaths:</div>
+                                    <div style={valueStyle}>
                                         {(view.lives?.total ?? 0) - (view.lives?.left ?? 0)}
                                     </div>
                                 </div>
 
-                                <div style={pairRow}>
-                                    <div style={label}>Hints Used:</div>
-                                    <div style={value}>{hintsUsed}</div>
+                                <div style={pairRowStyle}>
+                                    <div style={labelStyle}>Hints used:</div>
+                                    <div style={valueStyle}>{hintsUsed}</div>
                                 </div>
                             </div>
                         </div>
